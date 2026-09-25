@@ -1,0 +1,15 @@
+# QueryBot legacy URL cleanup (Cloudflare Pages)
+/index.htm / 301
+/index.php / 301
+/home / 301
+/home/ / 301
+/install /guide/ 301
+/install/ /guide/ 301
+/setup /guide/ 301
+/setup/ /guide/ 301
+/download.html /download/ 301
+/privacy.html /privacy/ 301
+/privacy-policy /privacy/ 301
+/privacy-policy/ /privacy/ 301
+/agent /guide/ 301
+/agent/ /guide/ 301
