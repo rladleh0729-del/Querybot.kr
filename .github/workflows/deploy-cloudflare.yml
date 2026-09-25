@@ -1,0 +1,28 @@
+name: Deploy querybot.kr to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare static site
+        run: |
+          mkdir -p _deploy
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'README.txt' ./ _deploy/
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler@latest pages deploy _deploy --project-name="$CLOUDFLARE_PROJECT_NAME" --branch=main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
