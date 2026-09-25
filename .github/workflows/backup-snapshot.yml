@@ -1,0 +1,65 @@
+name: Create QueryBot backup snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/backup-snapshot.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Choose backup tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            TAG="stable-2026-09-25"
+            TITLE="QueryBot Stable Backup 2026-09-25"
+          else
+            TAG="backup-$(date -u +'%Y%m%d-%H%M%S')"
+            TITLE="QueryBot Backup $(date -u +'%Y-%m-%d %H:%M UTC')"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+
+      - name: Package repository source
+        shell: bash
+        run: |
+          mkdir -p backup-assets
+          git archive --format=zip --output="backup-assets/Querybot-source-${{ steps.meta.outputs.tag }}.zip" "$GITHUB_SHA"
+
+      - name: Copy current release binaries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p latest-assets
+          gh release download querybot-audio-latest --dir latest-assets
+          cp -f latest-assets/* backup-assets/ 2>/dev/null || true
+
+      - name: Create permanent backup release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          TITLE="${{ steps.meta.outputs.title }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; uploading/refreshing backup assets."
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "$TITLE" --notes "Permanent QueryBot snapshot. Includes repository source and the release binaries that were current when this backup was created."
+          fi
+          gh release upload "$TAG" backup-assets/* --clobber
