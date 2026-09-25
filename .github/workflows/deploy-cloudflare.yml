@@ -1,4 +1,4 @@
-name: Deploy querybot.kr to Cloudflare Pages
+name: Deploy querybot.kr to Cloudflare Workers
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  deployments: write
 
 jobs:
   deploy:
@@ -18,13 +17,13 @@ jobs:
 
       - name: Prepare static site
         run: |
+          rm -rf _deploy
           mkdir -p _deploy
-          rsync -a --exclude '.git' --exclude '.github' --exclude 'README.txt' ./ _deploy/
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'README.txt' --exclude 'wrangler.jsonc' --exclude '.deploy-trigger' --exclude '_deploy' ./ _deploy/
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Worker
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy _deploy --project-name=querybot-flac --branch=main
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: deploy
