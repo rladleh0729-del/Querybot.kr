@@ -1,0 +1,3 @@
+const dict={ko:{features:'기능',download:'다운로드',guide:'설치 방법',privacy:'개인정보처리방침'},en:{features:'Features',download:'Download',guide:'Setup guide',privacy:'Privacy'}};
+function setLang(l){localStorage.qbLang=l;document.documentElement.lang=l;document.querySelectorAll('[data-ko]').forEach(e=>e.textContent=e.dataset[l]||e.dataset.ko);document.querySelectorAll('.lang').forEach(e=>e.textContent=l==='ko'?'EN':'한국어')}
+document.addEventListener('DOMContentLoaded',()=>{setLang(localStorage.qbLang||'ko');document.querySelectorAll('.lang').forEach(b=>b.onclick=()=>setLang(document.documentElement.lang==='ko'?'en':'ko'))});
