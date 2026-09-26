@@ -48,6 +48,7 @@ class EmbeddedBrowserTests(unittest.TestCase):
         window = MagicMock()
         window.convert_worker = None
         window.playlist_preview_worker = None
+        window.browser_capture_worker = None
         window.url_input.text.return_value = URL
         dialog = window.youtube_browser_dialog
         dialog.exec.return_value = gui.QDialog.Accepted

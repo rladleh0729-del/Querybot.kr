@@ -66,7 +66,7 @@ class BrowserPlaylistTests(unittest.TestCase):
         from PySide6.QtCore import QMimeData
         mime=QMimeData(); mime.setHtml(HTML)
         clipboard=MagicMock(); clipboard.mimeData.return_value=mime
-        window=MagicMock(); window.convert_worker=None; window.playlist_preview_worker=None
+        window=MagicMock(); window.convert_worker=None; window.playlist_preview_worker=None; window.browser_capture_worker=None
         window.url_input.text.return_value=''
         with patch.object(gui.QApplication,'clipboard',return_value=clipboard), patch.object(gui,'_qb_playlist_ready') as ready, patch.object(gui.backend,'get_playlist_entries',side_effect=AssertionError('must not refetch')):
             gui._qb_import_browser_playlist(window)
