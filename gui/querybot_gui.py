@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QLineEdit, QStackedWidget, QFrame,
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QProgressBar, QMessageBox, QFormLayout, QCheckBox,
-    QDialog, QFileDialog
+    QDialog, QFileDialog, QComboBox
 )
 
 import server as backend
@@ -287,6 +287,32 @@ class ConvertWorker(QThread):
 
         except Exception as e:
             self.failed.emit(str(e))
+
+
+class AudioConvertWorker(QThread):
+    progress=Signal(int,str)
+    success=Signal(dict)
+    failed=Signal(str)
+    def __init__(self,url,format_name):
+        super().__init__(); self.url=url; self.format_name=format_name; self._last=-1
+    def run(self):
+        try:
+            result=backend.download_audio(self.url,self.format_name,progress_hooks=[self._progress_hook],postprocessor_hooks=[self._post_hook],cancel_check=self.isInterruptionRequested)
+            self.progress.emit(100,"변환 완료"); self.success.emit(result)
+        except Exception as e: self.failed.emit(str(e))
+    def _progress_hook(self,data):
+        if self.isInterruptionRequested(): raise RuntimeError("변환 작업이 취소되었습니다.")
+        if data.get("status")=="downloading":
+            got=data.get("downloaded_bytes") or 0; total=data.get("total_bytes") or data.get("total_bytes_estimate") or 0
+            self._emit(int(got*92/total) if total else 5,"다운로드 중")
+        elif data.get("status")=="finished": self._emit(93,"다운로드 완료 · 형식 변환 중")
+    def _post_hook(self,data):
+        if self.isInterruptionRequested(): raise RuntimeError("변환 작업이 취소되었습니다.")
+        pct={"started":95,"processing":97,"finished":99}.get(data.get("status"))
+        if pct is not None: self._emit(pct,f"{self.format_name.upper()} 변환 중")
+    def _emit(self,pct,msg):
+        pct=max(0,min(100,int(pct)))
+        if pct!=self._last or pct in (0,100): self._last=pct; self.progress.emit(pct,msg)
 
 
 class PlaylistConvertWorker(QThread):
@@ -4885,15 +4911,17 @@ class _QBPlaylistWorker(QThread):
     success=Signal(dict)
     failed=Signal(str)
 
-    def __init__(self,url,snapshot):
+    def __init__(self,url,snapshot,format_name):
         super().__init__()
         self.url=url
         self.snapshot=snapshot
+        self.format_name=format_name
 
     def run(self):
         try:
-            result=backend.download_playlist_flac(
+            result=backend.download_playlist_audio(
                 self.url,
+                self.format_name,
                 progress_callback=lambda p,m:self.progress.emit(int(p),str(m)),
                 cancel_check=self.isInterruptionRequested,
                 playlist_snapshot=self.snapshot,
@@ -4907,35 +4935,31 @@ class _QBPlaylistDialog(QDialog):
     def __init__(self,snapshot,parent=None):
         super().__init__(parent)
         self.entries=[dict(x) for x in (snapshot.get("entries") or [])]
-        self.setWindowTitle("재생목록 선택")
-        self.resize(900,650)
-
+        self.setWindowTitle("재생목록 곡 선택")
+        self.resize(1000,680)
         root=QVBoxLayout(self)
         root.setContentsMargins(18,18,18,18)
         root.setSpacing(12)
-
         title=QLabel(snapshot.get("title") or "YouTube 재생목록")
         title.setObjectName("statusTitle")
         root.addWidget(title)
-
-        desc=QLabel(
-            "체크된 곡만 변환합니다. PC에 이미 있는 곡은 기본 해제됩니다. "
-            "기존 곡을 체크하면 기존 FLAC을 휴지통으로 보내고 다시 변환합니다."
-        )
+        info=QLabel(f"목록 ID: {snapshot.get('id') or '확인 안 됨'}  ·  {len(self.entries)}개 영상")
+        info.setObjectName("statusText")
+        root.addWidget(info)
+        desc=QLabel("체크한 영상만 변환합니다. 제목과 영상 ID·주소를 확인하세요. 재생목록에 원치 않는 곡이 섞였다면 해당 항목을 해제하세요.")
         desc.setObjectName("statusText")
         desc.setWordWrap(True)
         root.addWidget(desc)
-
-        self.table=QTableWidget(0,3)
-        self.table.setHorizontalHeaderLabels(["선택","곡명","상태"])
+        self.table=QTableWidget(0,4)
+        self.table.setHorizontalHeaderLabels(["선택","영상 제목","영상 ID","영상 주소"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2,QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
         root.addWidget(self.table,1)
-
         for row,entry in enumerate(self.entries):
             local=_qb_local_for_id(_qb_video_id(entry))
             entry["_qb_local"]=str(local) if local else ""
@@ -4945,59 +4969,35 @@ class _QBPlaylistDialog(QDialog):
             ck.setCheckState(Qt.Unchecked if local else Qt.Checked)
             self.table.setItem(row,0,ck)
             self.table.setItem(row,1,QTableWidgetItem(str(entry.get("title") or "제목 없음")))
-            self.table.setItem(
-                row,2,
-                QTableWidgetItem("PC에 있음 · 체크하면 덮어쓰기" if local else "신규")
-            )
-
+            self.table.setItem(row,2,QTableWidgetItem(str(_qb_video_id(entry) or "ID 확인 안 됨")))
+            self.table.setItem(row,3,QTableWidgetItem(str(entry.get("url") or "")))
         buttons=QHBoxLayout()
-        new_btn=QPushButton("신규만 선택")
-        new_btn.setObjectName("secondaryButton")
-        new_btn.clicked.connect(self.select_new)
-        buttons.addWidget(new_btn)
-        all_btn=QPushButton("전체 선택")
-        all_btn.setObjectName("secondaryButton")
-        all_btn.clicked.connect(lambda:self.set_all(True))
-        buttons.addWidget(all_btn)
-        none_btn=QPushButton("전체 해제")
-        none_btn.setObjectName("secondaryButton")
-        none_btn.clicked.connect(lambda:self.set_all(False))
-        buttons.addWidget(none_btn)
+        for label,fn in [("신규만 선택",self.select_new),("전체 선택",lambda:self.set_all(True)),("전체 해제",lambda:self.set_all(False))]:
+            button=QPushButton(label); button.setObjectName("secondaryButton"); button.clicked.connect(fn); buttons.addWidget(button)
         buttons.addStretch()
-        cancel=QPushButton("취소")
-        cancel.setObjectName("secondaryButton")
-        cancel.clicked.connect(self.reject)
-        buttons.addWidget(cancel)
-        run=QPushButton("체크한 곡 변환")
-        run.setObjectName("accentButton")
-        run.clicked.connect(self.accept_checked)
-        buttons.addWidget(run)
+        cancel=QPushButton("취소"); cancel.setObjectName("secondaryButton"); cancel.clicked.connect(self.reject); buttons.addWidget(cancel)
+        run=QPushButton("선택한 영상 변환"); run.setObjectName("accentButton"); run.clicked.connect(self.accept_checked); buttons.addWidget(run)
         root.addLayout(buttons)
 
     def set_all(self,value):
         state=Qt.Checked if value else Qt.Unchecked
-        for r in range(self.table.rowCount()):
-            self.table.item(r,0).setCheckState(state)
+        for row in range(self.table.rowCount()):
+            self.table.item(row,0).setCheckState(state)
 
     def select_new(self):
-        for r,e in enumerate(self.entries):
-            self.table.item(r,0).setCheckState(
-                Qt.Unchecked if e.get("_qb_local") else Qt.Checked
-            )
+        for row,entry in enumerate(self.entries):
+            self.table.item(row,0).setCheckState(Qt.Unchecked if entry.get("_qb_local") else Qt.Checked)
 
     def selected_entries(self):
         out=[]
-        for r,e in enumerate(self.entries):
-            if self.table.item(r,0).checkState()!=Qt.Checked:
-                continue
-            item=dict(e)
-            item["_qb_overwrite"]=bool(item.get("_qb_local"))
-            out.append(item)
+        for row,entry in enumerate(self.entries):
+            if self.table.item(row,0).checkState()!=Qt.Checked: continue
+            item=dict(entry); item["_qb_overwrite"]=bool(item.get("_qb_local")); out.append(item)
         return out
 
     def accept_checked(self):
         if not self.selected_entries():
-            QMessageBox.information(self,"선택 필요","변환할 곡을 하나 이상 체크해주세요.")
+            QMessageBox.information(self,"선택 필요","변환할 영상을 하나 이상 체크해주세요.")
             return
         self.accept()
 
@@ -5052,15 +5052,15 @@ def _qb_build_ui(self):
     title=QLabel("♪  QueryBot Audio")
     title.setObjectName("appTitle")
     side.addWidget(title)
-    subtitle=QLabel("YouTube · FLAC")
+    subtitle=QLabel("YouTube · 음원 변환")
     subtitle.setObjectName("appSubTitle")
     side.addWidget(subtitle)
     side.addSpacing(22)
 
     self.nav_buttons=[]
     for label,index in [
-        ("◉   FLAC 변환",0),
-        ("▤   FLAC 보관함",1),
+        ("◉   음원 변환",0),
+        ("▤   음원 보관함",1),
         ("⚙   설정",2),
     ]:
         btn=QPushButton(label)
@@ -5090,12 +5090,12 @@ def _qb_build_convert_page(self):
     layout.setContentsMargins(34,30,34,28)
     layout.setSpacing(18)
 
-    title=QLabel("YouTube FLAC 변환")
+    title=QLabel("음원 변환")
     title.setObjectName("pageTitle")
     layout.addWidget(title)
     desc=QLabel(
-        "영상 1개 또는 YouTube 재생목록을 FLAC으로 변환합니다. "
-        "재생목록은 곡별 선택이 가능하며 태그와 앨범커버를 자동 저장합니다."
+        "YouTube 영상이나 재생목록에서 음원을 선택한 형식으로 저장합니다. "
+        "재생목록은 목록의 제목과 영상 주소를 확인한 뒤 원하는 곡만 골라 변환할 수 있습니다."
     )
     desc.setWordWrap(True)
     desc.setObjectName("pageDesc")
@@ -5105,9 +5105,20 @@ def _qb_build_convert_page(self):
     card.setObjectName("card")
     c=QVBoxLayout(card)
     c.setContentsMargins(22,22,22,22)
-    lab=QLabel("YouTube 주소")
+    lab=QLabel("저장 형식")
     lab.setObjectName("fieldLabel")
     c.addWidget(lab)
+    self.format_combo=QComboBox()
+    self.format_combo.addItem("MP3 · 호환성이 높은 일반 음원", "mp3")
+    self.format_combo.addItem("M4A · AAC 오디오", "m4a")
+    self.format_combo.addItem("WAV · 비압축 오디오", "wav")
+    self.format_combo.addItem("FLAC · 무손실 오디오", "flac")
+    self.format_combo.setCurrentIndex(max(0,self.format_combo.findData(self.settings.value("audio_format","mp3"))))
+    self.format_combo.currentIndexChanged.connect(lambda *_: self.settings.setValue("audio_format",self.format_combo.currentData()))
+    c.addWidget(self.format_combo)
+    address_label=QLabel("영상 또는 재생목록 주소")
+    address_label.setObjectName("fieldLabel")
+    c.addWidget(address_label)
 
     row=QHBoxLayout()
     self.url_input=QLineEdit()
@@ -5120,12 +5131,12 @@ def _qb_build_convert_page(self):
     paste.clicked.connect(self.paste_url)
     row.addWidget(paste)
 
-    self.convert_btn=QPushButton("FLAC 변환")
+    self.convert_btn=QPushButton("음원 변환")
     self.convert_btn.setObjectName("primaryButton")
     self.convert_btn.clicked.connect(self.start_conversion)
     row.addWidget(self.convert_btn)
 
-    self.playlist_convert_btn=QPushButton("재생목록 선택")
+    self.playlist_convert_btn=QPushButton("재생목록에서 선택")
     self.playlist_convert_btn.setObjectName("accentButton")
     self.playlist_convert_btn.clicked.connect(self.start_playlist_conversion)
     row.addWidget(self.playlist_convert_btn)
@@ -5147,7 +5158,7 @@ def _qb_build_convert_page(self):
     self.convert_status_title=QLabel("변환 준비 완료")
     self.convert_status_title.setObjectName("statusTitle")
     s.addWidget(self.convert_status_title)
-    self.convert_status_text=QLabel("YouTube 주소를 입력한 뒤 변환을 시작하세요.")
+    self.convert_status_text=QLabel("주소를 입력하고 저장 형식을 선택한 뒤 변환을 시작하세요.")
     self.convert_status_text.setWordWrap(True)
     self.convert_status_text.setObjectName("statusText")
     s.addWidget(self.convert_status_text)
@@ -5422,15 +5433,32 @@ def _qb_delete_selected_local_files(self):
         QMessageBox.warning(self,"일부 삭제 실패",f"{len(deleted)}개 삭제, {len(failed)}개 실패했습니다.")
 
 
+def _qb_selected_format(self):
+    return str(self.format_combo.currentData() or "mp3").lower()
+
+
+def _qb_local_for_id(video_id,format_name="mp3"):
+    if not video_id: return None
+    ext="."+str(format_name or "mp3").lower()
+    suffix=f" [{video_id}]{ext}".lower()
+    folder=Path(backend.DOWNLOAD_DIR)
+    try:
+        for path in folder.glob("*"+ext):
+            if path.name.lower().endswith(suffix): return path
+    except Exception: pass
+    return None
+
+
 def _qb_launch_single(self,url):
+    format_name=_qb_selected_format(self)
     self.convert_btn.setEnabled(False)
     self.playlist_convert_btn.setEnabled(False)
     self.convert_progress.setValue(0)
     self.convert_progress.show()
-    self.convert_status_title.setText("변환 중...")
-    self.convert_status_text.setText("YouTube 정보를 확인하는 중...")
-    _qb_save_pending({"type":"single","url":url})
-    self.convert_worker=ConvertWorker(url)
+    self.convert_status_title.setText("음원 변환 중...")
+    self.convert_status_text.setText(f"{format_name.upper()} 형식으로 변환하고 있습니다.")
+    _qb_save_pending({"type":"single","url":url,"format":format_name})
+    self.convert_worker=AudioConvertWorker(url,format_name)
     self.convert_worker.progress.connect(self.conversion_progress)
     self.convert_worker.success.connect(self.conversion_done)
     self.convert_worker.failed.connect(self.conversion_failed)
@@ -5440,93 +5468,55 @@ def _qb_launch_single(self,url):
 def _qb_start_conversion(self):
     url=self.url_input.text().strip()
     if not url:
-        QMessageBox.information(self,"주소 필요","YouTube 주소를 입력해주세요.")
+        QMessageBox.information(self,"주소 필요","YouTube 영상 주소를 입력해주세요.")
         return
-    if self.convert_worker and self.convert_worker.isRunning():
-        return
-    local=_qb_local_for_id(_qb_video_id(url))
+    if self.convert_worker and self.convert_worker.isRunning(): return
+    format_name=_qb_selected_format(self)
+    local=_qb_local_for_id(_qb_video_id(url),format_name)
     if local:
-        box=QMessageBox(self)
-        box.setIcon(QMessageBox.Question)
-        box.setWindowTitle("이미 변환된 파일")
-        box.setText(
-            f"PC에 이미 같은 영상의 FLAC이 있습니다.\n\n{local.name}\n\n"
-            "기존 파일을 휴지통으로 보내고 다시 변환할까요?"
-        )
+        box=QMessageBox(self); box.setIcon(QMessageBox.Question); box.setWindowTitle("이미 변환된 파일")
+        box.setText(f"같은 영상의 {format_name.upper()} 파일이 이미 있습니다.\n\n{local.name}\n\n기존 파일을 휴지통으로 보내고 다시 변환할까요?")
         box.setStandardButtons(QMessageBox.Yes|QMessageBox.No)
-        if box.button(QMessageBox.Yes):
-            box.button(QMessageBox.Yes).setText("덮어쓰기")
-        if box.button(QMessageBox.No):
-            box.button(QMessageBox.No).setText("취소")
-        if box.exec()!=QMessageBox.Yes:
-            return
-        try:
-            if not QFile.moveToTrash(str(local).replace("\\","/")):
-                QMessageBox.warning(self,"덮어쓰기 실패","기존 파일을 휴지통으로 보내지 못했습니다.")
-                return
-        except Exception as e:
-            QMessageBox.warning(self,"덮어쓰기 실패",str(e))
-            return
+        if box.button(QMessageBox.Yes): box.button(QMessageBox.Yes).setText("덮어쓰기")
+        if box.button(QMessageBox.No): box.button(QMessageBox.No).setText("취소")
+        if box.exec()!=QMessageBox.Yes: return
+        if not QFile.moveToTrash(str(local).replace("\\","/")):
+            QMessageBox.warning(self,"덮어쓰기 실패","기존 파일을 휴지통으로 보내지 못했습니다."); return
     _qb_launch_single(self,url)
 
 
 def _qb_start_playlist(self):
     url=self.url_input.text().strip()
     if not url:
-        QMessageBox.information(self,"주소 필요","YouTube 재생목록 또는 Mix 주소를 입력해주세요.")
-        return
-    if self.convert_worker and self.convert_worker.isRunning():
-        return
-
-    self.convert_btn.setEnabled(False)
-    self.playlist_convert_btn.setEnabled(False)
-    self.convert_progress.setValue(0)
-    self.convert_progress.show()
+        QMessageBox.information(self,"주소 필요","재생목록 주소를 입력해주세요."); return
+    if self.convert_worker and self.convert_worker.isRunning(): return
+    self.convert_btn.setEnabled(False); self.playlist_convert_btn.setEnabled(False)
+    self.convert_progress.setValue(0); self.convert_progress.show()
     self.convert_status_title.setText("재생목록 확인 중...")
-    self.convert_status_text.setText("YouTube에서 곡 목록을 읽고 있습니다.")
+    self.convert_status_text.setText("목록을 읽고 각 영상의 제목과 주소를 확인합니다.")
     QApplication.processEvents()
-
-    try:
-        snapshot=backend.get_playlist_entries(url)
+    try: snapshot=backend.get_playlist_entries(url)
     except Exception as e:
-        self.convert_btn.setEnabled(True)
-        self.playlist_convert_btn.setEnabled(True)
-        self.convert_progress.hide()
-        self.convert_status_title.setText("재생목록 확인 실패")
-        self.convert_status_text.setText(str(e))
-        return
-
+        self.convert_btn.setEnabled(True); self.playlist_convert_btn.setEnabled(True); self.convert_progress.hide()
+        self.convert_status_title.setText("재생목록 확인 실패"); self.convert_status_text.setText(str(e)); return
     dialog=_QBPlaylistDialog(snapshot,self)
     if dialog.exec()!=QDialog.Accepted:
-        self.convert_btn.setEnabled(True)
-        self.playlist_convert_btn.setEnabled(True)
-        self.convert_progress.hide()
-        self.convert_status_title.setText("재생목록 변환 취소")
-        self.convert_status_text.setText("선택을 취소했습니다.")
-        return
-
+        self.convert_btn.setEnabled(True); self.playlist_convert_btn.setEnabled(True); self.convert_progress.hide()
+        self.convert_status_title.setText("재생목록 선택 취소"); self.convert_status_text.setText("선택을 취소했습니다."); return
     selected=dialog.selected_entries()
     clean=[]
     for entry in selected:
-        item=dict(entry)
-        local=item.pop("_qb_local","")
-        overwrite=bool(item.pop("_qb_overwrite",False))
+        item=dict(entry); local=item.pop("_qb_local",""); overwrite=bool(item.pop("_qb_overwrite",False))
         if overwrite and local:
-            try:
-                QFile.moveToTrash(str(local).replace("\\","/"))
-            except Exception:
-                pass
+            try: QFile.moveToTrash(str(local).replace("\\\\","/"))
+            except Exception: pass
         clean.append(item)
-
-    selected_snapshot=dict(snapshot)
-    selected_snapshot["entries"]=clean
-    selected_snapshot["count"]=len(clean)
-
-    _qb_save_pending({"type":"playlist","url":url,"snapshot":selected_snapshot})
-
-    self.convert_status_title.setText("재생목록 변환 중...")
-    self.convert_status_text.setText(f"선택한 {len(clean)}곡을 순서대로 처리합니다.")
-    self.convert_worker=_QBPlaylistWorker(url,selected_snapshot)
+    selected_snapshot=dict(snapshot); selected_snapshot["entries"]=clean; selected_snapshot["count"]=len(clean)
+    format_name=_qb_selected_format(self)
+    _qb_save_pending({"type":"playlist","url":url,"snapshot":selected_snapshot,"format":format_name})
+    self.convert_status_title.setText("선택한 음원 변환 중...")
+    self.convert_status_text.setText(f"{len(clean)}개 영상을 {format_name.upper()} 형식으로 변환합니다.")
+    self.convert_worker=_QBPlaylistWorker(url,selected_snapshot,format_name)
     self.convert_worker.progress.connect(self.conversion_progress)
     self.convert_worker.success.connect(self.playlist_conversion_done)
     self.convert_worker.failed.connect(self.conversion_failed)
@@ -5541,9 +5531,9 @@ def _qb_conversion_done(self,result):
     if path_text:
         self.last_file=Path(path_text)
         self.result_reveal_btn.setEnabled(True)
-    title=result.get("title") or (self.last_file.name if self.last_file else "FLAC 파일")
+    title=result.get("title") or (self.last_file.name if self.last_file else "음원 파일")
     artist=result.get("artist") or ""
-    self.convert_status_title.setText("✓ FLAC 변환 완료")
+    self.convert_status_title.setText(f"✓ 음원 변환 완료 · {Path(path_text).suffix.upper().lstrip('.') if path_text else '완료'}")
     self.convert_status_text.setText(
         f"{title}"
         +(f"\n아티스트: {artist}" if artist else "")
@@ -5591,7 +5581,7 @@ def _qb_offer_resume(self):
         url=str(pending.get("url") or "").strip()
         if not url:
             _qb_clear_pending(); return
-        if _qb_local_for_id(_qb_video_id(url)):
+        if _qb_local_for_id(_qb_video_id(url),str(pending.get("format") or "mp3")):
             _qb_clear_pending(); return
         if QMessageBox.question(
             self,"지난 작업 이어하기",
@@ -5599,6 +5589,7 @@ def _qb_offer_resume(self):
             QMessageBox.Yes|QMessageBox.No
         )==QMessageBox.Yes:
             self.url_input.setText(url)
+            self.format_combo.setCurrentIndex(max(0,self.format_combo.findData(str(pending.get("format") or "mp3"))))
             _qb_launch_single(self,url)
         return
 
@@ -5609,7 +5600,7 @@ def _qb_offer_resume(self):
             _qb_clear_pending(); return
         remaining=[
             dict(e) for e in (snap.get("entries") or [])
-            if not _qb_local_for_id(_qb_video_id(e))
+            if not _qb_local_for_id(_qb_video_id(e),str(pending.get("format") or "mp3"))
         ]
         if not remaining:
             _qb_clear_pending(); return
@@ -5630,8 +5621,10 @@ def _qb_offer_resume(self):
         self.convert_progress.show()
         self.convert_status_title.setText("지난 작업 이어서 변환 중...")
         self.convert_status_text.setText(f"남은 {len(remaining)}곡을 처리합니다.")
-        _qb_save_pending({"type":"playlist","url":url,"snapshot":rs})
-        self.convert_worker=_QBPlaylistWorker(url,rs)
+        format_name=str(pending.get("format") or "mp3")
+        self.format_combo.setCurrentIndex(max(0,self.format_combo.findData(format_name)))
+        _qb_save_pending({"type":"playlist","url":url,"snapshot":rs,"format":format_name})
+        self.convert_worker=_QBPlaylistWorker(url,rs,format_name)
         self.convert_worker.progress.connect(self.conversion_progress)
         self.convert_worker.success.connect(self.playlist_conversion_done)
         self.convert_worker.failed.connect(self.conversion_failed)
