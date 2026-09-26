@@ -1,0 +1,46 @@
+name: Optimize and verify QueryBot GUI
+
+on:
+  push:
+    branches: [codex/optimize-querybot-gui-20260926]
+    paths:
+      - tools/optimize_gui.py
+      - tools/verify_optimized_gui.py
+      - .github/workflows/optimize-gui.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  optimize:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install packaging and verification tools
+        run: python -m pip install PyInstaller==6.22.3 pefile==2024.8.26 Pillow==12.3.0 psutil
+      - name: Fetch the exact uploaded release binary
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download querybot-audio-latest --pattern QueryBotAudioGUI.exe --dir original
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download original GUI' }
+          $sha = (Get-FileHash original/QueryBotAudioGUI.exe -Algorithm SHA256).Hash.ToLower()
+          if ($sha -ne '0274936a1a2bee5b4add1cfc7571a116411a319cdb5e0abb4705cd4b14ed63b5') { throw 'Release changed; refusing to optimize an unverified input' }
+      - name: Optimize packaging and add Windows product metadata
+        run: python tools/optimize_gui.py original/QueryBotAudioGUI.exe dist/QueryBotAudioGUI_optimized.exe --metadata --report dist/QueryBotAudioGUI_optimization.json
+      - name: Verify actual executable, browser, GUI and audio codecs
+        run: python tools/verify_optimized_gui.py dist/QueryBotAudioGUI_optimized.exe dist/QueryBotAudioGUI_optimization.json
+      - name: Keep validated executable and evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: QueryBotAudioGUI-optimized
+          path: dist/*
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
