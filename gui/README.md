@@ -2,9 +2,17 @@
 
 Standalone Windows audio converter. Download `QueryBotAudioGUI.exe` from the `querybot-audio-latest` release; a browser extension is optional.
 
-## Pick a playlist inside the GUI (recommended)
+## Import the already-open YouTube playlist (recommended)
 
-Paste a YouTube URL and click **YouTube에서 목록 선택**. The app opens its own visible YouTube browser; you can also leave the URL empty and search there. Open a playlist or Mix, then click **이 목록 가져오기**. Select tracks in the existing dialog and convert using the chosen MP3/M4A/WAV/FLAC format. No page copying or extension is required.
+Open the desired YouTube playlist tab in Chrome, Edge or Brave, then click **열린 YouTube에서 가져오기** in QueryBot. A single YouTube window is selected automatically; if there are several, choose one. The app briefly switches to that window, focuses the verified YouTube page, and copies its current contents before showing the existing track selector. Pause keyboard/mouse input while it runs. The clipboard is replaced by the copied page, just as with manual Ctrl+A/C.
+
+This path uses the existing browser's displayed playlist, without opening a new Mix, reading cookies, or requiring an extension. The browser process, page URL, document focus, foreground window and new clipboard sequence are checked. If these cannot be verified, it stops and offers manual copying; it does not guess another list. Only loaded playlist rows are imported.
+
+The **다른 방법** menu contains manual **화면 목록 붙여넣기**, an independent **새 YouTube 창**, and **주소로 빠른 조회**.
+
+## Pick a playlist inside the GUI (optional, separate browser session)
+
+Paste a YouTube URL and choose **다른 방법 → 새 YouTube 창**. The app opens its own visible YouTube browser; you can also leave the URL empty and search there. Open a playlist or Mix, then click **이 목록 가져오기**. Select tracks in the existing dialog and convert using the chosen MP3/M4A/WAV/FLAC format. No page copying or extension is required.
 
 The app captures the currently rendered playlist rows in their displayed order. Scroll the playlist to load more rows before importing. Hidden panels and recommendations outside the playlist are excluded; navigation during capture invalidates the result. The resulting snapshot is reused for conversion and resume without fetching another Mix.
 

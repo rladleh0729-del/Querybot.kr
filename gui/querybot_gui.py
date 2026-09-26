@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QLineEdit, QStackedWidget, QFrame,
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QProgressBar, QMessageBox, QFormLayout, QCheckBox,
-    QDialog, QFileDialog, QComboBox
+    QDialog, QFileDialog, QComboBox, QInputDialog, QMenu
 )
 
 import server as backend
@@ -4748,6 +4748,10 @@ def main():
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
+    if "--check-capture-runtime" in sys.argv:
+        from native_browser_capture import check_runtime
+        check_runtime()
+        return
     if "--check-browser" in sys.argv:
         from browser_check import check_browser
         sys.exit(check_browser(app))
@@ -4989,6 +4993,8 @@ def _qb_init(self):
     self.last_file=None
     self.convert_worker=None
     self.playlist_preview_worker=None
+    self.browser_capture_worker=None
+    self._qb_closing=False
     self.upload_worker=None
     self.ping_worker=None
     self.library_filter_mode="all"
@@ -5004,6 +5010,15 @@ def _qb_init(self):
 
     self.build_ui()
     self.apply_style()
+    self.setStyleSheet(self.styleSheet()+'''
+        QInputDialog { background: #0f141c; color: #f2f5fa; }
+        QComboBox, QMenu { background: #182230; color: #f2f5fa;
+                          border: 1px solid #40516a; border-radius: 6px; padding: 8px; }
+        QComboBox QAbstractItemView { background: #182230; color: #f2f5fa;
+                                    selection-background-color: #b92050; }
+        QMenu::item { padding: 10px 18px; }
+        QMenu::item:selected { background: #34465e; }
+    ''')
     self.refresh_library()
 
 
@@ -5111,22 +5126,22 @@ def _qb_build_convert_page(self):
     self.convert_btn.clicked.connect(self.start_conversion)
     row.addWidget(self.convert_btn)
 
-    self.playlist_convert_btn=QPushButton("YouTube에서 목록 선택")
+    self.playlist_convert_btn=QPushButton("열린 YouTube에서 가져오기")
     self.playlist_convert_btn.setObjectName("accentButton")
     self.playlist_convert_btn.clicked.connect(self.start_playlist_conversion)
     row.addWidget(self.playlist_convert_btn)
     c.addLayout(row)
 
     copy_row=QHBoxLayout()
-    self.browser_playlist_btn=QPushButton("화면 목록 붙여넣기")
+    self.browser_playlist_btn=QPushButton("다른 방법")
     self.browser_playlist_btn.setObjectName("secondaryButton")
-    self.browser_playlist_btn.clicked.connect(lambda:_qb_import_browser_playlist(self))
+    import_menu=QMenu(self.browser_playlist_btn)
+    import_menu.addAction("화면 목록 붙여넣기",lambda:_qb_import_browser_playlist(self))
+    import_menu.addAction("새 YouTube 창",lambda:_qb_open_youtube(self))
+    import_menu.addAction("주소로 빠른 조회",lambda:_qb_start_playlist(self))
+    self.browser_playlist_btn.setMenu(import_menu)
     copy_row.addWidget(self.browser_playlist_btn)
-    quick_lookup=QPushButton("주소로 빠른 조회")
-    quick_lookup.setObjectName("secondaryButton")
-    quick_lookup.clicked.connect(lambda:_qb_start_playlist(self))
-    copy_row.addWidget(quick_lookup)
-    copy_hint=QLabel("앱 안에서 YouTube 목록을 확인하고 ‘이 목록 가져오기’를 누르세요.\n다른 브라우저의 목록은 화면 복사 후 붙여넣기도 가능합니다.")
+    copy_hint=QLabel("현재 브라우저 창으로 잠깐 전환해 목록을 자동 복사합니다.\n가져오는 동안 키보드와 마우스 입력을 잠시 멈춰주세요.")
     copy_hint.setWordWrap(True)
     copy_hint.setObjectName("statusText")
     copy_row.addWidget(copy_hint,1)
@@ -5456,6 +5471,7 @@ def _qb_launch_single(self,url):
 
 
 def _qb_start_conversion(self):
+    if _qb_capture_running(self): return
     url=self.url_input.text().strip()
     if not url:
         QMessageBox.information(self,"주소 필요","YouTube 영상 주소를 입력해주세요.")
@@ -5478,6 +5494,7 @@ def _qb_start_conversion(self):
 
 
 def _qb_import_browser_playlist(self):
+    if _qb_capture_running(self): return
     if self.convert_worker and self.convert_worker.isRunning():
         QMessageBox.information(self,"작업 진행 중","현재 변환이 끝난 뒤 목록을 가져와주세요.")
         return
@@ -5495,7 +5512,104 @@ def _qb_import_browser_playlist(self):
     _qb_playlist_ready(self,snapshot["source_url"],snapshot)
 
 
+class _QBBrowserCaptureWorker(QThread):
+    success=Signal(dict)
+    failed=Signal(str)
+
+    def __init__(self,target,parent=None):
+        super().__init__(parent)
+        self.target=target
+
+    def run(self):
+        try:
+            from native_browser_capture import capture_browser
+            result=capture_browser(self.target["hwnd"],self.target["pid"],cancelled=self.isInterruptionRequested)
+            self.success.emit(result)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
+def _qb_capture_running(self):
+    worker=getattr(self,"browser_capture_worker",None)
+    return bool(worker and worker.isRunning())
+
+
+def _qb_capture_controls(self,enabled):
+    self.convert_btn.setEnabled(enabled)
+    self.playlist_convert_btn.setEnabled(enabled)
+    self.browser_playlist_btn.setEnabled(enabled)
+
+
+def _qb_capture_return(self,target):
+    from native_browser_capture import foreground_window
+    if foreground_window()==target["hwnd"]:
+        self.raise_()
+        self.activateWindow()
+
+
+def _qb_capture_failed(self,target,message):
+    _qb_capture_controls(self,True)
+    _qb_capture_return(self,target)
+    self.convert_status_title.setText("자동 가져오기를 완료하지 못했습니다")
+    self.convert_status_text.setText(message+"\nYouTube 페이지의 빈 곳 클릭 → Ctrl+A → Ctrl+C 후 ‘다른 방법 → 화면 목록 붙여넣기’도 사용할 수 있습니다.")
+
+
+def _qb_capture_ready(self,target,result):
+    if getattr(self,"_qb_closing",False): return
+    from native_browser_capture import clipboard_sequence
+    try:
+        if clipboard_sequence()!=result["sequence"]:
+            raise ValueError("가져오는 중 클립보드가 바뀌었습니다. 다시 시도해주세요.")
+        mime=QApplication.clipboard().mimeData()
+        html=mime.html() if mime and mime.hasHtml() else ""
+        if clipboard_sequence()!=result["sequence"]:
+            raise ValueError("가져오는 중 클립보드가 바뀌었습니다. 다시 시도해주세요.")
+        snapshot=from_browser_html(html,result["url"])
+    except (ValueError,KeyError) as exc:
+        _qb_capture_failed(self,target,str(exc))
+        return
+    _qb_capture_controls(self,True)
+    _qb_capture_return(self,target)
+    snapshot["title"]="현재 브라우저에서 가져온 재생목록"
+    self.url_input.setText(result["url"])
+    self.convert_btn.setEnabled(False); self.playlist_convert_btn.setEnabled(False)
+    _qb_playlist_ready(self,result["url"],snapshot)
+
+
+def _qb_capture_current_browser(self):
+    if _qb_capture_running(self): return
+    if self.convert_worker and self.convert_worker.isRunning(): return
+    lookup=getattr(self,"playlist_preview_worker",None)
+    if lookup and lookup.isRunning(): return
+    from native_browser_capture import list_browser_windows
+    try:
+        windows=list_browser_windows()
+    except Exception as exc:
+        QMessageBox.information(self,"브라우저 확인",str(exc))
+        return
+    preferred=[w for w in windows if "youtube" in w["title"].lower()]
+    candidates=preferred or windows
+    if not candidates:
+        QMessageBox.information(self,"YouTube 창 필요","Chrome, Edge 또는 Brave에서 원하는 YouTube 재생목록 탭을 열어주세요.")
+        return
+    if len(candidates)==1 and preferred:
+        target=candidates[0]
+    else:
+        labels=[f"{i+1}. {w['browser']} · {w['title']}" for i,w in enumerate(candidates)]
+        label,ok=QInputDialog.getItem(self,"가져올 YouTube 창","YouTube 재생목록이 열린 창을 선택하세요.",labels,0,False)
+        if not ok: return
+        target=candidates[labels.index(label)]
+    _qb_capture_controls(self,False)
+    self.convert_status_title.setText("열린 YouTube에서 목록 가져오는 중…")
+    self.convert_status_text.setText("브라우저 페이지를 자동 복사합니다. 잠시 입력을 멈춰주세요.")
+    self.browser_capture_worker=_QBBrowserCaptureWorker(target,self)
+    self.browser_capture_worker.success.connect(lambda result:_qb_capture_ready(self,target,result))
+    self.browser_capture_worker.failed.connect(lambda message:_qb_capture_failed(self,target,message))
+    self.browser_capture_worker.start()
+
+
 def _qb_open_youtube(self):
+    if _qb_capture_running(self): return
     if self.convert_worker and self.convert_worker.isRunning():
         QMessageBox.information(self,"작업 진행 중","현재 변환이 끝난 뒤 목록을 가져와주세요.")
         return
@@ -5518,6 +5632,7 @@ def _qb_open_youtube(self):
 
 
 def _qb_start_playlist(self):
+    if _qb_capture_running(self): return
     url=self.url_input.text().strip()
     if not url:
         QMessageBox.information(self,"주소 필요","재생목록 주소를 입력해주세요."); return
@@ -5628,6 +5743,12 @@ def _qb_playlist_done(self,result):
 
 
 def _qb_offer_resume(self):
+    if getattr(self,"_qb_closing",False): return
+    if _qb_capture_running(self):
+        QTimer.singleShot(1000,lambda:_qb_offer_resume(self))
+        return
+    lookup=getattr(self,"playlist_preview_worker",None)
+    if (self.convert_worker and self.convert_worker.isRunning()) or (lookup and lookup.isRunning()): return
     pending=_qb_load_pending()
     if not pending:
         return
@@ -5687,8 +5808,9 @@ def _qb_offer_resume(self):
 
 
 def _qb_close_event(self,event):
+    self._qb_closing=True
     workers=[
-        w for w in [self.convert_worker,getattr(self,"playlist_preview_worker",None)]
+        w for w in [self.convert_worker,getattr(self,"playlist_preview_worker",None),getattr(self,"browser_capture_worker",None)]
         if w and w.isRunning()
     ]
     for w in workers:
@@ -5713,7 +5835,7 @@ MainWindow.apply_library_filters=_qb_apply_library_filters
 MainWindow.refresh_library=_qb_refresh_library
 MainWindow.delete_selected_local_files=_qb_delete_selected_local_files
 MainWindow.start_conversion=_qb_start_conversion
-MainWindow.start_playlist_conversion=_qb_open_youtube
+MainWindow.start_playlist_conversion=_qb_capture_current_browser
 MainWindow.conversion_done=_qb_conversion_done
 MainWindow.playlist_conversion_done=_qb_playlist_done
 MainWindow.closeEvent=_qb_close_event
