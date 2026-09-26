@@ -96,6 +96,5 @@ jobs:
           }
           gh release upload $tag QueryBotAudioGUI.exe QueryBotAudioSetup.exe QueryBotChromeExtension.zip QueryBotAudio-source.zip QueryBotAudio-build.json --clobber
           if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$env:GITHUB_SHA" -F force=true
-          if ($LASTEXITCODE -ne 0) { throw "Latest source tag update failed" }
+          # Release assets are the public latest channel. The GitHub App token cannot move this existing tag.
 
