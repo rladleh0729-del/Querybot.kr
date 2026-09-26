@@ -1,0 +1,9 @@
+{
+  "name": "com.youtube_flac.converter",
+  "description": "QueryBot Audio Converter",
+  "path": "__HOST_EXE_PATH__",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://khnabimpifgdhofiehcbhdofldnpifcm/"
+  ]
+}

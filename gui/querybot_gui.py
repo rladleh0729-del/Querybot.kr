@@ -12,7 +12,6 @@ from pathlib import Path
 from datetime import datetime
 
 import requests
-import uvicorn
 from mutagen.flac import FLAC, Picture
 
 from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSettings, QRectF, QFile, QUrl, QSize
@@ -36,11 +35,6 @@ DEFAULT_HIBY_URL = "http://192.168.0.11:4399"
 DEFAULT_HIBY_PATH = "/data/mnt/sd_0/"
 AUDIO_EXTENSIONS = {".flac", ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".opus"}
 
-BACKEND_SERVICE_ID = "youtube-flac-converter"
-BACKEND_API_VERSION = "2"
-BACKEND_HEALTH_URL = "http://127.0.0.1:8000/health"
-
-
 def human_size(size: int) -> str:
     units = ["B", "KB", "MB", "GB"]
     value = float(size)
@@ -49,34 +43,6 @@ def human_size(size: int) -> str:
             return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} B"
         value /= 1024
     return f"{size} B"
-
-
-def server_port_open(host="127.0.0.1", port=8000) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=0.25):
-            return True
-    except OSError:
-        return False
-
-
-def backend_health_check(timeout=0.45) -> bool:
-    """8000 포트가 아니라 우리 FLAC 백엔드인지 실제 응답으로 검증한다."""
-    try:
-        response = requests.get(BACKEND_HEALTH_URL, timeout=timeout)
-
-        if response.status_code != 200:
-            return False
-
-        data = response.json()
-
-        return (
-            data.get("status") == "ok"
-            and data.get("service") == BACKEND_SERVICE_ID
-            and str(data.get("api_version")) == BACKEND_API_VERSION
-        )
-
-    except Exception:
-        return False
 
 
 def reveal_file(path: Path):
@@ -119,41 +85,6 @@ def first_tag(audio: FLAC, key: str, default=""):
     if value:
         return str(value[0])
     return default
-
-
-class BackendServer:
-    def __init__(self):
-        self.server = None
-        self.thread = None
-        self.started_here = False
-        self.port_conflict = False
-
-    def start(self):
-        # 이미 우리 서버가 정상 실행 중이면 그대로 사용
-        if backend_health_check():
-            return
-
-        # 8000번 포트는 열려 있는데 health 응답이 다르면
-        # 다른 프로그램 또는 구버전 서버가 사용 중인 것으로 판단
-        if server_port_open():
-            self.port_conflict = True
-            return
-
-        config = uvicorn.Config(
-            backend.app,
-            host="127.0.0.1",
-            port=8000,
-            log_config=None,
-            access_log=False,
-        )
-        self.server = uvicorn.Server(config)
-        self.thread = threading.Thread(target=self.server.run, daemon=True)
-        self.thread.start()
-        self.started_here = True
-
-    def stop(self):
-        if self.started_here and self.server:
-            self.server.should_exit = True
 
 
 class ConvertWorker(QThread):
@@ -1356,8 +1287,6 @@ class MainWindow(QMainWindow):
         self.current_upload_files = []
         self.current_upload_is_auto = False
 
-        self.server_controller = BackendServer()
-        self.server_controller.start()
 
         self.setWindowTitle(APP_NAME)
         self.resize(1120, 740)
@@ -1377,10 +1306,6 @@ class MainWindow(QMainWindow):
             lambda: self.refresh_hiby_files(silent=True)
         )
 
-        self.server_timer = QTimer(self)
-        self.server_timer.timeout.connect(self.update_server_status)
-        self.server_timer.start(1200)
-        self.update_server_status()
 
         # 시작 당시 존재하던 파일은 자동 전송 대상에서 제외한다.
         self.reset_auto_upload_watch_baseline()
@@ -1965,7 +1890,7 @@ class MainWindow(QMainWindow):
             self.nav_buttons.append(btn)
 
         side_layout.addStretch()
-        self.server_status = QLabel("● 서버 확인 중")
+        self.server_status = QLabel("● 로컬 변환 엔진")
         self.server_status.setObjectName("serverStatus")
         side_layout.addWidget(self.server_status)
         root.addWidget(self.sidebar)
@@ -2638,20 +2563,6 @@ class MainWindow(QMainWindow):
         elif index == 2:
             self.refresh_hiby_text()
             self.refresh_hiby_files()
-
-    def update_server_status(self):
-        if backend_health_check():
-            self.server_status.setText("● 서버 정상 · 127.0.0.1:8000")
-            self.server_status.setProperty("online", True)
-        elif server_port_open():
-            self.server_status.setText("● 8000 포트 충돌 · 다른 서버 감지")
-            self.server_status.setProperty("online", False)
-        else:
-            self.server_status.setText("● 서버 연결 안 됨")
-            self.server_status.setProperty("online", False)
-
-        self.server_status.style().unpolish(self.server_status)
-        self.server_status.style().polish(self.server_status)
 
     def paste_url(self):
         self.url_input.setText(QApplication.clipboard().text().strip())
@@ -4829,7 +4740,6 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
 
-        self.server_controller.stop()
         event.accept()
 
 
@@ -5069,8 +4979,6 @@ def _qb_init(self):
     self.ping_worker=None
     self.library_filter_mode="all"
 
-    self.server_controller=BackendServer()
-    self.server_controller.start()
 
     self.setWindowTitle(APP_NAME)
     self.resize(1160,760)
@@ -5084,10 +4992,6 @@ def _qb_init(self):
     self.apply_style()
     self.refresh_library()
 
-    self.server_timer=QTimer(self)
-    self.server_timer.timeout.connect(self.update_server_status)
-    self.server_timer.start(1200)
-    self.update_server_status()
 
     QTimer.singleShot(1200,lambda:_qb_offer_resume(self))
 
@@ -5128,7 +5032,7 @@ def _qb_build_ui(self):
         self.nav_buttons.append(btn)
 
     side.addStretch()
-    self.server_status=QLabel("● 서버 확인 중")
+    self.server_status=QLabel("● 로컬 변환 엔진")
     self.server_status.setObjectName("serverStatus")
     side.addWidget(self.server_status)
     root.addWidget(self.sidebar)
@@ -5388,11 +5292,11 @@ def _qb_build_settings_page(self):
     info2=QVBoxLayout()
     a2=QLabel("로컬 변환 엔진")
     a2.setObjectName("settingLabel")
-    b2=QLabel("GUI 실행 시 자동 시작 · 외부 플레이어 전송 기능 없음")
+    b2=QLabel("앱 내 로컬 처리 · 외부 플레이어 전송 기능 없음")
     b2.setObjectName("settingHint")
     info2.addWidget(a2); info2.addWidget(b2)
     r2.addLayout(info2); r2.addStretch()
-    st=QLabel("● 127.0.0.1:8000")
+    st=QLabel("● 준비됨")
     st.setObjectName("settingStatus")
     r2.addWidget(st)
     cl.addWidget(row2)
@@ -5711,10 +5615,6 @@ def _qb_close_event(self,event):
         self.convert_status_title.setText("작업을 정리한 뒤 종료합니다...")
         QTimer.singleShot(500,self.close)
         return
-    try:
-        self.server_controller.stop()
-    except Exception:
-        pass
     event.accept()
 
 

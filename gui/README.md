@@ -10,8 +10,8 @@ YouTube Mix (`RD...`) is dynamic. Its anonymous response can differ from a signe
 
 ## Development and releases
 
-Run `python -m unittest discover -s gui -p test_playlist.py -v` after installing the dependencies listed in `.github/workflows/build-release-assets.yml`.
+Run `python -m unittest discover -s gui -p test_playlist.py -v` after installing the dependencies listed in `.github/workflows/build-release-assets.yml`. The Chrome Native Host is built separately from `native-host/querybot_native_host.py`.
 
-The Windows workflow tests the playlist logic and selection dialog, builds the standalone executable, and publishes matching source and `QueryBotAudio-build.json` (commit, build run, SHA-256). It moves only the `querybot-audio-latest` tag. Stable backups are not part of this workflow.
+The Windows workflow tests playlist logic, builds both the standalone GUI and the Chrome Native Host, packages `QueryBotAudioSetup.exe` with Inno Setup, and replaces all matching assets in the `querybot-audio-latest` release. The build identity records commit, run, and SHA-256 values for the GUI and Setup.
 
-`QueryBotAudioSetup.exe`, if present from an older release, is a legacy installer and is not rebuilt by this workflow. Use the standalone GUI executable for the current version.
+The Setup installs the Native Host EXE, writes its Chrome manifest with the installed executable path, and registers `com.youtube_flac.converter` under the current user. It supports the Chrome Web Store extension ID in the manifest.

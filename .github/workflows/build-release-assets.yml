@@ -6,6 +6,8 @@ on:
     paths:
       - "gui/**"
       - "extension/**"
+      - "native-host/**"
+      - "QueryBotAudioSetup.iss"
       - ".github/workflows/build-release-assets.yml"
   workflow_dispatch:
 
@@ -34,7 +36,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyinstaller yt-dlp imageio-ffmpeg PySide6 fastapi uvicorn requests mutagen Pillow
+          python -m pip install pyinstaller yt-dlp imageio-ffmpeg PySide6 requests mutagen Pillow
 
       - name: Verify playlist and GUI selection
         shell: pwsh
@@ -46,6 +48,20 @@ jobs:
           python -m PyInstaller --noconfirm --clean --onefile --windowed --name QueryBotAudioGUI --paths gui --collect-all yt_dlp --collect-all imageio_ffmpeg gui/querybot_gui.py
           Copy-Item dist\QueryBotAudioGUI.exe .\QueryBotAudioGUI.exe
 
+      - name: Build Chrome Native Host EXE
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --console --name QueryBotNativeHost --paths gui --paths native-host --collect-all yt_dlp --collect-all imageio_ffmpeg --collect-all mutagen --collect-all PIL --hidden-import server --distpath dist\native --workpath build\native --specpath build\native native-host\querybot_native_host.py
+
+      - name: Build Native Host Setup EXE
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) { throw "Inno Setup compiler was not found: $compiler" }
+          & $compiler QueryBotAudioSetup.iss
+          if ($LASTEXITCODE -ne 0) { throw "Native Host Setup build failed" }
+
       - name: Package Chrome extension
         shell: pwsh
         run: |
@@ -55,7 +71,7 @@ jobs:
         shell: pwsh
         run: |
           git archive --format=zip --output=QueryBotAudio-source.zip HEAD
-          $info = @{ commit = $env:GITHUB_SHA; run = $env:GITHUB_RUN_ID; built_at = (Get-Date).ToUniversalTime().ToString("o"); gui_sha256 = (Get-FileHash QueryBotAudioGUI.exe -Algorithm SHA256).Hash.ToLower() }
+          $info = @{ commit = $env:GITHUB_SHA; run = $env:GITHUB_RUN_ID; built_at = (Get-Date).ToUniversalTime().ToString("o"); gui_sha256 = (Get-FileHash QueryBotAudioGUI.exe -Algorithm SHA256).Hash.ToLower(); setup_sha256 = (Get-FileHash QueryBotAudioSetup.exe -Algorithm SHA256).Hash.ToLower() }
           $info | ConvertTo-Json | Set-Content QueryBotAudio-build.json -Encoding utf8
 
       - name: Publish release assets
@@ -68,8 +84,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --title "QueryBot Audio Downloads" --notes "Current QueryBot Audio GUI and Chrome extension downloads."
           }
-          gh release upload $tag QueryBotAudioGUI.exe QueryBotChromeExtension.zip QueryBotAudio-source.zip QueryBotAudio-build.json --clobber
+          gh release upload $tag QueryBotAudioGUI.exe QueryBotAudioSetup.exe QueryBotChromeExtension.zip QueryBotAudio-source.zip QueryBotAudio-build.json --clobber
           if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
           gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$env:GITHUB_SHA" -F force=true
           if ($LASTEXITCODE -ne 0) { throw "Latest source tag update failed" }
-

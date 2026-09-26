@@ -1,22 +1,10 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from io import BytesIO
-import asyncio, os, re, subprocess, requests, yt_dlp, imageio_ffmpeg
+import os, re, subprocess, requests, yt_dlp, imageio_ffmpeg
 from mutagen import File as MutagenFile
 from mutagen.flac import FLAC, Picture
 from PIL import Image
-
-app=FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 DOWNLOAD_DIR=Path.home()/"Downloads"/"YouTube_FLAC"
 DOWNLOAD_DIR.mkdir(parents=True,exist_ok=True)
@@ -24,11 +12,6 @@ AUTO_OPEN_FOLDER=False
 FFMPEG_EXE=Path(imageio_ffmpeg.get_ffmpeg_exe())
 SERVICE_ID="youtube-flac-converter"
 API_VERSION="2"
-
-class VideoRequest(BaseModel):
-    title:str|None=None
-    url:str|None=None
-    videoId:str|None=None
 
 def get_youtube_video_id(url:str):
     try:
@@ -136,6 +119,10 @@ def download_audio(url:str,format_name="mp3",progress_hooks=None,postprocessor_h
     return {"path":str(output),"title":info.get("track") or info.get("title"),"artist":info.get("artist") or info.get("uploader"),"id":info.get("id"),"format":format_name}
 
 
+def download_flac(url,progress_hooks=None,postprocessor_hooks=None,cancel_check=None):
+    return download_audio(url,"flac",progress_hooks,postprocessor_hooks,cancel_check)
+
+
 def normalize_playlist_entries(entries):
     """Keep the first occurrence and bind every title to its own canonical URL."""
     result=[]; seen=set()
@@ -213,27 +200,6 @@ def download_playlist_audio(url:str,format_name="mp3",progress_callback=None,can
     return {"playlist_title":playlist.get("title") or "YouTube 재생목록","playlist_id":playlist.get("id"),"total":total,"completed":len(results),"failed_count":len(failed),"results":results,"failed":failed}
 
 
-@app.get("/health")
-def health():
-    return {"status":"ok","service":SERVICE_ID,"api_version":API_VERSION}
-
-@app.get("/")
-def home():
-    return {"status":"ok","service":SERVICE_ID}
-
-@app.get("/ping")
-def ping():
-    return {"ok":True,"status":"connected","message":"QueryBot Audio local engine is ready."}
-
-@app.get("/open-folder")
-def open_folder():
-    return open_download_folder()
-
-@app.post("/extract")
-async def extract(video:VideoRequest):
-    url=(video.url or "").strip()
-    if not url:
-        return {"status":"error","message":"YouTube URL이 없습니다."}
-    result=await asyncio.to_thread(download_audio,url,'mp3')
-    return {"status":"success",**result}
+def download_playlist_flac(url,progress_callback=None,cancel_check=None,playlist_snapshot=None):
+    return download_playlist_audio(url,"flac",progress_callback,cancel_check,playlist_snapshot)
 
