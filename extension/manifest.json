@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "QueryBot Audio Converter",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Send the current YouTube video to the QueryBot Windows native host and convert it to FLAC locally.",
   "permissions": [
     "activeTab",
