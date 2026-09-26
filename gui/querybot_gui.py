@@ -4745,8 +4745,12 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
+    if "--check-browser" in sys.argv:
+        from browser_check import check_browser
+        sys.exit(check_browser(app))
     if "--check-startup" in sys.argv:
         return
     window = MainWindow()
@@ -4889,12 +4893,14 @@ class _QBPlaylistDialog(QDialog):
         title=QLabel(snapshot.get("title") or "YouTube 재생목록")
         title.setObjectName("statusTitle")
         root.addWidget(title)
-        source_label="브라우저에서 복사한 화면 목록" if snapshot.get("source")=="browser_copy" else "주소로 새로 조회한 목록"
+        source_label={"browser_copy":"브라우저에서 복사한 화면 목록","embedded_browser":"앱 안의 YouTube 화면 목록"}.get(snapshot.get("source"),"주소로 새로 조회한 목록")
         info=QLabel(f"{source_label}  ·  목록 ID: {snapshot.get('id') or '확인 안 됨'}  ·  {len(self.entries)}개 영상")
         info.setObjectName("statusText")
         root.addWidget(info)
         note=f"체크한 곡을 {format_name.upper()} 형식으로 변환합니다. 제목을 두 번 누르면 영상을 열어 확인할 수 있습니다."
-        if snapshot.get("source")=="browser_copy":
+        if snapshot.get("source")=="embedded_browser":
+            note+="\n가져올 때 이 창에 로드된 곡만 포함됩니다. 아래 확인한 곡과 순서 그대로 변환합니다."
+        elif snapshot.get("source")=="browser_copy":
             note+="\n복사할 때 페이지에 로드된 곡만 포함됩니다. 아래 목록을 그대로 사용하며, 새 Mix로 바꾸지 않습니다."
         elif snapshot.get("is_mix"): note+="\nYouTube Mix는 조회 시점과 로그인 상태에 따라 구성이 달라질 수 있습니다. 아래 확인한 목록 그대로 변환합니다."
         if snapshot.get("limit_reached"): note+="\n최대 500개 항목까지 조회했습니다."
@@ -5105,7 +5111,7 @@ def _qb_build_convert_page(self):
     self.convert_btn.clicked.connect(self.start_conversion)
     row.addWidget(self.convert_btn)
 
-    self.playlist_convert_btn=QPushButton("주소로 목록 조회")
+    self.playlist_convert_btn=QPushButton("YouTube에서 목록 선택")
     self.playlist_convert_btn.setObjectName("accentButton")
     self.playlist_convert_btn.clicked.connect(self.start_playlist_conversion)
     row.addWidget(self.playlist_convert_btn)
@@ -5113,10 +5119,14 @@ def _qb_build_convert_page(self):
 
     copy_row=QHBoxLayout()
     self.browser_playlist_btn=QPushButton("화면 목록 붙여넣기")
-    self.browser_playlist_btn.setObjectName("accentButton")
+    self.browser_playlist_btn.setObjectName("secondaryButton")
     self.browser_playlist_btn.clicked.connect(lambda:_qb_import_browser_playlist(self))
     copy_row.addWidget(self.browser_playlist_btn)
-    copy_hint=QLabel("YouTube 페이지의 빈 곳 클릭 → Ctrl+A → Ctrl+C → 화면 목록 붙여넣기\n현재 보이는 Mix와 같은 곡을 가져옵니다. 확장 프로그램은 필요 없습니다.")
+    quick_lookup=QPushButton("주소로 빠른 조회")
+    quick_lookup.setObjectName("secondaryButton")
+    quick_lookup.clicked.connect(lambda:_qb_start_playlist(self))
+    copy_row.addWidget(quick_lookup)
+    copy_hint=QLabel("앱 안에서 YouTube 목록을 확인하고 ‘이 목록 가져오기’를 누르세요.\n다른 브라우저의 목록은 화면 복사 후 붙여넣기도 가능합니다.")
     copy_hint.setWordWrap(True)
     copy_hint.setObjectName("statusText")
     copy_row.addWidget(copy_hint,1)
@@ -5485,6 +5495,28 @@ def _qb_import_browser_playlist(self):
     _qb_playlist_ready(self,snapshot["source_url"],snapshot)
 
 
+def _qb_open_youtube(self):
+    if self.convert_worker and self.convert_worker.isRunning():
+        QMessageBox.information(self,"작업 진행 중","현재 변환이 끝난 뒤 목록을 가져와주세요.")
+        return
+    lookup=getattr(self,"playlist_preview_worker",None)
+    if lookup and lookup.isRunning(): return
+    from youtube_browser import YouTubeBrowserDialog
+    try:
+        if not hasattr(self,"youtube_browser_dialog"):
+            self.youtube_browser_dialog=YouTubeBrowserDialog(self)
+        dialog=self.youtube_browser_dialog
+        dialog.open_url(self.url_input.text().strip())
+    except (ValueError, RuntimeError) as exc:
+        QMessageBox.information(self,"YouTube 열기",str(exc))
+        return
+    if dialog.exec()!=QDialog.Accepted or not dialog.snapshot: return
+    snapshot=dialog.snapshot
+    self.url_input.setText(snapshot["source_url"])
+    self.convert_btn.setEnabled(False); self.playlist_convert_btn.setEnabled(False)
+    _qb_playlist_ready(self,snapshot["source_url"],snapshot)
+
+
 def _qb_start_playlist(self):
     url=self.url_input.text().strip()
     if not url:
@@ -5681,7 +5713,7 @@ MainWindow.apply_library_filters=_qb_apply_library_filters
 MainWindow.refresh_library=_qb_refresh_library
 MainWindow.delete_selected_local_files=_qb_delete_selected_local_files
 MainWindow.start_conversion=_qb_start_conversion
-MainWindow.start_playlist_conversion=_qb_start_playlist
+MainWindow.start_playlist_conversion=_qb_open_youtube
 MainWindow.conversion_done=_qb_conversion_done
 MainWindow.playlist_conversion_done=_qb_playlist_done
 MainWindow.closeEvent=_qb_close_event

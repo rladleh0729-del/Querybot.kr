@@ -2,6 +2,14 @@
 
 Standalone Windows audio converter. Download `QueryBotAudioGUI.exe` from the `querybot-audio-latest` release; a browser extension is optional.
 
+## Pick a playlist inside the GUI (recommended)
+
+Paste a YouTube URL and click **YouTube에서 목록 선택**. The app opens its own visible YouTube browser; you can also leave the URL empty and search there. Open a playlist or Mix, then click **이 목록 가져오기**. Select tracks in the existing dialog and convert using the chosen MP3/M4A/WAV/FLAC format. No page copying or extension is required.
+
+The app captures the currently rendered playlist rows in their displayed order. Scroll the playlist to load more rows before importing. Hidden panels and recommendations outside the playlist are excluded; navigation during capture invalidates the result. The resulting snapshot is reused for conversion and resume without fetching another Mix.
+
+This browser uses its own app-local storage, not Chrome/Edge/Brave cookies or profiles. Its personalized Mix can differ from an existing external browser, and Google may restrict sign-in in embedded browsers. The visible in-app list is the source of truth. To import an existing external browser's exact list, use the copy method below. The browser runtime is bundled, increasing EXE size. Release verification includes an offline rendered-page extraction check in the packaged EXE.
+
 ## Import the exact list shown in your browser (no extension required)
 
 For a personalized YouTube Mix, open the playlist panel in Chrome, Edge or Brave. Click a blank area of the YouTube page (not the address/search box), then press Ctrl+A and Ctrl+C. In QueryBot click **화면 목록 붙여넣기**. The app reads the copied HTML playlist rows, preserving their video IDs, titles and order, then opens the selection dialog. It ignores recommendations elsewhere on the page and never re-queries a Mix for this path. Only rows loaded at copy time are imported; the dialog shows the imported count and original row numbers. For more rows, load them in the browser and copy again.
