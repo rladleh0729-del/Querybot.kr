@@ -46,7 +46,7 @@ jobs:
       - name: Build standalone GUI EXE
         shell: pwsh
         run: |
-          python -m PyInstaller --noconfirm --clean --onefile --windowed --name QueryBotAudioGUI --paths gui --collect-all yt_dlp --collect-all imageio_ffmpeg --collect-all comtypes gui/querybot_gui.py
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name QueryBotAudioGUI --paths gui --collect-all yt_dlp --collect-all imageio_ffmpeg --hidden-import comtypes --hidden-import comtypes.client --hidden-import comtypes.automation --hidden-import comtypes.gen.UIAutomationClient gui/querybot_gui.py
           Copy-Item dist\QueryBotAudioGUI.exe .\QueryBotAudioGUI.exe
 
       - name: Build Chrome Native Host EXE
