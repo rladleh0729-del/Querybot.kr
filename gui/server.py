@@ -136,56 +136,52 @@ def download_audio(url:str,format_name="mp3",progress_hooks=None,postprocessor_h
     return {"path":str(output),"title":info.get("track") or info.get("title"),"artist":info.get("artist") or info.get("uploader"),"id":info.get("id"),"format":format_name}
 
 
+def normalize_playlist_entries(entries):
+    """Keep the first occurrence and bind every title to its own canonical URL."""
+    result=[]; seen=set()
+    for entry in entries or []:
+        if not isinstance(entry,dict): continue
+        vid=entry.get("id") or get_youtube_video_id(entry.get("url") or "")
+        if not isinstance(vid,str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}",vid) or vid in seen: continue
+        if entry.get("availability") in {"private","premium_only","subscriber_only"}: continue
+        seen.add(vid)
+        item=dict(entry)
+        item.update(id=vid,title=entry.get("title") or "제목 없음",url=f"https://www.youtube.com/watch?v={vid}")
+        result.append(item)
+    return result
+
+
 def get_playlist_entries(url:str):
-    base={
-        "extract_flat":True,
-        "skip_download":True,
-        "quiet":True,
-        "ignoreerrors":True,
-        "playlistend":500,
-        "http_headers":_headers(),
-    }
-    last=None
-    for _,client in _attempts():
-        opts=dict(base)
-        if client:
-            opts["extractor_args"]={"youtube":{"player_client":[client]}}
-        try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                info=ydl.extract_info(url,download=False)
-            entries=[]
-            for e in (info or {}).get("entries") or []:
-                if not e: continue
-                vid=e.get("id")
-                u=f"https://www.youtube.com/watch?v={vid}" if vid else (e.get("webpage_url") or e.get("url"))
-                if not u: continue
-                entries.append({"id":vid,"title":e.get("title") or "제목 없음","url":u})
-            if entries:
-                is_mix="list=RD" in url or "start_radio=1" in url
-                if is_mix:
-                    current_id=get_youtube_video_id(url)
-                    entries=[entry for entry in entries if entry.get("id")==current_id] if current_id else []
-                    if not entries:
-                        entries=[{"id":current_id,"title":"Mix 주소에 포함된 현재 영상","url":f"https://www.youtube.com/watch?v={current_id}"}] if current_id else []
-                if entries:
-                    return {
-                        "title":(info or {}).get("title") or ("YouTube Mix · 현재 영상만" if is_mix else "YouTube 재생목록"),
-                        "id":(info or {}).get("id"),
-                        "entries":entries,
-                        "count":len(entries),
-                        "reported_total":(info or {}).get("playlist_count") or len(entries),
-                        "source_url":url,
-                        "is_mix":is_mix,
-                    }
-        except Exception as e:
-            last=e
-    raise RuntimeError(f"재생목록을 읽지 못했습니다: {last}")
+    parsed=urlparse(url)
+    host=(parsed.hostname or "").lower()
+    if host not in {"youtube.com","www.youtube.com","m.youtube.com","music.youtube.com","youtu.be"}:
+        raise ValueError("YouTube 재생목록 주소를 입력해주세요.")
+    query=parse_qs(parsed.query)
+    playlist_id=query.get("list",[""])[0]
+    if not playlist_id:
+        raise ValueError("재생목록 주소에 list 값이 없습니다. 단일 영상은 '음원 변환'을 사용해주세요.")
+    is_mix=playlist_id.startswith("RD")
+    # Preserve v/index: a Mix is anchored to the supplied video, not a static list.
+    opts={"extract_flat":"in_playlist","skip_download":True,"quiet":True,
+          "ignoreerrors":True,"playlistend":500,"noplaylist":False,
+          "socket_timeout":15,"retries":2,"extractor_retries":2,"http_headers":_headers()}
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info=ydl.extract_info(url,download=False)
+    raw=list((info or {}).get("entries") or [])
+    entries=normalize_playlist_entries(raw)
+    if not entries:
+        raise RuntimeError("조회 가능한 영상이 없습니다. 주소 또는 재생목록 공개 상태를 확인해주세요.")
+    return {"title":(info or {}).get("title") or "YouTube 재생목록",
+            "id":(info or {}).get("id") or playlist_id,"entries":entries,"count":len(entries),
+            "reported_total":(info or {}).get("playlist_count") or len(raw),
+            "source_url":url,"is_mix":is_mix,"removed_count":len(raw)-len(entries),
+            "limit":500,"limit_reached":len(raw)>=500}
 
 def download_playlist_audio(url:str,format_name="mp3",progress_callback=None,cancel_check=None,playlist_snapshot=None):
     def cancelled():
         if cancel_check and cancel_check(): raise RuntimeError("재생목록 변환 작업이 취소되었습니다.")
     playlist=playlist_snapshot if playlist_snapshot else get_playlist_entries(url)
-    entries=list(playlist.get("entries") or [])
+    entries=normalize_playlist_entries(playlist.get("entries") or [])
     total=len(entries)
     if not total: raise RuntimeError("선택한 재생목록 영상이 없습니다.")
     results=[]; failed=[]
@@ -207,11 +203,11 @@ def download_playlist_audio(url:str,format_name="mp3",progress_callback=None,can
             if pct is not None: emit(int(((_idx-1)+pct/100)*100/total),f"[{_idx}/{total}] {_title} · {format_name.upper()} 변환 중")
         try:
             r=download_audio(e["url"],format_name,[hook],[post],cancel_check); r["playlist_index"]=idx; r["playlist_title"]=playlist.get("title"); results.append(r)
-            emit(int(idx*100/total),f"[{idx}/{total}] {_title} · 완료")
+            emit(int(idx*100/total),f"[{idx}/{total}] {title} · 완료")
         except Exception as ex:
             if cancel_check and cancel_check(): raise RuntimeError("재생목록 변환 작업이 취소되었습니다.")
             failed.append({"index":idx,"title":title,"url":e.get("url"),"message":str(ex)})
-            emit(int(idx*100/total),f"[{idx}/{total}] {_title} · 실패, 다음 곡 계속")
+            emit(int(idx*100/total),f"[{idx}/{total}] {title} · 실패, 다음 곡 계속")
     if not results: raise RuntimeError(f"선택한 영상 변환에 모두 실패했습니다: {failed[-1]['message'] if failed else '알 수 없는 오류'}")
     emit(100,f"재생목록 변환 완료 · 성공 {len(results)}곡"+(f" · 실패 {len(failed)}곡" if failed else ""))
     return {"playlist_title":playlist.get("title") or "YouTube 재생목록","playlist_id":playlist.get("id"),"total":total,"completed":len(results),"failed_count":len(failed),"results":results,"failed":failed}
@@ -240,3 +236,4 @@ async def extract(video:VideoRequest):
         return {"status":"error","message":"YouTube URL이 없습니다."}
     result=await asyncio.to_thread(download_audio,url,'mp3')
     return {"status":"success",**result}
+

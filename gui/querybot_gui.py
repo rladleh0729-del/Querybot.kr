@@ -15,7 +15,8 @@ import requests
 import uvicorn
 from mutagen.flac import FLAC, Picture
 
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSettings, QRectF, QFile
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSettings, QRectF, QFile, QUrl, QSize
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QPen
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
@@ -4931,11 +4932,43 @@ class _QBPlaylistWorker(QThread):
             self.failed.emit(str(e))
 
 
+class _QBPlaylistLookupWorker(QThread):
+    success=Signal(dict)
+    failed=Signal(str)
+
+    def __init__(self,url):
+        super().__init__()
+        self.url=url
+
+    def run(self):
+        try:
+            snapshot=backend.get_playlist_entries(self.url)
+            if not self.isInterruptionRequested(): self.success.emit(snapshot)
+        except Exception as exc:
+            if not self.isInterruptionRequested(): self.failed.emit(str(exc))
+
+
 class _QBPlaylistDialog(QDialog):
-    def __init__(self,snapshot,parent=None):
+    def __init__(self,snapshot,parent=None,format_name="mp3"):
         super().__init__(parent)
-        self.entries=[dict(x) for x in (snapshot.get("entries") or [])]
+        self.entries=backend.normalize_playlist_entries(snapshot.get("entries") or [])
         self.setWindowTitle("재생목록 곡 선택")
+        self.setStyleSheet("""
+            QDialog { background: #10151e; font-family: "Malgun Gothic", "Segoe UI"; }
+            QLabel { color: #e8edf6; background: transparent; }
+            QLabel#statusTitle { color: #ffffff; font-size: 18px; font-weight: 600; }
+            QLabel#statusText { color: #bdc8da; }
+            QTableWidget { background: #151d29; color: #e8edf6; gridline-color: #2c384b;
+                           selection-background-color: #31496b; border: 1px solid #344056; }
+            QTableCornerButton::section { background: #202c3d; border: 0; }
+            QHeaderView::section { background: #202c3d; color: #dae4f4; padding: 10px; border: 0; }
+            QTableWidget::indicator { width: 18px; height: 18px; }
+            QTableWidget::indicator:unchecked { background: #10151e; border: 1px solid #8b9db8; }
+            QTableWidget::indicator:checked { background: #ff3765; border: 2px solid #ffc7d3; }
+            QPushButton { background: #263348; color: #ffffff; padding: 10px 14px; border: 1px solid #52647e; border-radius: 6px; }
+            QPushButton:hover { background: #374b68; }
+            QPushButton#accentButton { background: #c51d4a; }
+        """)
         self.resize(1000,680)
         root=QVBoxLayout(self)
         root.setContentsMargins(18,18,18,18)
@@ -4946,7 +4979,10 @@ class _QBPlaylistDialog(QDialog):
         info=QLabel(f"목록 ID: {snapshot.get('id') or '확인 안 됨'}  ·  {len(self.entries)}개 영상")
         info.setObjectName("statusText")
         root.addWidget(info)
-        desc=QLabel("체크한 영상만 변환합니다. 제목과 영상 ID·주소를 확인하세요. 재생목록에 원치 않는 곡이 섞였다면 해당 항목을 해제하세요.")
+        note=f"체크한 곡을 {format_name.upper()} 형식으로 변환합니다. 제목을 두 번 누르면 영상을 열어 확인할 수 있습니다."
+        if snapshot.get("is_mix"): note+="\nYouTube Mix는 조회 시점과 로그인 상태에 따라 구성이 달라질 수 있습니다. 아래 확인한 목록 그대로 변환합니다."
+        if snapshot.get("limit_reached"): note+="\n최대 500개 항목까지 조회했습니다."
+        desc=QLabel(note)
         desc.setObjectName("statusText")
         desc.setWordWrap(True)
         root.addWidget(desc)
@@ -4954,16 +4990,19 @@ class _QBPlaylistDialog(QDialog):
         self.table.setHorizontalHeaderLabels(["선택","영상 제목","영상 ID","영상 주소"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setVisible(True)
+        self.table.setIconSize(QSize(88,50))
+        self.table.cellDoubleClicked.connect(lambda row,col: webbrowser.open(self.entries[row]["url"]) if col else None)
         self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1,QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2,QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3,QHeaderView.Stretch)
         root.addWidget(self.table,1)
         for row,entry in enumerate(self.entries):
-            local=_qb_local_for_id(_qb_video_id(entry))
+            local=_qb_local_for_id(_qb_video_id(entry),format_name)
             entry["_qb_local"]=str(local) if local else ""
             self.table.insertRow(row)
+            self.table.setRowHeight(row,60)
             ck=QTableWidgetItem("")
             ck.setFlags(Qt.ItemIsEnabled|Qt.ItemIsUserCheckable|Qt.ItemIsSelectable)
             ck.setCheckState(Qt.Unchecked if local else Qt.Checked)
@@ -4971,6 +5010,10 @@ class _QBPlaylistDialog(QDialog):
             self.table.setItem(row,1,QTableWidgetItem(str(entry.get("title") or "제목 없음")))
             self.table.setItem(row,2,QTableWidgetItem(str(_qb_video_id(entry) or "ID 확인 안 됨")))
             self.table.setItem(row,3,QTableWidgetItem(str(entry.get("url") or "")))
+        self.network=QNetworkAccessManager(self)
+        self.thumbnail_queue=list(enumerate(self.entries))
+        self.finished.connect(lambda *_: self.thumbnail_queue.clear())
+        for _ in range(min(4,len(self.thumbnail_queue))): self.load_thumbnail()
         buttons=QHBoxLayout()
         for label,fn in [("신규만 선택",self.select_new),("전체 선택",lambda:self.set_all(True)),("전체 해제",lambda:self.set_all(False))]:
             button=QPushButton(label); button.setObjectName("secondaryButton"); button.clicked.connect(fn); buttons.addWidget(button)
@@ -4978,6 +5021,20 @@ class _QBPlaylistDialog(QDialog):
         cancel=QPushButton("취소"); cancel.setObjectName("secondaryButton"); cancel.clicked.connect(self.reject); buttons.addWidget(cancel)
         run=QPushButton("선택한 영상 변환"); run.setObjectName("accentButton"); run.clicked.connect(self.accept_checked); buttons.addWidget(run)
         root.addLayout(buttons)
+
+    def load_thumbnail(self):
+        if not self.thumbnail_queue: return
+        row,entry=self.thumbnail_queue.pop(0)
+        request=QNetworkRequest(QUrl(f"https://i.ytimg.com/vi/{entry['id']}/default.jpg"))
+        request.setTransferTimeout(8000)
+        reply=self.network.get(request)
+        def finished():
+            pix=QPixmap()
+            if pix.loadFromData(bytes(reply.readAll())):
+                self.table.item(row,1).setIcon(QIcon(pix))
+            reply.deleteLater()
+            self.load_thumbnail()
+        reply.finished.connect(finished)
 
     def set_all(self,value):
         state=Qt.Checked if value else Qt.Unchecked
@@ -5112,7 +5169,7 @@ def _qb_build_convert_page(self):
     self.format_combo.addItem("MP3 · 호환성이 높은 일반 음원", "mp3")
     self.format_combo.addItem("M4A · AAC 오디오", "m4a")
     self.format_combo.addItem("WAV · 비압축 오디오", "wav")
-    self.format_combo.addItem("FLAC · 무손실 오디오", "flac")
+    self.format_combo.addItem("FLAC · 무손실 저장", "flac")
     self.format_combo.setCurrentIndex(max(0,self.format_combo.findData(self.settings.value("audio_format","mp3"))))
     self.format_combo.currentIndexChanged.connect(lambda *_: self.settings.setValue("audio_format",self.format_combo.currentData()))
     c.addWidget(self.format_combo)
@@ -5188,7 +5245,7 @@ def _qb_build_library_page(self):
 
     top=QHBoxLayout()
     title_box=QVBoxLayout()
-    title=QLabel("FLAC 보관함")
+    title=QLabel("음원 보관함")
     title.setObjectName("pageTitle")
     title_box.addWidget(title)
     self.library_subtitle=QLabel(str(backend.DOWNLOAD_DIR))
@@ -5303,7 +5360,7 @@ def _qb_build_settings_page(self):
     rl=QHBoxLayout(row)
     rl.setContentsMargins(24,18,24,18)
     info=QVBoxLayout()
-    a=QLabel("FLAC 저장 위치")
+    a=QLabel("음원 저장 위치")
     a.setObjectName("settingLabel")
     b=QLabel("변환된 음원이 저장되는 Windows 폴더")
     b.setObjectName("settingHint")
@@ -5494,12 +5551,20 @@ def _qb_start_playlist(self):
     self.convert_progress.setValue(0); self.convert_progress.show()
     self.convert_status_title.setText("재생목록 확인 중...")
     self.convert_status_text.setText("목록을 읽고 각 영상의 제목과 주소를 확인합니다.")
-    QApplication.processEvents()
-    try: snapshot=backend.get_playlist_entries(url)
-    except Exception as e:
-        self.convert_btn.setEnabled(True); self.playlist_convert_btn.setEnabled(True); self.convert_progress.hide()
-        self.convert_status_title.setText("재생목록 확인 실패"); self.convert_status_text.setText(str(e)); return
-    dialog=_QBPlaylistDialog(snapshot,self)
+    self.playlist_preview_worker=_QBPlaylistLookupWorker(url)
+    self.playlist_preview_worker.success.connect(lambda snapshot:_qb_playlist_ready(self,url,snapshot))
+    self.playlist_preview_worker.failed.connect(lambda message:_qb_playlist_lookup_failed(self,message))
+    self.playlist_preview_worker.start()
+
+
+def _qb_playlist_lookup_failed(self,message):
+    self.convert_btn.setEnabled(True); self.playlist_convert_btn.setEnabled(True); self.convert_progress.hide()
+    self.convert_status_title.setText("재생목록 확인 실패"); self.convert_status_text.setText(message)
+
+
+def _qb_playlist_ready(self,url,snapshot):
+    format_name=_qb_selected_format(self)
+    dialog=_QBPlaylistDialog(snapshot,self,format_name)
     if dialog.exec()!=QDialog.Accepted:
         self.convert_btn.setEnabled(True); self.playlist_convert_btn.setEnabled(True); self.convert_progress.hide()
         self.convert_status_title.setText("재생목록 선택 취소"); self.convert_status_text.setText("선택을 취소했습니다."); return
@@ -5508,8 +5573,9 @@ def _qb_start_playlist(self):
     for entry in selected:
         item=dict(entry); local=item.pop("_qb_local",""); overwrite=bool(item.pop("_qb_overwrite",False))
         if overwrite and local:
-            try: QFile.moveToTrash(str(local).replace("\\\\","/"))
-            except Exception: pass
+            if not QFile.moveToTrash(str(local)):
+                _qb_playlist_lookup_failed(self,"기존 파일을 휴지통으로 보내지 못했습니다: "+str(local))
+                return
         clean.append(item)
     selected_snapshot=dict(snapshot); selected_snapshot["entries"]=clean; selected_snapshot["count"]=len(clean)
     format_name=_qb_selected_format(self)
@@ -5639,7 +5705,12 @@ def _qb_close_event(self,event):
     for w in workers:
         w.requestInterruption()
     for w in workers:
-        w.wait(2500)
+        w.wait(100)
+    if any(w.isRunning() for w in workers):
+        event.ignore()
+        self.convert_status_title.setText("작업을 정리한 뒤 종료합니다...")
+        QTimer.singleShot(500,self.close)
+        return
     try:
         self.server_controller.stop()
     except Exception:

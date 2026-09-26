@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: querybot-latest-release
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: windows-latest
@@ -32,6 +36,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyinstaller yt-dlp imageio-ffmpeg PySide6 fastapi uvicorn requests mutagen Pillow
 
+      - name: Verify playlist and GUI selection
+        shell: pwsh
+        run: python -m unittest discover -s gui -p test_playlist.py -v
+
       - name: Build standalone GUI EXE
         shell: pwsh
         run: |
@@ -43,6 +51,13 @@ jobs:
         run: |
           Compress-Archive -Path extension\* -DestinationPath QueryBotChromeExtension.zip -Force
 
+      - name: Package matching source and build identity
+        shell: pwsh
+        run: |
+          git archive --format=zip --output=QueryBotAudio-source.zip HEAD
+          $info = @{ commit = $env:GITHUB_SHA; run = $env:GITHUB_RUN_ID; built_at = (Get-Date).ToUniversalTime().ToString("o"); gui_sha256 = (Get-FileHash QueryBotAudioGUI.exe -Algorithm SHA256).Hash.ToLower() }
+          $info | ConvertTo-Json | Set-Content QueryBotAudio-build.json -Encoding utf8
+
       - name: Publish release assets
         shell: pwsh
         env:
@@ -53,4 +68,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --title "QueryBot Audio Downloads" --notes "Current QueryBot Audio GUI and Chrome extension downloads."
           }
-          gh release upload $tag QueryBotAudioGUI.exe QueryBotChromeExtension.zip --clobber
+          gh release upload $tag QueryBotAudioGUI.exe QueryBotChromeExtension.zip QueryBotAudio-source.zip QueryBotAudio-build.json --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
+          gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$env:GITHUB_SHA" -F force=true
+          if ($LASTEXITCODE -ne 0) { throw "Latest source tag update failed" }
+
