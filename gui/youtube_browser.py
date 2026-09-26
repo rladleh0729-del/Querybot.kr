@@ -79,6 +79,20 @@ class YouTubeBrowserDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle('YouTube에서 목록 선택 · QueryBot Audio')
         self.resize(1180, 780)
+        self.setMinimumSize(960, 620)
+        self.setStyleSheet('''
+            QDialog { background: #0f141c; color: #f2f5fa; }
+            QLabel { color: #c8d4e4; background: transparent; font-size: 12px; }
+            QLineEdit { background: #182230; color: #f2f5fa; border: 1px solid #40516a;
+                        border-radius: 7px; padding: 10px; }
+            QPushButton { background: #263346; color: #f2f5fa; border: 1px solid #40516a;
+                          border-radius: 7px; padding: 10px 14px; }
+            QPushButton:hover { background: #34465e; }
+            QPushButton:disabled { background: #182230; color: #8390a2; }
+            QPushButton#primaryButton { background: #ed245c; border-color: #ed245c; font-weight: bold; }
+            QPushButton#primaryButton:hover { background: #ff3f72; }
+            QPushButton#primaryButton:disabled { background: #583347; border-color: #583347; }
+        ''')
         self.snapshot = None
         self._epoch = 0
         self._reading = False
