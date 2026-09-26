@@ -40,7 +40,7 @@ jobs:
 
       - name: Verify playlist and GUI selection
         shell: pwsh
-        run: python -m unittest discover -s gui -p test_playlist.py -v
+        run: python -m unittest discover -s gui -p 'test_*.py' -v
 
       - name: Build standalone GUI EXE
         shell: pwsh
@@ -61,6 +61,12 @@ jobs:
           if (-not (Test-Path $compiler)) { throw "Inno Setup compiler was not found: $compiler" }
           & $compiler QueryBotAudioSetup.iss
           if ($LASTEXITCODE -ne 0) { throw "Native Host Setup build failed" }
+
+      - name: Verify executable startup
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -c "import subprocess; subprocess.run(['./QueryBotAudioGUI.exe', '--check-startup'], check=True, timeout=45)"
 
       - name: Package Chrome extension
         shell: pwsh
@@ -88,3 +94,4 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
           gh api --method PATCH "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag" -f sha="$env:GITHUB_SHA" -F force=true
           if ($LASTEXITCODE -ne 0) { throw "Latest source tag update failed" }
+

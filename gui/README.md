@@ -2,7 +2,13 @@
 
 Standalone Windows audio converter. Download `QueryBotAudioGUI.exe` from the `querybot-audio-latest` release; a browser extension is optional.
 
-## Playlist workflow
+## Import the exact list shown in your browser (no extension required)
+
+For a personalized YouTube Mix, open the playlist panel in Chrome, Edge or Brave. Click a blank area of the YouTube page (not the address/search box), then press Ctrl+A and Ctrl+C. In QueryBot click **화면 목록 붙여넣기**. The app reads the copied HTML playlist rows, preserving their video IDs, titles and order, then opens the selection dialog. It ignores recommendations elsewhere on the page and never re-queries a Mix for this path. Only rows loaded at copy time are imported; the dialog shows the imported count and original row numbers. For more rows, load them in the browser and copy again.
+
+A copied URL alone cannot carry the browser's current Mix. Plain URLs or text without playlist rows are rejected with instructions; the app does not guess video IDs by searching titles. Raw copied page content is parsed locally and is not saved or sent to a server. If the existing URL field points to a different playlist, clear it or copy the matching list.
+
+## Playlist URL lookup
 
 Paste the complete YouTube URL, including `list`, `v`, and `index` when present. Choose MP3, M4A, WAV, or FLAC and load the playlist. The app shows up to 500 returned entries, removes repeated video IDs while preserving first-occurrence order, and displays thumbnails, titles, IDs, and canonical video URLs. Double-click a title to open that video. Select tracks to convert; existing files are detected for the selected output format.
 
@@ -10,8 +16,9 @@ YouTube Mix (`RD...`) is dynamic. Its anonymous response can differ from a signe
 
 ## Development and releases
 
-Run `python -m unittest discover -s gui -p test_playlist.py -v` after installing the dependencies listed in `.github/workflows/build-release-assets.yml`. The Chrome Native Host is built separately from `native-host/querybot_native_host.py`.
+Run `python -m unittest discover -s gui -p 'test_*.py' -v` after installing the dependencies listed in `.github/workflows/build-release-assets.yml`. The Chrome Native Host is built separately from `native-host/querybot_native_host.py`.
 
 The Windows workflow tests playlist logic, builds both the standalone GUI and the Chrome Native Host, packages `QueryBotAudioSetup.exe` with Inno Setup, and replaces all matching assets in the `querybot-audio-latest` release. The build identity records commit, run, and SHA-256 values for the GUI and Setup.
 
 The Setup installs the Native Host EXE, writes its Chrome manifest with the installed executable path, and registers `com.youtube_flac.converter` under the current user. It supports the Chrome Web Store extension ID in the manifest.
+

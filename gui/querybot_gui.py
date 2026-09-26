@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 import server as backend
+from browser_playlist import from_browser_html, playlist_id
 
 if hasattr(backend, "AUTO_OPEN_FOLDER"):
     backend.AUTO_OPEN_FOLDER = False
@@ -4746,6 +4747,8 @@ class MainWindow(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
+    if "--check-startup" in sys.argv:
+        return
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
@@ -4886,11 +4889,14 @@ class _QBPlaylistDialog(QDialog):
         title=QLabel(snapshot.get("title") or "YouTube 재생목록")
         title.setObjectName("statusTitle")
         root.addWidget(title)
-        info=QLabel(f"목록 ID: {snapshot.get('id') or '확인 안 됨'}  ·  {len(self.entries)}개 영상")
+        source_label="브라우저에서 복사한 화면 목록" if snapshot.get("source")=="browser_copy" else "주소로 새로 조회한 목록"
+        info=QLabel(f"{source_label}  ·  목록 ID: {snapshot.get('id') or '확인 안 됨'}  ·  {len(self.entries)}개 영상")
         info.setObjectName("statusText")
         root.addWidget(info)
         note=f"체크한 곡을 {format_name.upper()} 형식으로 변환합니다. 제목을 두 번 누르면 영상을 열어 확인할 수 있습니다."
-        if snapshot.get("is_mix"): note+="\nYouTube Mix는 조회 시점과 로그인 상태에 따라 구성이 달라질 수 있습니다. 아래 확인한 목록 그대로 변환합니다."
+        if snapshot.get("source")=="browser_copy":
+            note+="\n복사할 때 페이지에 로드된 곡만 포함됩니다. 아래 목록을 그대로 사용하며, 새 Mix로 바꾸지 않습니다."
+        elif snapshot.get("is_mix"): note+="\nYouTube Mix는 조회 시점과 로그인 상태에 따라 구성이 달라질 수 있습니다. 아래 확인한 목록 그대로 변환합니다."
         if snapshot.get("limit_reached"): note+="\n최대 500개 항목까지 조회했습니다."
         desc=QLabel(note)
         desc.setObjectName("statusText")
@@ -4913,6 +4919,8 @@ class _QBPlaylistDialog(QDialog):
             entry["_qb_local"]=str(local) if local else ""
             self.table.insertRow(row)
             self.table.setRowHeight(row,60)
+            if entry.get("browser_index"):
+                self.table.setVerticalHeaderItem(row,QTableWidgetItem(str(entry["browser_index"])))
             ck=QTableWidgetItem("")
             ck.setFlags(Qt.ItemIsEnabled|Qt.ItemIsUserCheckable|Qt.ItemIsSelectable)
             ck.setCheckState(Qt.Unchecked if local else Qt.Checked)
@@ -5097,11 +5105,22 @@ def _qb_build_convert_page(self):
     self.convert_btn.clicked.connect(self.start_conversion)
     row.addWidget(self.convert_btn)
 
-    self.playlist_convert_btn=QPushButton("재생목록에서 선택")
+    self.playlist_convert_btn=QPushButton("주소로 목록 조회")
     self.playlist_convert_btn.setObjectName("accentButton")
     self.playlist_convert_btn.clicked.connect(self.start_playlist_conversion)
     row.addWidget(self.playlist_convert_btn)
     c.addLayout(row)
+
+    copy_row=QHBoxLayout()
+    self.browser_playlist_btn=QPushButton("화면 목록 붙여넣기")
+    self.browser_playlist_btn.setObjectName("accentButton")
+    self.browser_playlist_btn.clicked.connect(lambda:_qb_import_browser_playlist(self))
+    copy_row.addWidget(self.browser_playlist_btn)
+    copy_hint=QLabel("YouTube 페이지의 빈 곳 클릭 → Ctrl+A → Ctrl+C → 화면 목록 붙여넣기\n현재 보이는 Mix와 같은 곡을 가져옵니다. 확장 프로그램은 필요 없습니다.")
+    copy_hint.setWordWrap(True)
+    copy_hint.setObjectName("statusText")
+    copy_row.addWidget(copy_hint,1)
+    c.addLayout(copy_row)
 
     self.convert_progress=QProgressBar()
     self.convert_progress.setRange(0,100)
@@ -5432,6 +5451,8 @@ def _qb_start_conversion(self):
         QMessageBox.information(self,"주소 필요","YouTube 영상 주소를 입력해주세요.")
         return
     if self.convert_worker and self.convert_worker.isRunning(): return
+    lookup=getattr(self,"playlist_preview_worker",None)
+    if lookup and lookup.isRunning(): return
     format_name=_qb_selected_format(self)
     local=_qb_local_for_id(_qb_video_id(url),format_name)
     if local:
@@ -5446,11 +5467,43 @@ def _qb_start_conversion(self):
     _qb_launch_single(self,url)
 
 
+def _qb_import_browser_playlist(self):
+    if self.convert_worker and self.convert_worker.isRunning():
+        QMessageBox.information(self,"작업 진행 중","현재 변환이 끝난 뒤 목록을 가져와주세요.")
+        return
+    lookup=getattr(self,"playlist_preview_worker",None)
+    if lookup and lookup.isRunning():
+        QMessageBox.information(self,"목록 조회 중","주소 조회가 끝난 뒤 화면 목록을 가져와주세요.")
+        return
+    try:
+        mime=QApplication.clipboard().mimeData()
+        snapshot=from_browser_html(mime.html() if mime and mime.hasHtml() else "",self.url_input.text().strip())
+    except ValueError as exc:
+        QMessageBox.information(self,"화면 목록 복사 방법",str(exc))
+        return
+    self.convert_btn.setEnabled(False); self.playlist_convert_btn.setEnabled(False)
+    _qb_playlist_ready(self,snapshot["source_url"],snapshot)
+
+
 def _qb_start_playlist(self):
     url=self.url_input.text().strip()
     if not url:
         QMessageBox.information(self,"주소 필요","재생목록 주소를 입력해주세요."); return
     if self.convert_worker and self.convert_worker.isRunning(): return
+    lookup=getattr(self,"playlist_preview_worker",None)
+    if lookup and lookup.isRunning(): return
+    if playlist_id(url).startswith("RD"):
+        box=QMessageBox(self)
+        box.setWindowTitle("Mix 목록 가져오기")
+        box.setText("현재 브라우저와 같은 곡을 가져오려면 YouTube 페이지를 Ctrl+A, Ctrl+C로 복사한 뒤 '화면 목록 붙여넣기'를 사용하세요.\n\n주소로 새로 조회하면 브라우저와 다른 Mix가 생성될 수 있습니다.")
+        copied=box.addButton("화면 목록 붙여넣기",QMessageBox.AcceptRole)
+        fresh=box.addButton("주소로 새 Mix 조회",QMessageBox.ActionRole)
+        box.addButton("취소",QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton()==copied:
+            _qb_import_browser_playlist(self)
+            return
+        if box.clickedButton()!=fresh: return
     self.convert_btn.setEnabled(False); self.playlist_convert_btn.setEnabled(False)
     self.convert_progress.setValue(0); self.convert_progress.show()
     self.convert_status_title.setText("재생목록 확인 중...")
