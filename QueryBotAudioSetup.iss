@@ -40,15 +40,18 @@ Name: "{autodesktop}\QueryBot Audio folder"; Filename: "explorer.exe"; Parameter
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ManifestText, HostPath: String;
+  ManifestBytes: AnsiString;
 begin
   if CurStep = ssPostInstall then
   begin
     HostPath := ExpandConstant('{app}\QueryBotNativeHost.exe');
     StringChangeEx(HostPath, '\', '\\', True);
-    if not LoadStringFromFile(ExpandConstant('{app}\com.youtube_flac.converter.json.in'), ManifestText) then
+    if not LoadStringFromFile(ExpandConstant('{app}\com.youtube_flac.converter.json.in'), ManifestBytes) then
       RaiseException('Could not read the Native Messaging manifest template.');
+    ManifestText := Utf8Decode(ManifestBytes);
     StringChangeEx(ManifestText, '__HOST_EXE_PATH__', HostPath, True);
-    SaveStringToFile(ExpandConstant('{app}\com.youtube_flac.converter.json'), ManifestText, False);
+    if not SaveStringToFile(ExpandConstant('{app}\com.youtube_flac.converter.json'), Utf8Encode(ManifestText), False) then
+      RaiseException('Could not write the Native Messaging manifest.');
     DeleteFile(ExpandConstant('{app}\com.youtube_flac.converter.json.in'));
   end;
 end;
