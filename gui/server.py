@@ -149,7 +149,9 @@ def get_playlist_entries(url:str):
     is_mix=playlist_id.startswith("RD")
     # Match the URL-only playlist lookup used by ClipDown: collect the playlist
     # metadata first, without opening or controlling an external browser.
-    opts={"extract_flat":True,"skip_download":True,"quiet":True,
+    # `in_playlist` is yt-dlp's playlist-only flat mode. Boolean True can
+    # resolve a watch URL as one video and discard its `list=` entries.
+    opts={"extract_flat":"in_playlist","skip_download":True,"quiet":True,
           "ignoreerrors":True,"noplaylist":False,
           "socket_timeout":15,"retries":2,"extractor_retries":2,"http_headers":_headers()}
     with yt_dlp.YoutubeDL(opts) as ydl:

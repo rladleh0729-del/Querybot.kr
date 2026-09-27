@@ -30,7 +30,7 @@ class PlaylistTests(unittest.TestCase):
             self.assertEqual(result['count'],3)
             self.assertTrue(result['is_mix'])
             self.assertFalse(factory.call_args.args[0]['noplaylist'])
-            self.assertTrue(factory.call_args.args[0]['extract_flat'])
+            self.assertEqual(factory.call_args.args[0]['extract_flat'],'in_playlist')
 
     def test_invalid_input(self):
         for url in ['https://example.com/watch?v=yHKXRcZxpG8&list=x','https://youtube.com/watch?v=yHKXRcZxpG8']:
