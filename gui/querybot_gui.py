@@ -5128,7 +5128,7 @@ def _qb_build_convert_page(self):
 
     self.playlist_convert_btn=QPushButton("재생목록 불러오기")
     self.playlist_convert_btn.setObjectName("accentButton")
-    self.playlist_convert_btn.clicked.connect(_qb_start_playlist)
+    self.playlist_convert_btn.clicked.connect(lambda: _qb_start_playlist(self))
     row.addWidget(self.playlist_convert_btn)
     c.addLayout(row)
 

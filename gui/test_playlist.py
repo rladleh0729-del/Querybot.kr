@@ -67,5 +67,13 @@ class PlaylistTests(unittest.TestCase):
             self.assertEqual(len(dialog.selected_entries()),1)
             dialog.close()
 
+    def test_default_playlist_button_starts_url_lookup(self):
+        app=QApplication.instance() or QApplication([])
+        with patch.object(gui,'_qb_start_playlist') as start:
+            window=gui.MainWindow()
+            window.playlist_convert_btn.click()
+            start.assert_called_once_with(window)
+            window.close()
+
 if __name__=='__main__': unittest.main()
 
