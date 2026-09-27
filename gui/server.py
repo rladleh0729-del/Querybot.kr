@@ -124,14 +124,13 @@ def download_flac(url,progress_hooks=None,postprocessor_hooks=None,cancel_check=
 
 
 def normalize_playlist_entries(entries):
-    """Keep the first occurrence and bind every title to its own canonical URL."""
-    result=[]; seen=set()
+    """Keep usable playlist rows in the order returned by the extractor."""
+    result=[]
     for entry in entries or []:
         if not isinstance(entry,dict): continue
         vid=entry.get("id") or get_youtube_video_id(entry.get("url") or "")
-        if not isinstance(vid,str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}",vid) or vid in seen: continue
+        if not isinstance(vid,str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}",vid): continue
         if entry.get("availability") in {"private","premium_only","subscriber_only"}: continue
-        seen.add(vid)
         item=dict(entry)
         item.update(id=vid,title=entry.get("title") or "제목 없음",url=f"https://www.youtube.com/watch?v={vid}")
         result.append(item)
@@ -148,9 +147,10 @@ def get_playlist_entries(url:str):
     if not playlist_id:
         raise ValueError("재생목록 주소에 list 값이 없습니다. 단일 영상은 '음원 변환'을 사용해주세요.")
     is_mix=playlist_id.startswith("RD")
-    # Preserve v/index: a Mix is anchored to the supplied video, not a static list.
-    opts={"extract_flat":"in_playlist","skip_download":True,"quiet":True,
-          "ignoreerrors":True,"playlistend":500,"noplaylist":False,
+    # Match the URL-only playlist lookup used by ClipDown: collect the playlist
+    # metadata first, without opening or controlling an external browser.
+    opts={"extract_flat":True,"skip_download":True,"quiet":True,
+          "ignoreerrors":True,"noplaylist":False,
           "socket_timeout":15,"retries":2,"extractor_retries":2,"http_headers":_headers()}
     with yt_dlp.YoutubeDL(opts) as ydl:
         info=ydl.extract_info(url,download=False)
@@ -162,7 +162,7 @@ def get_playlist_entries(url:str):
             "id":(info or {}).get("id") or playlist_id,"entries":entries,"count":len(entries),
             "reported_total":(info or {}).get("playlist_count") or len(raw),
             "source_url":url,"is_mix":is_mix,"removed_count":len(raw)-len(entries),
-            "limit":500,"limit_reached":len(raw)>=500}
+            "limit":None,"limit_reached":False}
 
 def download_playlist_audio(url:str,format_name="mp3",progress_callback=None,cancel_check=None,playlist_snapshot=None):
     def cancelled():
@@ -202,4 +202,6 @@ def download_playlist_audio(url:str,format_name="mp3",progress_callback=None,can
 
 def download_playlist_flac(url,progress_callback=None,cancel_check=None,playlist_snapshot=None):
     return download_playlist_audio(url,"flac",progress_callback,cancel_check,playlist_snapshot)
+
+
 

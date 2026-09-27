@@ -2,13 +2,17 @@
 
 Standalone Windows audio converter. Download `QueryBotAudioGUI.exe` from the `querybot-audio-latest` release; a browser extension is optional.
 
-## Import the already-open YouTube playlist (recommended)
+## Load a playlist from its URL (recommended)
 
-Open the desired YouTube playlist tab in Chrome, Edge or Brave, then click **열린 YouTube에서 가져오기** in QueryBot. A single YouTube window is selected automatically; if there are several, choose one. The app briefly switches to that window, focuses the verified YouTube page, and copies its current contents before showing the existing track selector. Pause keyboard/mouse input while it runs. The clipboard is replaced by the copied page, just as with manual Ctrl+A/C.
+Paste a complete YouTube playlist URL and click **재생목록 불러오기**. QueryBot reads the playlist directly and opens the track selector without requiring a browser window, extension, or sign-in. It keeps the returned titles and order as the conversion snapshot.
+
+## Import the already-open YouTube playlist (optional)
+
+Open the desired YouTube playlist tab in Chrome, Edge or Brave, then choose **다른 방법 → 열린 YouTube에서 목록 가져오기**. A single YouTube window is selected automatically; if there are several, choose one. The app briefly switches to that window, focuses the verified YouTube page, and copies its current contents before showing the existing track selector. Pause keyboard/mouse input while it runs. The clipboard is replaced by the copied page, just as with manual Ctrl+A/C.
 
 This path uses the existing browser's displayed playlist, without opening a new Mix, reading cookies, or requiring an extension. The browser process, page URL, document focus, foreground window and new clipboard sequence are checked. If these cannot be verified, it stops and offers manual copying; it does not guess another list. Only loaded playlist rows are imported.
 
-The **다른 방법** menu contains manual **화면 목록 붙여넣기**, an independent **새 YouTube 창**, and **주소로 빠른 조회**.
+The **다른 방법** menu contains browser importing, manual **화면 목록 붙여넣기**, and an independent **앱 안에서 YouTube 열기**.
 
 ## Pick a playlist inside the GUI (optional, separate browser session)
 
@@ -26,7 +30,7 @@ A copied URL alone cannot carry the browser's current Mix. Plain URLs or text wi
 
 ## Playlist URL lookup
 
-Paste the complete YouTube URL, including `list`, `v`, and `index` when present. Choose MP3, M4A, WAV, or FLAC and load the playlist. The app shows up to 500 returned entries, removes repeated video IDs while preserving first-occurrence order, and displays thumbnails, titles, IDs, and canonical video URLs. Double-click a title to open that video. Select tracks to convert; existing files are detected for the selected output format.
+Paste the complete YouTube URL, including `list`, `v`, and `index` when present. Choose MP3, M4A, WAV, or FLAC and load the playlist. The app requests the full returned playlist, then displays its titles, IDs, and canonical video URLs in that order. Double-click a title to open that video. Select tracks to convert; existing files are detected for the selected output format.
 
 YouTube Mix (`RD...`) is dynamic. Its anonymous response can differ from a signed-in browser. Review the displayed list before converting. The selected snapshot is saved and reused for conversion/resume, so the app does not silently fetch a different Mix later. FLAC stores the decoded audio losslessly but cannot restore quality lost in the original YouTube stream.
 
@@ -37,4 +41,5 @@ Run `python -m unittest discover -s gui -p 'test_*.py' -v` after installing the 
 The Windows workflow tests playlist logic, builds both the standalone GUI and the Chrome Native Host, packages `QueryBotAudioSetup.exe` with Inno Setup, and replaces all matching assets in the `querybot-audio-latest` release. The build identity records commit, run, and SHA-256 values for the GUI and Setup.
 
 The Setup installs the Native Host EXE, writes its Chrome manifest with the installed executable path, and registers `com.youtube_flac.converter` under the current user. It supports the Chrome Web Store extension ID in the manifest.
+
 

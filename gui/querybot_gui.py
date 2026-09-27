@@ -5126,9 +5126,9 @@ def _qb_build_convert_page(self):
     self.convert_btn.clicked.connect(self.start_conversion)
     row.addWidget(self.convert_btn)
 
-    self.playlist_convert_btn=QPushButton("열린 YouTube에서 가져오기")
+    self.playlist_convert_btn=QPushButton("재생목록 불러오기")
     self.playlist_convert_btn.setObjectName("accentButton")
-    self.playlist_convert_btn.clicked.connect(self.start_playlist_conversion)
+    self.playlist_convert_btn.clicked.connect(_qb_start_playlist)
     row.addWidget(self.playlist_convert_btn)
     c.addLayout(row)
 
@@ -5136,12 +5136,12 @@ def _qb_build_convert_page(self):
     self.browser_playlist_btn=QPushButton("다른 방법")
     self.browser_playlist_btn.setObjectName("secondaryButton")
     import_menu=QMenu(self.browser_playlist_btn)
+    import_menu.addAction("열린 YouTube에서 목록 가져오기",lambda:_qb_capture_current_browser(self))
     import_menu.addAction("화면 목록 붙여넣기",lambda:_qb_import_browser_playlist(self))
-    import_menu.addAction("새 YouTube 창",lambda:_qb_open_youtube(self))
-    import_menu.addAction("주소로 빠른 조회",lambda:_qb_start_playlist(self))
+    import_menu.addAction("앱 안에서 YouTube 열기",lambda:_qb_open_youtube(self))
     self.browser_playlist_btn.setMenu(import_menu)
     copy_row.addWidget(self.browser_playlist_btn)
-    copy_hint=QLabel("현재 브라우저 창으로 잠깐 전환해 목록을 자동 복사합니다.\n가져오는 동안 키보드와 마우스 입력을 잠시 멈춰주세요.")
+    copy_hint=QLabel("주소만으로 목록을 불러옵니다. 브라우저에 보이는 Mix를 그대로 쓸 때만 다른 방법을 사용하세요.")
     copy_hint.setWordWrap(True)
     copy_hint.setObjectName("statusText")
     copy_row.addWidget(copy_hint,1)
@@ -5639,18 +5639,6 @@ def _qb_start_playlist(self):
     if self.convert_worker and self.convert_worker.isRunning(): return
     lookup=getattr(self,"playlist_preview_worker",None)
     if lookup and lookup.isRunning(): return
-    if playlist_id(url).startswith("RD"):
-        box=QMessageBox(self)
-        box.setWindowTitle("Mix 목록 가져오기")
-        box.setText("현재 브라우저와 같은 곡을 가져오려면 YouTube 페이지를 Ctrl+A, Ctrl+C로 복사한 뒤 '화면 목록 붙여넣기'를 사용하세요.\n\n주소로 새로 조회하면 브라우저와 다른 Mix가 생성될 수 있습니다.")
-        copied=box.addButton("화면 목록 붙여넣기",QMessageBox.AcceptRole)
-        fresh=box.addButton("주소로 새 Mix 조회",QMessageBox.ActionRole)
-        box.addButton("취소",QMessageBox.RejectRole)
-        box.exec()
-        if box.clickedButton()==copied:
-            _qb_import_browser_playlist(self)
-            return
-        if box.clickedButton()!=fresh: return
     self.convert_btn.setEnabled(False); self.playlist_convert_btn.setEnabled(False)
     self.convert_progress.setValue(0); self.convert_progress.show()
     self.convert_status_title.setText("재생목록 확인 중...")
@@ -5844,3 +5832,4 @@ MainWindow.closeEvent=_qb_close_event
 
 if __name__ == "__main__":
     main()
+

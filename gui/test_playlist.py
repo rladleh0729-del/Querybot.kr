@@ -15,9 +15,9 @@ ENTRIES=[{'id':'yHKXRcZxpG8','title':'FUNK UNIVERSO (Slowed)'},
          {'id':'yHKXRcZxpG8','title':'duplicate'},None,{'id':'invalid'}]
 
 class PlaylistTests(unittest.TestCase):
-    def test_normalization(self):
+    def test_normalization_keeps_returned_order(self):
         rows=server.normalize_playlist_entries(ENTRIES)
-        self.assertEqual([x['id'] for x in rows],['yHKXRcZxpG8','HMdY9CYBrIU'])
+        self.assertEqual([x['id'] for x in rows],['yHKXRcZxpG8','HMdY9CYBrIU','yHKXRcZxpG8'])
         self.assertEqual(rows[0]['title'],ENTRIES[0]['title'])
         self.assertEqual(rows[1]['url'],'https://www.youtube.com/watch?v=HMdY9CYBrIU')
 
@@ -27,9 +27,10 @@ class PlaylistTests(unittest.TestCase):
             engine.extract_info.return_value={'entries':ENTRIES,'title':'Mix'}
             result=server.get_playlist_entries(URL)
             engine.extract_info.assert_called_once_with(URL,download=False)
-            self.assertEqual(result['count'],2)
+            self.assertEqual(result['count'],3)
             self.assertTrue(result['is_mix'])
             self.assertFalse(factory.call_args.args[0]['noplaylist'])
+            self.assertTrue(factory.call_args.args[0]['extract_flat'])
 
     def test_invalid_input(self):
         for url in ['https://example.com/watch?v=yHKXRcZxpG8&list=x','https://youtube.com/watch?v=yHKXRcZxpG8']:
@@ -55,11 +56,11 @@ class PlaylistTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder, patch.object(server,'DOWNLOAD_DIR',Path(folder)), patch.object(gui._QBPlaylistDialog,'load_thumbnail'):
             (Path(folder)/'existing [yHKXRcZxpG8].flac').touch()
             dialog=gui._QBPlaylistDialog({'entries':ENTRIES,'title':'Mix'},format_name='flac')
-            self.assertEqual(dialog.table.rowCount(),2)
+            self.assertEqual(dialog.table.rowCount(),3)
             self.assertEqual(dialog.table.item(0,0).checkState(),Qt.Unchecked)
             self.assertEqual([x['id'] for x in dialog.selected_entries()],['HMdY9CYBrIU'])
             dialog.set_all(True)
-            self.assertEqual(len(dialog.selected_entries()),2)
+            self.assertEqual(len(dialog.selected_entries()),3)
             dialog.set_all(False)
             self.assertEqual(dialog.selected_entries(),[])
             dialog.select_new()
@@ -67,3 +68,4 @@ class PlaylistTests(unittest.TestCase):
             dialog.close()
 
 if __name__=='__main__': unittest.main()
+
