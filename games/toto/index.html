@@ -385,7 +385,15 @@ function initAudio() {
   const wf = AC.createBiquadFilter(); wf.type = 'lowpass'; wf.frequency.value = 380;
   const wg = AC.createGain(); wg.gain.value = 0.05;
   wind.connect(wf).connect(wg).connect(ambGain); wind.start();
+
+  // 갑툭튀 소리 파일 미리 불러오기 (게임 시작할 때 한 번)
+  fetch('scare.mp3')
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+    .then((b) => AC.decodeAudioData(b))
+    .then((buf) => { scareBuf = buf; })
+    .catch(() => {});
 }
+let scareBuf = null;
 
 function tone(freq, dur, type = 'sine', vol = 0.1, when = 0, detune = 0) {
   if (!AC) return;
@@ -421,9 +429,16 @@ const sfx = {
   locked: () => { tone(160, 0.08, 'square', 0.06); tone(140, 0.1, 'square', 0.06, 0.09); },
   blip: (creepy) => tone(creepy ? 180 + Math.random() * 40 : 620 + Math.random() * 180, 0.045, 'square', 0.022),
   squeak: () => { tone(900 + Math.random() * 300, 0.08, 'sine', 0.06); tone(1400, 0.06, 'sine', 0.04, 0.05); },
-  // 갑툭튀 비명: 지지직 + 높은 소리가 아래로 쭉 떨어짐
+  // 갑툭튀 비명: scare.mp3 (저작권 무료 효과음을 1.1초로 다듬은 것)
   scream: () => {
     if (!AC) return;
+    if (scareBuf) {
+      const s = AC.createBufferSource(), g = AC.createGain();
+      s.buffer = scareBuf; g.gain.value = 0.9;
+      s.connect(g).connect(master); s.start();
+      return;
+    }
+    // 파일을 못 불러왔을 때만(예: 파일을 더블클릭해서 열었을 때) 코드로 만든 소리
     noise(0.9, 0.5, 1400, 'bandpass');
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = 'sawtooth'; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.8);
@@ -1580,7 +1595,7 @@ function checkRoomScare() {
   g.position.set(camera.position.x - Math.sin(yaw) * 0.85, 0, camera.position.z - Math.cos(yaw) * 0.85);
   g.scale.setScalar(1);
   sfx.scream(); roomShake = 0.7;
-  setTimeout(() => { g.position.copy(home); g.scale.setScalar(homeScale); }, 650);
+  setTimeout(() => { g.position.copy(home); g.scale.setScalar(homeScale); }, 900);
 }
 
 let flickerChance = 0.15, flickEnd = 0, lightsOut = false;
