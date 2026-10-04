@@ -175,6 +175,13 @@
   /* ---------- 엔딩 ---------- */
   #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1.6s; z-index: 15; }
   #fade.on { opacity: 1; }
+  /* "그날 밤" 같은 장면 전환 글자 */
+  #card {
+    position: fixed; inset: 0; z-index: 16; display: flex; align-items: center; justify-content: center; pointer-events: none;
+    font-size: clamp(32px, 6vw, 64px); color: #d8c9a6; letter-spacing: 8px; opacity: 0; transition: opacity 1s;
+    font-family: 'Gungsuh', 'Batang', serif;
+  }
+  #card.show { opacity: 1; }
   #ending { background: #000; }
   #endTag { color: #b5302f; letter-spacing: 6px; font-size: 15px; margin-bottom: 6px; }
   #ending h1 { margin: 0 0 22px; color: #f3d36b; font-size: clamp(30px, 5vw, 52px); }
@@ -222,12 +229,14 @@
     <div class="slot" data-tape="1">1편</div>
     <div class="slot" data-tape="2">2편</div>
     <div class="slot" data-tape="3">3편</div>
-    <div class="slot hidden" id="keySlot">🔑</div>
+    <div class="slot hidden" data-tape="4">4편</div>
+    <div class="slot hidden" data-tape="5">5편</div>
   </div>
   <div id="toast"></div>
 </div>
 
 <div id="fade"></div>
+<div id="card"></div>
 
 <!-- 타이틀 -->
 <div id="title" class="overlay">
@@ -309,8 +318,10 @@ const S = {
   watched: 0,         // 몇 편까지 봤는지
   redOpen: false,
   chestOpen: false,
-  hasKey: false,
-  choseOpen: false,
+  choseOpen: false,   // 3편에서 문을 열어주기로 했는지 (2막 괴물 속도에 영향)
+  night: false,       // 2막(그날 밤)인지
+  shelfMoved: false,  // 숨겨진 방이 열렸는지
+  final: null,        // 5편 최종 선택 ('A' = 같이 나가기)
   readDiary: false,   // 할머니 일기장을 읽었는지 (진엔딩 조건)
   wrongTotal: 0,      // 지금까지 틀린 횟수 (너무 많으면 엔딩 D)
   roomScare: null,    // 3편을 줍고 뒤돌아보면 나오는 갑툭튀
@@ -318,10 +329,11 @@ const S = {
 
 // ================== 엔딩 모음 (이 브라우저에만 저장) ==================
 const ENDINGS = [
-  { id: 'A', name: '새로운 친구', hint: '토토의 부탁을 들어주면…' },
-  { id: 'B', name: '테이프를 끄다', hint: '토토의 부탁을 거절하면…' },
-  { id: 'C', name: '너무 가까운 친구', hint: '화면 속 토토를 너무 좋아하면…' },
-  { id: 'D', name: '틀린 친구', hint: '계속 틀리면…' },
+  { id: 'A', name: '문 너머', hint: '마지막 회에서 토토를 따라가면…' },
+  { id: 'B', name: '방송 종료', hint: '마지막 회에서 전원을 뽑으면…' },
+  { id: 'C', name: '콕콕', hint: '화면 속 토토를 너무 많이 건드리면…' },
+  { id: 'D', name: '녹화 중', hint: '계속 틀리면…' },
+  { id: 'E', name: '술래잡기', hint: '밤의 다락방에서 눈을 떼면…' },
   { id: 'T', name: '진짜 이름', hint: '할머니는 뭔가 알고 있었다' },
 ];
 function loadEndings() { try { return JSON.parse(localStorage.getItem('totoEndings') || '[]'); } catch (e) { return []; } }
@@ -472,8 +484,9 @@ function speak(text, mood) {
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.voice = koVoice; u.lang = koVoice.lang;
-  u.pitch = mood === 'creepy' ? 0.1 : mood === 'stare' ? 0.8 : 1.8;
-  u.rate = mood === 'creepy' ? 0.7 : 1.05;
+  const kid = $('speaker').textContent === '???';
+  u.pitch = kid ? 1.4 : mood === 'creepy' ? 0.1 : mood === 'stare' ? 0.8 : 1.8;
+  u.rate = kid ? 0.9 : mood === 'creepy' ? 0.7 : 1.05;
   speechSynthesis.speak(u);
   return true;
 }
@@ -623,17 +636,24 @@ const colliders = [];
 function addIt(obj, it) { obj.userData.it = it; interactables.push(obj); }
 function addCollider(obj, pad = 0.3) {
   const b = new THREE.Box3().setFromObject(obj);
-  colliders.push({ minX: b.min.x - pad, maxX: b.max.x + pad, minZ: b.min.z - pad, maxZ: b.max.z + pad });
+  const c = { minX: b.min.x - pad, maxX: b.max.x + pad, minZ: b.min.z - pad, maxZ: b.max.z + pad };
+  colliders.push(c); return c;
 }
 
 // 바닥, 벽, 지붕
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), lam(0xffffff, { map: woodTexture([110, 76, 46], 2.5, 3) }));
 floor.rotation.x = -Math.PI / 2; room.add(floor);
 const wallMat = lam(0xffffff, { map: woodTexture([88, 60, 38], 3, 0.6), side: THREE.DoubleSide });
-[-1, 1].forEach((s) => {
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(D * 2, WALL_H), wallMat);
-  wall.position.set(W * s, WALL_H / 2, 0); wall.rotation.y = -s * Math.PI / 2; room.add(wall);
-});
+function wallPiece(x, z, len, h, y) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(len, h), wallMat);
+  m.position.set(x, y, z); m.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2; room.add(m); return m;
+}
+wallPiece(W, 0, D * 2, WALL_H, WALL_H / 2); // 오른쪽 벽
+// 왼쪽 벽: 선반 뒤에 숨겨진 방으로 가는 작은 문 구멍(z -1.15 ~ -0.05, 높이 1.75)이 있음
+const HOLE_Z0 = -1.15, HOLE_Z1 = -0.05, HOLE_H = 1.75;
+wallPiece(-W, (-D + HOLE_Z0) / 2, HOLE_Z0 + D, WALL_H, WALL_H / 2);
+wallPiece(-W, (HOLE_Z1 + D) / 2, D - HOLE_Z1, WALL_H, WALL_H / 2);
+wallPiece(-W, (HOLE_Z0 + HOLE_Z1) / 2, HOLE_Z1 - HOLE_Z0, WALL_H - HOLE_H, (WALL_H + HOLE_H) / 2);
 const gable = new THREE.Shape([
   new THREE.Vector2(-W, 0), new THREE.Vector2(W, 0), new THREE.Vector2(W, WALL_H),
   new THREE.Vector2(0, RIDGE), new THREE.Vector2(-W, WALL_H),
@@ -661,7 +681,13 @@ box(0.04, 0.64, 0.03, 0x24170c, 0, 2.75, -D + 0.04, room);
 const moon = new THREE.PointLight(0x6f8fd0, 3, 6, 1.5); moon.position.set(0, 2.6, -5.3); room.add(moon);
 
 // 조명
-room.add(new THREE.HemisphereLight(0x7080a0, 0x201510, 0.25));
+const roomHemi = new THREE.HemisphereLight(0x7080a0, 0x201510, 0.25); room.add(roomHemi);
+// 손전등 (2막 밤에 사용, F키). 카메라에 붙어서 보는 방향을 비춤
+room.add(camera);
+const flashlight = new THREE.SpotLight(0xfff0d0, 0, 14, 0.42, 0.5, 1.3);
+flashlight.position.set(0.15, -0.1, 0); camera.add(flashlight);
+flashlight.target.position.set(0, -0.05, -1); camera.add(flashlight.target);
+let flashOn = false;
 const BULB_I = 6.5;
 const bulbLight = new THREE.PointLight(0xffc98a, BULB_I, 0, 1.4);
 bulbLight.position.set(0, 2.4, 0); room.add(bulbLight);
@@ -694,7 +720,7 @@ addIt(tvGroup, {
     else if (S.watched === 0) toast('비디오 플레이어가 달린 낡은 TV다. 테이프가 있으면 볼 수 있을 것 같다.');
     else toast('지지직… 다음 테이프를 찾아야 한다.');
   },
-  enabled: () => S.watched < 3,
+  enabled: () => S.watched < 5,
 });
 addCollider(tvGroup);
 
@@ -796,7 +822,23 @@ const shelfMat = lam(0x4a3220);
     box(0.25, h, 0.08, [0x6b2a2a, 0x2a3f5c, 0x3e5a32, 0x7a6a3a][Math.random() * 4 | 0], 0, y + 0.02 + h / 2, z, shelf);
   }
 });
-addCollider(shelf);
+const shelfCol = addCollider(shelf);
+addHitBox(shelf, 0.42, 1.8, 1.85, 0.9); // 칸 사이 빈 곳을 겨눠도 선반이 잡히게
+// 4편을 보고 나면 선반을 밀 수 있음 → 뒤에 숨겨진 방
+addIt(shelf, {
+  label: () => '선반 밀기',
+  act: () => {
+    S.shelfMoved = true; noise(1.3, 0.3, 220); // 드르륵
+    const z0 = shelf.position.z;
+    tween(1300, (k) => { shelf.position.z = z0 + (1.25 - z0) * (1 - Math.pow(1 - k, 2)); }).then(() => {
+      shelf.updateMatrixWorld(true);
+      const b = new THREE.Box3().setFromObject(shelf);
+      Object.assign(shelfCol, { minX: b.min.x - 0.3, maxX: b.max.x + 0.3, minZ: b.min.z - 0.3, maxZ: b.max.z + 0.3 });
+      toast('선반 뒤에 작은 문이 있다. 안쪽에서 빨간 불빛이 새어 나온다.');
+    });
+  },
+  enabled: () => S.watched >= 4 && !S.shelfMoved,
+});
 
 // 문
 const doorG = new THREE.Group(); doorG.position.set(2.8, 0, D - 0.05); room.add(doorG);
@@ -804,10 +846,12 @@ box(1.15, 2.2, 0.06, 0x24170c, 0, 1.1, 0.02, doorG);
 box(1.0, 2.1, 0.08, 0x4a3020, 0, 1.05, -0.02, doorG);
 sphere(0.045, lam(0xc9a43a), -0.38, 1.0, -0.08, doorG);
 addIt(doorG, {
-  label: () => S.hasKey ? '열쇠로 문 열기' : '문 열기',
+  label: () => S.final === 'A' ? '문 열고 나가기' : '문 열기',
   act: () => {
-    if (S.hasKey) endingA();
-    else { sfx.locked(); toast('문이 잠겨 있다. 문틈으로 차가운 바람이 들어온다.'); }
+    if (S.final === 'A') { endingA(); return; }
+    sfx.locked();
+    if (S.night) { noise(0.6, 0.2, 120); toast('문이 밖에서 잠겨 있다. 문 너머에서 누군가 숨 쉬는 소리가 들린다.'); }
+    else toast('문이 잠겨 있다. 문틈으로 차가운 바람이 들어온다.');
   },
   enabled: () => true,
 });
@@ -829,22 +873,126 @@ plush.group.scale.setScalar(0.32); plush.group.position.set(-0.45, 0.45, -2.7); 
 room.add(plush.group);
 addIt(plush.group, {
   label: () => '토토 인형',
-  act: () => toast(S.choseOpen ? '인형이 문 앞에 서 있다. 계속 웃고 있다.' : '토토 인형이다. …아까는 여기 없었는데.'),
+  act: () => toast('토토 인형이다. …아까는 여기 없었는데.'),
   enabled: () => plush.group.visible,
 });
 
-// 열쇠 (3편에서 문을 열어주기로 하면 나타남)
-const key = new THREE.Group(); key.visible = false; room.add(key);
-const gold = lam(0xd9b44a, { emissive: 0x3a2a00 });
-const ring = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.012, 6, 12), gold); ring.rotation.x = Math.PI / 2; key.add(ring);
-box(0.12, 0.015, 0.018, gold, 0.09, 0, 0, key);
-box(0.015, 0.015, 0.035, gold, 0.14, 0, 0.02, key);
-addHitBox(key, 0.35, 0.2, 0.35);
-addIt(key, {
-  label: () => '열쇠 줍기',
-  act: () => { S.hasKey = true; key.visible = false; sfx.pick(); toast('차가운 열쇠다. 손에 쥐니까… 누가 웃는 소리가 들린 것 같다.'); },
-  enabled: () => key.visible,
+// 4편: 밤이 되면 인형이 앉아 있던 소파 틈에 끼어 있음
+const tape4 = makeTape(4); tape4.position.set(-0.45, 0.465, -2.62); tape4.rotation.y = -0.6; tape4.visible = false; room.add(tape4);
+
+// ================== 숨겨진 방 (선반 뒤, 왼쪽 벽 너머) ==================
+const SR = { x0: -7.6, x1: -W, z0: -2.1, z1: 0.9, h: 1.95 };
+const srFloor = new THREE.Mesh(new THREE.PlaneGeometry(SR.x1 - SR.x0, SR.z1 - SR.z0), lam(0xffffff, { map: woodTexture([80, 55, 35], 1, 1) }));
+srFloor.rotation.x = -Math.PI / 2; srFloor.position.set((SR.x0 + SR.x1) / 2, 0.001, (SR.z0 + SR.z1) / 2); room.add(srFloor);
+box(SR.x1 - SR.x0, 0.06, SR.z1 - SR.z0, roofMat, (SR.x0 + SR.x1) / 2, SR.h, (SR.z0 + SR.z1) / 2, room); // 낮은 천장
+box(0.06, SR.h, SR.z1 - SR.z0, wallMat, SR.x0, SR.h / 2, (SR.z0 + SR.z1) / 2, room);
+box(SR.x1 - SR.x0, SR.h, 0.06, wallMat, (SR.x0 + SR.x1) / 2, SR.h / 2, SR.z0, room);
+box(SR.x1 - SR.x0, SR.h, 0.06, wallMat, (SR.x0 + SR.x1) / 2, SR.h / 2, SR.z1, room);
+const srLamp = new THREE.PointLight(0xff3a20, 2.2, 4.5, 1.5); srLamp.position.set(-6.9, 1.6, -1.6); room.add(srLamp);
+sphere(0.05, new THREE.MeshBasicMaterial({ color: 0xff5030 }), -6.9, 1.6, -1.6, room);
+
+// 크레파스로 그린 아이 그림들
+function crayonTexture(kind) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 200;
+  const g = c.getContext('2d');
+  g.fillStyle = '#efe6cf'; g.fillRect(0, 0, 256, 200);
+  g.lineWidth = 5; g.lineCap = 'round';
+  const wob = (x, y) => [x + (Math.random() - 0.5) * 4, y + (Math.random() - 0.5) * 4];
+  const circle = (x, y, r, col) => { g.strokeStyle = col; g.beginPath(); for (let a = 0; a <= 6.4; a += 0.3) g.lineTo(...wob(x + Math.cos(a) * r, y + Math.sin(a) * r)); g.stroke(); };
+  const line = (x1, y1, x2, y2, col) => { g.strokeStyle = col; g.beginPath(); g.moveTo(...wob(x1, y1)); g.lineTo(...wob(x2, y2)); g.stroke(); };
+  g.font = 'bold 26px "Malgun Gothic", sans-serif'; g.textAlign = 'center';
+  if (kind === 0) { // 아이와 토토가 손잡은 그림
+    circle(80, 70, 22, '#333'); line(80, 92, 80, 150, '#333'); line(80, 110, 128, 118, '#333');
+    circle(175, 70, 30, '#b07a3a'); line(175, 100, 175, 160, '#b07a3a'); line(175, 118, 128, 118, '#b07a3a');
+    g.fillStyle = '#c23'; g.fillText('지우 ♥ 토토', 128, 190);
+  } else if (kind === 1) { // 갇힌 아이
+    circle(128, 90, 45, '#b07a3a'); circle(110, 80, 8, '#111'); circle(146, 80, 8, '#111');
+    for (let x = 60; x <= 196; x += 24) line(x, 20, x, 170, '#222');
+    g.fillStyle = '#222'; g.fillText('나가고 싶어', 128, 192);
+  } else { // 새까만 낙서
+    g.strokeStyle = '#111';
+    for (let i = 0; i < 70; i++) line(Math.random() * 256, Math.random() * 170, Math.random() * 256, Math.random() * 170, '#111');
+    g.fillStyle = '#c11'; g.fillText('지퍼가 안 내려가', 128, 192);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+[[-7.55, 1.15, -0.9, Math.PI / 2, 0], [-6.3, 1.2, -2.05, 0, 1], [-5.6, 1.05, -2.05, 0, 2], [-7.55, 1.1, 0.25, Math.PI / 2, 1]].forEach(([x, y, z, ry, k]) => {
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.4), new THREE.MeshLambertMaterial({ map: crayonTexture(k) }));
+  p.position.set(x, y, z); p.rotation.y = ry; p.rotation.z = (Math.random() - 0.5) * 0.15; room.add(p);
 });
+// 빈 토토 탈 (의자 위)
+box(0.4, 0.5, 0.4, 0x3a2a1c, -6.9, 0.25, 0.3, room);
+const mask = createToto();
+mask.group.children.forEach((c) => { c.visible = c === mask.head; });
+mask.eyes.forEach((e) => { e.material = new THREE.MeshBasicMaterial({ color: 0x050505 }); });
+mask.pupils.forEach((p) => { p.visible = false; });
+mask.group.scale.setScalar(0.8); mask.group.position.set(-6.9, 0.5 - 1.62 * 0.8 + 0.4, 0.3); mask.group.rotation.y = Math.PI / 2 + 0.4;
+mask.head.rotation.z = 0.3; room.add(mask.group);
+addIt(mask.group, { label: () => '토토 탈', act: () => toast('토토 탈이다. 속이 텅 비어 있다. …그런데 아직 따뜻하다.'), enabled: () => true });
+// 작은 탁자 위의 5편
+box(0.5, 0.45, 0.4, 0x4a3220, -6.0, 0.225, -1.6, room);
+const tape5 = makeTape(5); tape5.position.set(-6.0, 0.465, -1.6); tape5.rotation.y = 0.3; room.add(tape5);
+
+// 걸어갈 수 있는 곳: 다락방 + (선반을 밀면) 작은 문 + 숨겨진 방
+function walkable(x, z) {
+  if (x > -W + 0.3 && x < W - 0.3 && z > -D + 0.3 && z < D - 0.3) return true;
+  if (!S.shelfMoved) return false;
+  if (x > -W - 0.4 && x <= -W + 0.3 && z > HOLE_Z0 + 0.25 && z < HOLE_Z1 - 0.25) return true; // 문 구멍
+  return x > SR.x0 + 0.3 && x < SR.x1 && z > SR.z0 + 0.3 && z < SR.z1 - 0.3;
+}
+
+// ================== 괴물 토토 (2막에서 다락방을 돌아다님) ==================
+function createMonster() {
+  const g = new THREE.Group();
+  const fur = lam(0x5a4a38), furDark = lam(0x2a2018), cream = lam(0x8f8069);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xeee8d6 });
+  const pupilMat = new THREE.MeshBasicMaterial({ color: 0xff1a0a });
+  const black = new THREE.MeshBasicMaterial({ color: 0x040101 });
+  const teethMat = new THREE.MeshBasicMaterial({ color: 0xcfc6a6 });
+  [-1, 1].forEach((s) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.05, 7), fur); leg.position.set(0.2 * s, 0.52, 0); g.add(leg);
+    sphere(0.12, cream, 0.2 * s, 0.04, 0.08, g, 8).scale.set(1, 0.5, 1.6);
+  });
+  const body = sphere(0.42, fur, 0, 1.45, 0, g, 12); body.scale.set(0.8, 1.55, 0.62); body.rotation.x = 0.25;
+  sphere(0.3, cream, 0, 1.35, 0.17, g, 10).scale.set(0.8, 1.3, 0.5);
+  const arms = [];
+  [-1, 1].forEach((s) => {
+    const arm = new THREE.Group(); arm.position.set(0.36 * s, 2.0, 0.05); g.add(arm);
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.85, 6), fur); up.position.y = -0.42; arm.add(up);
+    const lo = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.8, 6), fur); lo.position.y = -1.2; arm.add(lo);
+    for (let i = -1; i <= 1; i++) {
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.22, 4), black);
+      claw.position.set(i * 0.035, -1.68, 0.02); claw.rotation.x = Math.PI; arm.add(claw);
+    }
+    arm.rotation.z = 0.12 * s; arms.push(arm);
+  });
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.5, 6), fur); neck.position.set(0, 2.2, 0.05); neck.rotation.x = 0.3; g.add(neck);
+  const head = new THREE.Group(); head.position.set(0, 2.5, 0.15); head.rotation.z = 0.55; g.add(head);
+  sphere(0.42, fur, 0, 0, 0, head, 12);
+  sphere(0.2, cream, 0, -0.14, 0.33, head, 10).scale.set(1.3, 0.8, 1.2);
+  sphere(0.06, black, 0, -0.07, 0.56, head, 8);
+  // 크기가 다른 두 눈, 아주 작은 빨간 눈동자
+  sphere(0.17, eyeMat, -0.17, 0.1, 0.3, head, 10).scale.set(1, 1.2, 0.7);
+  sphere(0.11, eyeMat, 0.18, 0.12, 0.32, head, 10).scale.set(1, 1.1, 0.7);
+  sphere(0.028, pupilMat, -0.17, 0.1, 0.43, head, 6);
+  sphere(0.022, pupilMat, 0.18, 0.12, 0.41, head, 6);
+  // 귀까지 찢어진 입과 이빨
+  const mouth = sphere(0.14, black, 0, -0.27, 0.32, head, 10); mouth.scale.set(1.9, 0.5, 0.5);
+  const teeth = new THREE.Group(); teeth.position.set(0, -0.27, 0.38); head.add(teeth);
+  for (let i = -5; i <= 5; i++) {
+    const tu = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.07, 4), teethMat); tu.position.set(i * 0.024, 0.04, 0); tu.rotation.x = Math.PI; teeth.add(tu);
+    const td = new THREE.Mesh(new THREE.ConeGeometry(0.016, 0.06, 4), teethMat); td.position.set(i * 0.024 + 0.012, -0.04, 0); teeth.add(td);
+  }
+  const ear = sphere(0.2, furDark, -0.42, -0.2, 0, head, 8); ear.scale.set(0.5, 1.4, 0.3); ear.rotation.z = -0.2; // 한쪽 귀만 축 늘어짐
+  sphere(0.07, furDark, 0.36, 0.25, 0, head, 6); // 뜯겨 나간 귀
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 6, 14, Math.PI * 1.3), lam(0x5a1010));
+  collar.position.set(0, 2.05, 0.05); collar.rotation.x = Math.PI / 2; g.add(collar);
+  g.visible = false;
+  return { group: g, head, arms, mouth, teeth };
+}
+const MON_SCALE = 0.84; // 천장 들보(2.2m)에 머리가 가려지지 않을 정도의 키
+const monster = createMonster(); monster.group.scale.setScalar(MON_SCALE); room.add(monster.group);
+const MON = { state: 'off', look: 0, hiddenUntil: 0, stepT: 0, breathT: 0, lunge: 0 };
 
 // 먼지
 const dustN = 260, dustPos = new Float32Array(dustN * 3);
@@ -873,19 +1021,20 @@ const hemi = new THREE.HemisphereLight(0xffffff, 0x6a8a4a, 1.8); tapeScene.add(h
 const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(3, 6, 5); tapeScene.add(sun);
 const groundMat = lam(0x72c650), leafMat = lam(0x3fa64a), trunkMat = lam(0x7a4e2a);
 const ground = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 0.2, 28), groundMat); ground.position.y = -0.1; tapeScene.add(ground);
-[[-6, -9, 5], [5, -10, 6], [0, -13, 7]].forEach(([x, z, r]) => sphere(r, groundMat, x, -r * 0.6, z, tapeScene, 20));
+const outdoor = new THREE.Group(); tapeScene.add(outdoor); // 언덕·나무·꽃·구름 (4편 촬영장에서는 숨김)
+[[-6, -9, 5], [5, -10, 6], [0, -13, 7]].forEach(([x, z, r]) => sphere(r, groundMat, x, -r * 0.6, z, outdoor, 20));
 [[-3.2, -2], [3.4, -3], [-1.6, -5.5], [2.2, -6.5], [-4.5, -5]].forEach(([x, z]) => {
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.7, 6), trunkMat); trunk.position.set(x, 0.35, z); tapeScene.add(trunk);
-  const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.5, 7), leafMat); leaves.position.set(x, 1.4, z); tapeScene.add(leaves);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.7, 6), trunkMat); trunk.position.set(x, 0.35, z); outdoor.add(trunk);
+  const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.5, 7), leafMat); leaves.position.set(x, 1.4, z); outdoor.add(leaves);
 });
 const flowerCols = [0xff6b8a, 0xffe14d, 0xffffff, 0xb07cff];
 for (let i = 0; i < 26; i++) {
   const x = (Math.random() - 0.5) * 9, z = -Math.random() * 5 + 1.5;
   if (Math.abs(x) < 1 && z > -1) continue;
-  sphere(0.06, flowerCols[i % 4], x, 0.06, z, tapeScene, 6);
+  sphere(0.06, flowerCols[i % 4], x, 0.06, z, outdoor, 6);
 }
 const sunMesh = sphere(0.6, new THREE.MeshBasicMaterial({ color: 0xffe24a }), 3.8, 4.2, -7, tapeScene);
-const clouds = new THREE.Group(); tapeScene.add(clouds);
+const clouds = new THREE.Group(); outdoor.add(clouds);
 const cloudMat = lam(0xffffff, { emissive: 0x555555 });
 [[-3, 3.6, -6], [1, 4.3, -8], [-0.5, 3.2, -9]].forEach(([x, y, z]) => {
   [[0, 0, 0.5], [0.5, 0.1, 0.4], [-0.5, 0, 0.38], [0.2, 0.3, 0.35]].forEach(([dx, dy, r]) => sphere(r, cloudMat, x + dx, y + dy, z, clouds, 10));
@@ -915,13 +1064,18 @@ const THEMES = {
   1: { bg: 0x86cdf7, ground: 0x72c650, leaf: 0x3fa64a, sun: 0xffe24a, sunY: 4.2, cloud: 0xffffff, hemi: 1.8, fog: null },
   2: { bg: 0xf4a261, ground: 0x86a648, leaf: 0x4c8a3a, sun: 0xff7a3a, sunY: 2.9, cloud: 0xffd2b0, hemi: 1.4, fog: null },
   3: { bg: 0x3c4146, ground: 0x4e5b47, leaf: 0x2f3f31, sun: null, cloud: 0x6a6e72, hemi: 0.7, fog: [0x3c4146, 4, 15] },
+  // 4편: 1994년 마지막 녹화 날 밤, 불 꺼진 촬영장 (조명 하나만 토토를 비춤)
+  4: { bg: 0x030303, ground: 0x1a1a1a, leaf: 0x000000, sun: null, cloud: 0x000000, hemi: 0.18, sunI: 1.3, outdoor: false, fog: null },
+  // 5편: 방송되지 못한 마지막 회. 핏빛 하늘, 말라 죽은 나무
+  5: { bg: 0x2a0606, ground: 0x2b2a22, leaf: 0x0d0d0d, sun: null, cloud: 0x3a1414, hemi: 0.6, fog: [0x2a0606, 3, 13] },
 };
 function setTheme(n) {
   const th = THEMES[n];
   tapeScene.background = new THREE.Color(th.bg);
   groundMat.color.set(th.ground); leafMat.color.set(th.leaf); cloudMat.color.set(th.cloud);
   sunMesh.visible = !!th.sun; if (th.sun) { sunMesh.material.color.set(th.sun); sunMesh.position.y = th.sunY; }
-  hemi.intensity = th.hemi; sun.intensity = th.hemi * 0.9;
+  outdoor.visible = th.outdoor !== false;
+  hemi.intensity = th.hemi; sun.intensity = th.sunI ?? th.hemi * 0.9;
   tapeScene.fog = th.fog ? new THREE.Fog(...th.fog) : null;
 }
 
@@ -1149,6 +1303,8 @@ async function step(s) {
       S[s.key] = await askInput();
       break;
     case 'nameEgg': await run(nameEgg(S.name)); break;
+    case 'who': $('speaker').textContent = s.v; break; // 말하는 사람 이름표 바꾸기
+    case 'if': if (s.cond()) await run(s.then); break;   // 조건이 맞을 때만 하는 대사
     case 'mood': curMood = s.v; break;
     case 'glitch': await glitch(s.ms || 400, s.flash); break;
     case 'apples': showApples(s.n); await sleep(s.n ? 400 + s.n * 120 : 150); break;
@@ -1229,22 +1385,68 @@ const TAPES = {
     { t: 'say', text: '테이프 안은 춥고, 어둡고, 아무도 안 와.' },
     { t: 'glitch', ms: 300 },
     { t: 'say', mood: 'creepy', text: '그런데 너는 왔잖아.' },
-    { t: 'say', text: '다락방 문 열쇠, 소파 위에 올려놨어.' },
-    { t: 'say', text: '그 문만 열어주면, 나도 밖으로 나갈 수 있어.' },
-    { t: 'ask', mood: 'stare', text: '문, 열어줄 거지? 우린 친구니까.', options: [
+    { t: 'say', text: '오늘 밤에, 다락방 문을 열어 줄래?' },
+    { t: 'say', text: '그 문만 열리면 나도 밖으로 나갈 수 있어.' },
+    { t: 'ask', mood: 'stare', text: '열어줄 거지? 우린 친구니까.', options: [
       { label: '응, 열어줄게', then: [
         { t: 'mood', v: 'happy' },
-        { t: 'say', text: '역시 {name}! 최고의 친구야!' },
-        { t: 'say', mood: 'creepy', text: '빨리 와. 문 앞에서 기다릴게.' },
+        { t: 'say', text: '역시 {name}! 최고야!' },
+        { t: 'say', mood: 'creepy', text: '그럼 오늘 밤에 만나. 꼭.' },
         { t: 'do', f: () => { S.choseOpen = true; } },
       ] },
       { label: '싫어', then: [
         { t: 'say', mood: 'stare', text: '…싫어?' },
         { t: 'glitch', ms: 900, flash: true },
         { t: 'say', mood: 'creepy', text: '괜찮아.' },
-        { t: 'say', text: '다른 친구를 기다리면 돼.' },
-        { t: 'say', text: '친구는… 언젠가 또 오니까.' },
+        { t: 'say', text: '문은 내가 열 수 있어.' },
+        { t: 'say', text: '오늘 밤에, 내가 갈게.' },
+        { t: 'do', f: () => { S.choseOpen = false; } },
       ] },
+    ] },
+    { t: 'music', v: 'off' },
+  ],
+  // 4편: "비하인드 — 1994.10.13 마지막 녹화" (불 꺼진 촬영장, 토토 옷 속의 아이)
+  4: [
+    { t: 'who', v: '???' },
+    { t: 'mood', v: 'stare' },
+    { t: 'wait', ms: 2200 },
+    { t: 'say', text: '…아직 녹화 중이에요?' },
+    { t: 'say', text: '아저씨들 다 갔어요. 불도 다 꺼졌고.' },
+    { t: 'say', text: '저는 조금만 더 놀다 갈게요. 토토 옷, 진짜 따뜻하거든요.' },
+    { t: 'wait', ms: 1500 },
+    { t: 'glitch', ms: 350 },
+    { t: 'say', text: '…어? 지퍼가 안 내려가요.' },
+    { t: 'say', text: '누가 좀 도와주세요. 아무도 없어요?' },
+    { t: 'wait', ms: 1800 },
+    { t: 'say', text: '괜찮아요. 제 비밀 방에서 기다릴게요.' },
+    { t: 'say', text: '선반 뒤에 있는 방이요. 아무도 몰라요.' },
+    { t: 'glitch', ms: 300 },
+    { t: 'who', v: '토토' },
+    { t: 'say', mood: 'creepy', text: '{name}. 너는 찾을 수 있지?' },
+  ],
+  // 5편: "마지막 회 (방송 안 됨)" — 여기서 최종 선택
+  5: [
+    { t: 'music', v: 'creepy' },
+    { t: 'mood', v: 'stare' },
+    { t: 'wait', ms: 1500 },
+    { t: 'say', text: '…찾았구나, {name}.' },
+    { t: 'say', text: '그 방, 내가 제일 좋아하던 곳이야.' },
+    { t: 'say', text: '나는 거기서 기다렸어. 아주, 아주 오래.' },
+    { t: 'say', text: '토토 옷을 입으면 아무도 나를 못 알아봐.' },
+    { t: 'say', text: '그래서 아무도 나를 찾으러 오지 않았어.' },
+    { t: 'if', cond: () => !S.choseOpen, then: [{ t: 'say', text: '너는 문을 안 열어 줬지. 그래도 괜찮아. 내가 열었으니까.' }] },
+    { t: 'glitch', ms: 400 },
+    { t: 'say', mood: 'creepy', text: '그러니까 이제 네 차례야.' },
+    { t: 'say', text: '문을 열어 놨어. 나는 밖으로 나가고, 너는 여기 남는 거야.' },
+    { t: 'say', text: '그럼 이제 네가 토토야.' },
+    { t: 'ask', mood: 'stare', text: '어떻게 할래?', options: [
+      { label: '…알았어. 같이 나가자.', then: [
+        { t: 'mood', v: 'happy' },
+        { t: 'say', text: '정말? 고마워, {name}!' },
+        { t: 'say', mood: 'creepy', text: '먼저 나가. 바로 뒤에서 따라갈게.' },
+        { t: 'do', f: () => { S.final = 'A'; } },
+      ] },
+      { label: 'TV 전원을 뽑는다', then: [{ t: 'do', f: pullPlugEnding }] },
       // 숨겨진 선택지: 할머니 일기장을 읽었을 때만 보임 → 진엔딩
       { label: '지우야, 이제 집에 가자.', secret: () => S.readDiary, then: [
         { t: 'music', v: 'off' },
@@ -1279,10 +1481,13 @@ async function playTape(n) {
   view = 'tape'; S.mode = 'tape';
   document.body.classList.add('tape'); vhsEl.classList.remove('hidden');
   setTheme(n); totoTargetX = 0; toto.group.position.x = 0; curMood = 'happy'; showApples(0);
-  osdPlay.textContent = 'PLAY ▶'; noiseAlpha = 1; sfx.static(0.9);
+  $('speaker').textContent = '토토';
+  osdPlay.textContent = n === 4 ? 'REC ●' : 'PLAY ▶';
+  $('osdDate').textContent = n === 4 ? 'OCT. 13 1994  23:48' : 'OCT. 13 1994';
+  noiseAlpha = 1; sfx.static(0.9);
   if (ambGain) ambGain.gain.value = 0.25;
   await sleep(900);
-  noiseAlpha = n === 3 ? 0.22 : 0.12; tapeStart = performance.now();
+  noiseAlpha = n >= 3 ? 0.22 : 0.12; tapeStart = performance.now();
 
   // 테이프 도중에 오류가 나도 다락방으로는 꼭 돌아오게 (catch)
   try {
@@ -1290,7 +1495,7 @@ async function playTape(n) {
   } catch (e) {
     console.error(e);
   }
-  if (tapeAbort) return; // 엔딩 C·D: 테이프가 끊기고 바로 엔딩으로 감
+  if (tapeAbort) return; // 테이프가 끊기고 바로 엔딩으로 가는 경우
 
   setMusic('off');
   dialogEl.classList.add('hidden'); choicesEl.classList.add('hidden'); inputBox.classList.add('hidden');
@@ -1309,20 +1514,182 @@ async function playTape(n) {
 // 테이프가 끝난 뒤 안내 글은 "클릭해서 계속하기" 창 뒤에 가려지지 않게, 다시 게임으로 돌아왔을 때 보여줌
 let pendingToast = null;
 function afterTape(n) {
-  if (n === 3 && !S.choseOpen) { endingB(); return; }
+  if (n === 3) { startNight(); return; } // 2막: 그날 밤
   S.mode = 'room';
   $('hud').classList.remove('hidden');
   $('pause').classList.remove('hidden');
   if (n === 1) { flickerChance = 0.5; setTimeout(sfx.click, 600); pendingToast = '어디선가 "딸깍" 하는 소리가 났다.'; }
   if (n === 2) { flickerChance = 0.9; plush.group.visible = true; }
-  if (n === 3) {
-    // 인형이 사라지고 그 자리에 열쇠가… 인형은 문 옆으로
-    flickerChance = 1.6; bulbLight.color.set(0xff8a6a);
-    key.position.copy(plush.group.position).add(new THREE.Vector3(0.1, 0.02, 0));
-    key.visible = true;
-    plush.group.position.set(3.65, 0, 5.4); plush.group.scale.setScalar(0.45);
-    pendingToast = '소파 쪽에서 무언가 반짝인다.';
+  if (n === 4) {
+    pendingToast = '선반 쪽에서 차가운 바람이 새어 나온다…';
+    MON.state = 'armed'; MON.startAt = 0; // 다시 게임으로 돌아오고 몇 초 뒤부터 괴물이 돌아다님
   }
+  if (n === 5) {
+    MON.state = 'off'; monster.group.visible = false;
+    if (S.final === 'A') { sfx.clunk(); pendingToast = '철컥. 다락방 문의 잠금이 풀리는 소리가 났다.'; }
+  }
+}
+
+// ================== 2막: 그날 밤 ==================
+function showCard(text) { const c = $('card'); c.textContent = text; c.classList.add('show'); }
+function hideCard() { $('card').classList.remove('show'); }
+function applyNight() {
+  S.night = true; lightsOut = true; flickerChance = 0;
+  dust.material.opacity = 0.12; // 어둠 속에서 먼지가 별처럼 빛나지 않게
+  roomHemi.intensity = 0.05; moon.intensity = 2.2;
+  room.fog = new THREE.Fog(0x000000, 1.5, 11);
+  flashOn = true;
+}
+async function startNight() {
+  S.mode = 'cutscene';
+  $('hud').classList.add('hidden'); $('pause').classList.add('hidden');
+  // 전구가 퍽! 하고 나감
+  flickerChance = 0; lightsOut = true; tvMode = 'off';
+  noise(0.25, 0.5, 2500, 'highpass'); tone(90, 0.4, 'square', 0.05);
+  await sleep(900);
+  $('fade').classList.add('on');
+  await sleep(1700);
+  showCard('그날 밤');
+  await sleep(2400);
+  hideCard();
+  applyNight();
+  plush.group.visible = false; tape4.visible = true; tvMode = 'static';
+  // 등 뒤(문 옆)에 무언가가 서 있다… 쳐다보면 사라짐
+  MON.state = 'glimpse'; MON.look = 0;
+  monster.group.position.set(1.9, 0, 5.2); monster.group.visible = true;
+  await sleep(600);
+  $('fade').classList.remove('on');
+  await sleep(1000);
+  S.mode = 'room';
+  $('hud').classList.remove('hidden');
+  showPauseIfNeeded();
+  pendingToast = '전구가 나갔다. 손전등을 켰다. [F] 켜기/끄기';
+}
+
+// ================== 괴물 토토의 움직임 ==================
+// 쳐다보고 있으면 멈추고, 눈을 돌리면 다가옴. 오래 쳐다보면 사라졌다가 다른 곳에서 나타남
+const SPAWNS = [[4, -5], [-4, -5.2], [4, 5], [-4, 5.2], [0, 5.3], [3.6, 0], [-3.4, -3], [2.5, -4.6]];
+const tmpV = new THREE.Vector3(), camDir = new THREE.Vector3();
+let flashFlickerUntil = 0;
+function seenByPlayer(p) {
+  tmpV.set(p.x - camera.position.x, 1.4 - camera.position.y, p.z - camera.position.z);
+  if (tmpV.length() > 14) return false;
+  camera.getWorldDirection(camDir);
+  return tmpV.normalize().dot(camDir) > Math.cos(0.6);
+}
+function spawnFar() {
+  let best = null, bestD = -1;
+  for (const [x, z] of SPAWNS) {
+    const p = { x, z }, d = Math.hypot(x - camera.position.x, z - camera.position.z);
+    if (d > bestD && !seenByPlayer(p)) { best = p; bestD = d; }
+  }
+  if (!best) best = { x: SPAWNS[0][0], z: SPAWNS[0][1] };
+  monster.group.position.set(best.x, 0, best.z);
+}
+function vanishMonster() {
+  monster.group.visible = false; flashFlickerUntil = performance.now() + 350;
+  noise(0.3, 0.15, 3000, 'highpass');
+}
+function updateMonster(dt, t) {
+  const m = monster.group, now = performance.now();
+  if (MON.state === 'off' || MON.state === 'scene') return;
+  m.lookAt(camera.position.x, m.position.y, camera.position.z);
+  monster.head.rotation.z = 0.55 + (Math.random() < 0.04 ? (Math.random() - 0.5) * 0.9 : 0);
+  if (S.mode !== 'room' || S.ui || !locked) return; // 테이프·창이 떠 있거나 일시정지 중에는 멈춤
+  const dx = camera.position.x - m.position.x, dz = camera.position.z - m.position.z, dist = Math.hypot(dx, dz);
+  if (MON.state === 'glimpse') {
+    if (m.visible && seenByPlayer(m.position)) { MON.look += dt; if (MON.look > 0.45) { vanishMonster(); MON.state = 'off'; } }
+    return;
+  }
+  if (MON.state === 'armed') {
+    if (!MON.startAt) MON.startAt = now + 7000;
+    if (now > MON.startAt) {
+      MON.state = 'stalk'; MON.hiddenUntil = 0; spawnFar(); m.visible = true;
+      noise(0.5, 0.6, 180); tone(60, 0.6, 'sine', 0.12); // 쾅!
+      toast('쾅! …문이 열리는 소리가 났다. 무언가 들어왔다. 눈을 떼지 마.', 4500);
+    }
+    return;
+  }
+  // stalk
+  if (now < MON.hiddenUntil) { m.visible = false; return; }
+  if (!m.visible) { spawnFar(); m.visible = true; MON.look = 0; }
+  if (seenByPlayer(m.position)) {
+    MON.look += dt;
+    monster.arms.forEach((a) => { a.rotation.x *= 0.9; });
+    if (MON.look > 3.2) { vanishMonster(); MON.hiddenUntil = now + 5000 + Math.random() * 4000; MON.look = 0; }
+  } else {
+    MON.look = Math.max(0, MON.look - dt * 0.5);
+    const sp = (S.choseOpen ? 0.55 : 0.75) * dt; // 3편에서 거절했으면 더 빠름
+    m.position.x += (dx / dist) * sp; m.position.z += (dz / dist) * sp;
+    monster.arms.forEach((a, i) => { a.rotation.x = Math.sin(t * 5 + i * Math.PI) * 0.4; });
+    MON.stepT -= dt;
+    if (MON.stepT <= 0) { MON.stepT = 0.55; tone(48, 0.18, 'sine', Math.min(0.2, 0.5 / (dist + 0.5))); noise(0.08, Math.min(0.15, 0.3 / (dist + 0.5)), 200); }
+  }
+  if (dist < 3.5) { MON.breathT -= dt; if (MON.breathT <= 0) { MON.breathT = 1.5; noise(0.9, Math.min(0.12, 0.25 / dist), 500); } }
+  if (dist < 0.9) caughtEnding();
+}
+
+// ================== 화면 밖 갑툭튀: 저절로 뒤를 돌아보면 괴물 토토가 덮침 ==================
+function tween(ms, fn) {
+  return new Promise((res) => {
+    const t0 = performance.now();
+    (function step() {
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      fn(k);
+      if (k < 1) setTimeout(step, 16); else res();
+    })();
+  });
+}
+async function leaveTapeView() {
+  if (view !== 'tape') return;
+  noiseAlpha = 1; sfx.static(0.5);
+  await sleep(600);
+  document.body.classList.remove('tape', 'glitch'); vhsEl.classList.add('hidden');
+  view = 'room';
+}
+async function lungeAt() {
+  const m = monster.group, start = m.position.clone();
+  // 얼굴이 화면을 꽉 채우는 거리(1m)에서 멈춤 (더 가까우면 카메라가 머리 속으로 들어감)
+  const end = new THREE.Vector3(camera.position.x - Math.sin(yaw) * 1.0, camera.position.y - 2.5 * MON_SCALE, camera.position.z - Math.cos(yaw) * 1.0);
+  MON.state = 'scene'; m.visible = true;
+  m.lookAt(camera.position.x, m.position.y, camera.position.z);
+  sfx.scream();
+  monster.arms.forEach((a, i) => { a.rotation.set(-0.5, 0, (i === 0 ? -1 : 1) * 2.0); }); // 두 팔을 양옆 위로 쫙
+  monster.mouth.scale.set(2.2, 1.1, 0.6); monster.teeth.scale.set(1.15, 2.2, 1);
+  await tween(170, (k) => { m.position.lerpVectors(start, end, k); });
+  const p0 = pitch, y0 = yaw;
+  await tween(650, () => { camera.rotation.set(p0 + (Math.random() - 0.5) * 0.08, y0 + (Math.random() - 0.5) * 0.08, 0); });
+  const f = $('fade'); f.style.transition = 'none'; f.classList.add('on');
+  await sleep(60); f.style.transition = '';
+}
+async function turnAroundScare() {
+  S.mode = 'cutscene';
+  setMusic('off'); window.speechSynthesis?.cancel(); $('bubble').classList.remove('show');
+  dialogEl.classList.add('hidden'); choicesEl.classList.add('hidden'); inputBox.classList.add('hidden');
+  await leaveTapeView();
+  $('hud').classList.add('hidden'); $('pause').classList.add('hidden');
+  document.exitPointerLock();
+  tvMode = 'off'; lightsOut = true; flashOn = true; roomHemi.intensity = 0.04;
+  if (ambGain) ambGain.gain.value = 0.35;
+  camera.position.y = 1.6; camera.rotation.set(pitch, yaw, 0);
+  // 괴물을 등 뒤에 세워 둠 (벽 속이면 조금씩 가까이)
+  let d = 1.8;
+  const bx = Math.sin(yaw), bz = Math.cos(yaw);
+  while (d > 0.9 && !walkable(camera.position.x + bx * d, camera.position.z + bz * d)) d -= 0.1;
+  MON.state = 'scene';
+  monster.group.position.set(camera.position.x + bx * d, 0, camera.position.z + bz * d);
+  monster.group.lookAt(camera.position.x, 0, camera.position.z);
+  monster.group.visible = true;
+  await sleep(1300);
+  tone(41, 2.2, 'sine', 0.12); // 낮게 웅— 하는 소리
+  const y0 = yaw, p0 = pitch;
+  await tween(1500, (k) => {
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    yaw = y0 + Math.PI * e; pitch = p0 * (1 - e) + 0.1 * e;
+    camera.rotation.set(pitch, yaw, 0);
+  });
+  await sleep(550);
+  await lungeAt();
 }
 
 // ================== 엔딩 ==================
@@ -1352,50 +1719,55 @@ async function showEnding(id, lines) {
   $('againBtn').classList.remove('hidden'); hint.classList.remove('hidden');
 }
 
+// 엔딩 A: 5편에서 토토와 같이 나가기로 하고 문을 열면
 function endingA() {
   sfx.clunk();
   showEnding('A', [
-    '철컥. 문이 열리자 차가운 바람이 훅 들어왔다.',
-    '그 순간, 뒤에서 TV가 저절로 켜졌다.',
-    '화면 속에서 누군가 손을 흔들고 있었다.',
-    '그건 토토가 아니었다.',
+    '문을 열자 차가운 바람이 훅 들어왔다.',
+    '계단을 내려가는데, 뒤에서 발소리가 하나 더 따라왔다.',
+    '돌아보니 다락방 TV가 켜져 있었다.',
+    '화면 속에서 누군가 문을 두드리며 소리치고 있었다.',
     '그건… {name}, 너였다.',
   ]);
 }
 
-async function endingB() {
-  S.mode = 'cutscene';
-  lightsOut = true; sfx.clunk();
-  plush.group.visible = false;
-  tvMode = 'text'; tvText = `또 보자, ${S.name}`;
-  await sleep(3200);
-  tvMode = 'off'; sfx.click();
-  await sleep(900);
-  lightsOut = false; flickerChance = 0;
-  await sleep(1500);
+// 엔딩 B: 5편에서 TV 전원을 뽑으면 → 뒤에서 덮침
+async function pullPlugEnding() {
+  S.mode = 'cutscene'; abortTape();
+  sfx.clunk(); setMusic('off');
+  document.body.classList.remove('tape', 'glitch'); vhsEl.classList.add('hidden'); // 화면이 툭 꺼짐
+  view = 'room'; tvMode = 'off'; vcrLed.material.color.set(0x000000);
+  MON.state = 'off'; monster.group.visible = false;
+  showCard('…조용해졌다.');
+  await sleep(1800);
+  hideCard();
+  await turnAroundScare();
   showEnding('B', [
-    'TV가 꺼지고, 다락방에 다시 불이 들어왔다.',
-    '토토 인형은 어디에도 없었다.',
-    '문은 어느새 열려 있었고, 나는 계단을 내려왔다.',
-    '…그런데 그날 밤, 우리 집 TV가 혼자 켜졌다.',
-    '"안녕, 친구! 나는 토토야!"',
+    '플러그를 뽑자 TV는 꺼졌다.',
+    '하지만 토토는 처음부터 테이프 속에만 있었던 게 아니었다.',
+    '다음 날 아침, 다락방에는 아무도 없었다.',
+    'TV 앞에 테이프 한 개만 놓여 있었을 뿐.',
+    '「토토와 친구들 — 마지막 회: {name}」',
   ]);
 }
 
-// 엔딩 C: 화면 속 토토를 12번 연달아 콕콕 누르면
+// 엔딩 C: 화면 속 토토를 12번 연달아 콕콕 누르면 → 화면 밖으로 나와서 뒤에서 덮침
 async function pokeEnding() {
   if (tapeAbort) return;
   S.mode = 'cutscene'; abortTape(); setMusic('off');
   moodOverride = null; curMood = 'creepy';
   bubble('이제 내 차례야.', true);
-  await sleep(1500);
-  $('bubble').classList.remove('show');
-  await jumpscare();
+  await sleep(1300);
+  toto.group.visible = false; // 화면 속 토토가 사라짐
+  bubble('뒤를 봐.', true);
+  await sleep(1200);
+  await turnAroundScare();
+  toto.group.visible = true;
   showEnding('C', [
-    '화면이 지지직거리더니 툭 꺼졌다.',
-    'TV 유리에 작은 손자국이 하나 남아 있었다.',
+    '화면이 툭 꺼졌다.',
+    'TV 유리에 작은 손자국이 남아 있었다.',
     '…화면 안쪽에서 찍힌 손자국이었다.',
-    '그날 밤, 누군가 자고 있는 내 볼을 콕, 콕 찔렀다.',
+    '토토는 이제 화면 밖에서 놀기로 했다.',
   ]);
 }
 
@@ -1413,6 +1785,27 @@ async function wrongEnding() {
     '다음 날, 다락방 TV 앞에 처음 보는 테이프가 놓여 있었다.',
     '라벨에는 삐뚤빼뚤한 글씨로 이렇게 적혀 있었다.',
     '「토토와 친구들 — {name} 편」',
+  ]);
+}
+
+// 엔딩 E: 밤의 다락방에서 괴물 토토에게 잡히면
+async function caughtEnding() {
+  if (S.mode !== 'room') return;
+  S.mode = 'cutscene'; MON.state = 'scene';
+  document.exitPointerLock(); $('hud').classList.add('hidden');
+  // 뒤에서 잡혔으면 괴물 쪽으로 홱 돌아봄
+  const m = monster.group.position;
+  const target = Math.atan2(-(m.x - camera.position.x), -(m.z - camera.position.z));
+  let diff = ((target - yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  const y0 = yaw, p0 = pitch;
+  await tween(260, (k) => { yaw = y0 + diff * k; pitch = p0 * (1 - k); camera.rotation.set(pitch, yaw, 0); });
+  await lungeAt();
+  showEnding('E', [
+    '토토는 숨바꼭질을 제일 좋아했다.',
+    '…술래를 바꾸는 것도.',
+    '다음 날, 다락방 TV에서 처음 보는 테이프가 재생되고 있었다.',
+    '화면 속 아이가 울면서 문을 두드리고 있었다.',
+    '아이의 이름표에는 이렇게 적혀 있었다. 「{name}」',
   ]);
 }
 
@@ -1474,6 +1867,7 @@ camera.position.set(0, 1.6, 4.2);
 addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (S.mode === 'room' && locked && e.code === 'KeyE' && !e.repeat) interact();
+  if (S.mode === 'room' && e.code === 'KeyF' && !e.repeat && (S.night || lightsOut)) { flashOn = !flashOn; sfx.click(); }
   // 선택지 버튼에 키보드 초점이 있으면 Space/Enter는 그 버튼을 누르게 둠
   const onButton = e.target instanceof HTMLButtonElement && e.target.offsetParent !== null;
   if (S.mode === 'tape' && (e.code === 'Space' || e.code === 'Enter') && e.target !== nameInput && !onButton) {
@@ -1553,7 +1947,7 @@ function updateAim() {
 }
 function interact() { if (aimed) aimed.act(); }
 
-const blocked = (x, z) => x < -W + 0.3 || x > W - 0.3 || z < -D + 0.3 || z > D - 0.3 ||
+const blocked = (x, z) => !walkable(x, z) ||
   colliders.some((c) => x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ);
 let bobT = 0, lastStep = 0;
 function updateMove(dt) {
@@ -1636,11 +2030,11 @@ function toast(text, ms = 3200) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 function objective() {
-  if (S.hasKey) return '문을 열고 나가자';
-  if (S.choseOpen) return '소파 위의 열쇠를 줍자';
+  if (S.final === 'A') return '문을 열고 나가자';
   if (S.tapes.has(S.watched + 1)) return `TV에 테이프 ${S.watched + 1}편을 넣자`;
   if ((S.watched === 1 && S.redOpen) || (S.watched === 2 && S.chestOpen)) return '상자 안의 테이프를 줍자';
-  return ['비디오테이프를 찾아보자', '빨간 상자를 찾아보자', '자물쇠 달린 상자를 찾아보자 (숫자 4개)', ''][S.watched];
+  return ['비디오테이프를 찾아보자', '빨간 상자를 찾아보자', '자물쇠 달린 상자를 찾아보자 (숫자 4개)',
+    '토토 인형이 앉아 있던 소파를 살펴보자', S.shelfMoved ? '숨겨진 방을 살펴보자' : '선반 뒤를 살펴보자', ''][S.watched] || '';
 }
 let lastObj = null;
 function updateHUD() {
@@ -1650,9 +2044,8 @@ function updateHUD() {
     const n = +el.dataset.tape;
     el.classList.toggle('have', S.tapes.has(n));
     el.classList.toggle('done', S.watched >= n);
+    if (n >= 4) el.classList.toggle('hidden', !S.night);
   });
-  $('keySlot').classList.toggle('hidden', !S.hasKey);
-  $('keySlot').classList.toggle('have', S.hasKey);
 }
 
 // ================== VHS 노이즈 ==================
@@ -1672,6 +2065,9 @@ const clock = new THREE.Clock();
 const headPos = new THREE.Vector3();
 function loop() {
   requestAnimationFrame(loop);
+  frame();
+}
+function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
 
   if (view === 'tape') {
@@ -1714,6 +2110,9 @@ function loop() {
 
   if (S.mode === 'room' && locked) { updateMove(dt); checkRoomScare(); }
   if (S.mode === 'room') updateAim();
+  updateMonster(dt, t);
+  // 손전등 (괴물이 사라질 때 잠깐 깜빡임)
+  flashlight.intensity = !flashOn ? 0 : performance.now() < flashFlickerUntil ? Math.random() * 4 : 14;
   updateBulb(t, dt);
   updateTV();
   updateHUD();
@@ -1737,7 +2136,11 @@ if (location.search.includes('debug')) {
     use: () => { room.updateMatrixWorld(); updateAim(); const l = aimed && aimed.label(); interact(); return l; },
     finish: (n) => { S.watched = n; tvMode = 'static'; afterTape(n); }, // 테이프를 다 본 것처럼 처리
     fakeLock: () => { locked = true; S.mode = 'room'; }, // 자동 테스트용: 마우스가 고정된 것처럼
-    toto, tapeCam, pokeRay, checkRoomScare, plush,
+    toto, tapeCam, pokeRay, checkRoomScare, plush, MON, monster,
+    act2: () => { S.tapes = new Set([1, 2, 3]); S.watched = 3; startNight(); }, // 바로 2막으로
+    turn: () => turnAroundScare(),
+    tick: (n = 1) => { for (let i = 0; i < n; i++) frame(); }, // 화면이 가려져 있어도 한 장면씩 진행
+    aim: () => { room.updateMatrixWorld(); ray.setFromCamera({ x: 0, y: 0 }, camera); return ray.intersectObjects(interactables, true).slice(0, 6).map((h) => { let o = h.object; while (o && !o.userData.it) o = o.parent; return [+h.distance.toFixed(2), o ? o.userData.it.label() : '?', o ? o.userData.it.enabled() : null, isShown(h.object.parent)]; }); },
     scareHold: () => { curMood = 'creepy'; talking = true; scare = { t0: performance.now() }; }, // 갑툭튀 장면 멈춰서 보기
     state: () => ({ scare: !!scare, tapeAbort, pokeCombo, cam: tapeCam.position.toArray(), totoX: toto.group.position.x, mood: totoMood() }),
     hit: (x, y) => { tapeScene.updateMatrixWorld(); tapeCam.updateMatrixWorld(); const r = canvas.getBoundingClientRect(); pokeRay.setFromCamera({ x: ((x - r.left) / r.width) * 2 - 1, y: -((y - r.top) / r.height) * 2 + 1 }, tapeCam); return { n: pokeRay.intersectObject(toto.group, true).length, o: pokeRay.ray.origin.toArray(), d: pokeRay.ray.direction.toArray(), view, rect: [r.width, r.height] }; },
