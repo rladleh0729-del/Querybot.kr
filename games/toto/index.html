@@ -1,0 +1,1748 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>토토와 친구들 · QueryBot Games</title>
+<meta name="description" content="할머니 댁 다락방에서 찾은 오래된 비디오테이프. 귀여운 강아지 토토가 화면 너머의 당신에게 말을 겁니다. 브라우저에서 바로 하는 3D 공포 게임.">
+<link rel="canonical" href="https://querybot.kr/games/toto/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="토토와 친구들 — 3D 공포 게임">
+<meta property="og:description" content="오래된 비디오테이프 속 강아지 토토가 당신의 이름을 부릅니다.">
+<meta property="og:url" content="https://querybot.kr/games/toto/">
+<meta property="og:image" content="https://querybot.kr/games/toto/thumb.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%BC%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: #000; overflow: hidden;
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    color: #eee; user-select: none;
+  }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  body.tape #game { filter: saturate(1.35) contrast(1.08) blur(0.6px); }
+  .hidden { display: none !important; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 20; padding: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; background: rgba(0, 0, 0, .86);
+  }
+  button {
+    font: inherit; font-size: 18px; cursor: pointer; padding: 12px 26px; margin: 6px;
+    border: 2px solid #f3d36b; background: #2a2116; color: #f3d36b; border-radius: 10px;
+  }
+  button:hover { background: #f3d36b; color: #1a140c; }
+  button.ghost { border-color: #777; color: #bbb; background: transparent; }
+  button.ghost:hover { background: #444; color: #fff; }
+
+  /* ---------- 타이틀 ---------- */
+  #title h1 {
+    font-size: clamp(40px, 8vw, 88px); margin: 0 0 6px; color: #f3d36b; letter-spacing: 4px;
+    text-shadow: 3px 3px 0 #b5302f, 0 0 30px rgba(243, 211, 107, .35);
+  }
+  #title .sub { color: #b9a98a; margin-bottom: 28px; font-size: 18px; }
+  #title .how { color: #999; font-size: 15px; line-height: 1.9; margin: 20px 0 6px; }
+  #title kbd { background: #333; border: 1px solid #555; border-radius: 4px; padding: 1px 7px; color: #ddd; font-family: inherit; }
+  #title label { color: #aaa; font-size: 15px; cursor: pointer; }
+  #mobileNote { margin-top: 18px; padding: 10px 16px; border: 1px solid #6b5530; border-radius: 10px; color: #f3d36b; font-size: 15px; }
+  #backLink { position: absolute; left: 18px; top: 14px; color: #8d8270; font-size: 15px; text-decoration: none; }
+  #backLink:hover { color: #f3d36b; }
+  #endingsBox { margin-top: 22px; color: #8d8270; font-size: 14px; }
+  .slots { display: flex; gap: 8px; justify-content: center; margin: 8px auto 0; flex-wrap: wrap; max-width: 760px; }
+  .slots span {
+    min-width: 34px; padding: 3px 9px; border-radius: 6px; border: 1px dashed #5a4e38; color: #6d6048; cursor: help; font-size: 14px;
+  }
+  .slots span.got { border: 1px solid #f3d36b; color: #f3d36b; background: rgba(60, 45, 15, .6); }
+
+  /* ---------- 방 HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 8; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255, 255, 255, .7); }
+  #cross.on { background: #f3d36b; width: 10px; height: 10px; margin: -5px 0 0 -5px; }
+  #prompt {
+    position: absolute; left: 50%; top: calc(50% + 28px); transform: translateX(-50%);
+    background: rgba(0, 0, 0, .65); padding: 6px 14px; border-radius: 8px; font-size: 17px; white-space: nowrap;
+  }
+  #prompt b { color: #f3d36b; }
+  #objective { position: absolute; left: 18px; top: 16px; font-size: 15px; color: #d8c9a6; text-shadow: 1px 1px 2px #000; }
+  #objective::before { content: '▸ '; color: #f3d36b; }
+  #inv { position: absolute; right: 18px; top: 14px; display: flex; gap: 8px; }
+  .slot {
+    width: 46px; height: 32px; border: 2px dashed #444; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; color: #555;
+  }
+  .slot.have { border: 2px solid #f3d36b; color: #f3d36b; background: rgba(40, 30, 10, .7); }
+  .slot.done { border-color: #776a4a; color: #776a4a; text-decoration: line-through; }
+  #toast {
+    position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); max-width: min(90vw, 640px);
+    background: rgba(0, 0, 0, .75); padding: 12px 20px; border-radius: 10px; font-size: 18px; line-height: 1.6;
+    opacity: 0; transition: opacity .4s; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ---------- VHS 화면 ---------- */
+  #vhs { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #noise { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .12; image-rendering: pixelated; }
+  #vhs .scan { position: absolute; inset: 0; background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .28) 0 2px, transparent 2px 4px); }
+  #vhs .vig { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, .75) 100%); }
+  #vhs .track {
+    position: absolute; left: 0; right: 0; height: 7%;
+    background: linear-gradient(transparent, rgba(255, 255, 255, .09), transparent);
+    animation: track 7s linear infinite;
+  }
+  @keyframes track { from { top: -10%; } to { top: 110%; } }
+  .osd {
+    position: absolute; font-family: Consolas, 'Courier New', monospace; font-size: clamp(16px, 2.6vw, 30px);
+    color: #fff; letter-spacing: 2px; text-shadow: 2px 2px 0 #000, 0 0 6px rgba(255, 255, 255, .6);
+  }
+  #osdPlay { top: 6%; left: 6%; }
+  #osdTime { top: 6%; right: 6%; }
+  #osdDate { bottom: 30%; right: 6%; font-size: clamp(13px, 1.8vw, 20px); opacity: .85; }
+
+  /* 글리치: 화면이 흔들리고 색만 바뀜. 밝기가 번쩍이는 효과(반전 등)는 빛에 민감한 사람한테 위험해서 안 씀 */
+  body.glitch #game { animation: jit .09s steps(2) infinite; filter: hue-rotate(90deg) saturate(2) contrast(1.1); }
+  body.glitch #noise { opacity: .45 !important; }
+  @keyframes jit {
+    0% { transform: translate(-9px, 2px) skewX(5deg); }
+    50% { transform: translate(11px, -3px) skewX(-7deg); }
+    100% { transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { body.glitch #game { animation: none; } }
+
+  /* ---------- 대사 ---------- */
+  #dialog {
+    position: fixed; left: 50%; bottom: 5%; transform: translateX(-50%); z-index: 10;
+    width: min(92vw, 820px); background: rgba(10, 12, 30, .82); border: 3px solid #f3d36b; border-radius: 16px;
+    padding: 16px 22px 18px; min-height: 96px;
+  }
+  #speaker {
+    position: absolute; top: -16px; left: 18px; background: #f3d36b; color: #2a1d0a;
+    font-weight: bold; padding: 2px 14px; border-radius: 8px; font-size: 16px;
+  }
+  #dtext { font-size: clamp(18px, 2.4vw, 24px); line-height: 1.6; min-height: 1.6em; white-space: pre-wrap; }
+  #dnext { position: absolute; right: 16px; bottom: 6px; color: #f3d36b; font-size: 14px; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #choices {
+    position: fixed; left: 50%; bottom: calc(5% + 140px); transform: translateX(-50%); z-index: 11;
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: min(92vw, 820px);
+  }
+  #choices button { background: rgba(20, 16, 8, .9); font-size: 19px; }
+  #choices button:hover, #choices button:focus-visible { background: #f3d36b; color: #1a140c; }
+  #choices button.secret { border-color: #9fd3ff; color: #9fd3ff; }
+  #choices button.secret:hover { background: #9fd3ff; color: #0b1a2a; }
+
+  /* 토토를 클릭했을 때 뜨는 말풍선 */
+  #bubble {
+    position: fixed; left: 50%; top: 12%; transform: translateX(-50%) scale(.9); z-index: 9;
+    background: #fff; color: #222; font-size: clamp(18px, 2.4vw, 26px); font-weight: bold;
+    padding: 10px 20px; border-radius: 18px; border: 3px solid #222; opacity: 0; transition: opacity .15s, transform .15s;
+    pointer-events: none; white-space: nowrap;
+  }
+  #bubble.show { opacity: 1; transform: translateX(-50%) scale(1); }
+  #bubble.creepy { background: #1a0606; color: #ff4a4a; border-color: #ff4a4a; }
+
+  /* 할머니 일기장 */
+  #diaryUI .paper {
+    max-width: 520px; text-align: left; background: #e9dfc4; color: #3a2a18; border-radius: 6px; padding: 26px 30px;
+    font-family: 'Gungsuh', 'Batang', serif; font-size: 17px; line-height: 1.9; box-shadow: 0 10px 40px #000;
+    transform: rotate(-1deg);
+  }
+  #diaryUI .paper b { color: #7a1010; }
+  #inputBox {
+    position: fixed; left: 50%; bottom: calc(5% + 140px); transform: translateX(-50%); z-index: 11;
+    display: flex; gap: 8px; align-items: center;
+  }
+  #nameInput {
+    font: inherit; font-size: 22px; padding: 10px 14px; width: 220px; border-radius: 10px;
+    border: 2px solid #f3d36b; background: #111; color: #fff; text-align: center; outline: none;
+  }
+
+  /* ---------- 자물쇠 ---------- */
+  .panel { background: #1b150e; border: 2px solid #6b5530; border-radius: 16px; padding: 22px 30px; }
+  .panel h2 { margin: 0 0 4px; color: #f3d36b; }
+  .panel p { color: #aaa; margin: 0 0 16px; }
+  #dials { display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; }
+  .dial { display: flex; flex-direction: column; align-items: center; }
+  .dial button { margin: 2px; padding: 4px 14px; font-size: 16px; }
+  .dial span {
+    font-family: Consolas, monospace; font-size: 40px; width: 56px; padding: 4px 0;
+    background: #0c0904; border: 2px solid #8a6d35; border-radius: 8px; color: #f3d36b;
+  }
+  .shake { animation: shake .35s; }
+  @keyframes shake { 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+  /* ---------- 엔딩 ---------- */
+  #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1.6s; z-index: 15; }
+  #fade.on { opacity: 1; }
+  #ending { background: #000; }
+  #endTag { color: #b5302f; letter-spacing: 6px; font-size: 15px; margin-bottom: 6px; }
+  #ending h1 { margin: 0 0 22px; color: #f3d36b; font-size: clamp(30px, 5vw, 52px); }
+  #endText { max-width: 640px; font-size: 19px; line-height: 1.9; color: #ccc; margin-bottom: 26px; }
+  #endText p { margin: 0 0 10px; opacity: 0; transition: opacity 1.2s; }
+  #endText p.show { opacity: 1; }
+  #endHint { color: #666; font-size: 14px; margin-top: 10px; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- VHS 효과 (테이프 볼 때) -->
+<div id="vhs" class="hidden">
+  <canvas id="noise" width="160" height="90"></canvas>
+  <div class="track"></div>
+  <div class="scan"></div>
+  <div class="vig"></div>
+  <div id="osdPlay" class="osd">PLAY ▶</div>
+  <div id="osdTime" class="osd">SP 0:00:00</div>
+  <div id="osdDate" class="osd">OCT. 13 1994</div>
+</div>
+
+<!-- 대사 -->
+<div id="dialog" class="hidden">
+  <div id="speaker">토토</div>
+  <div id="dtext"></div>
+  <div id="dnext">▼ 클릭</div>
+</div>
+<div id="choices" class="hidden"></div>
+<div id="inputBox" class="hidden">
+  <input id="nameInput" maxlength="8" autocomplete="off" placeholder="이름">
+  <button id="inputOk">확인</button>
+</div>
+
+<!-- 방 HUD -->
+<div id="hud" class="hidden">
+  <div id="cross"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="objective"></div>
+  <div id="inv">
+    <div class="slot" data-tape="1">1편</div>
+    <div class="slot" data-tape="2">2편</div>
+    <div class="slot" data-tape="3">3편</div>
+    <div class="slot hidden" id="keySlot">🔑</div>
+  </div>
+  <div id="toast"></div>
+</div>
+
+<div id="fade"></div>
+
+<!-- 타이틀 -->
+<div id="title" class="overlay">
+  <h1>토토와 친구들</h1>
+  <div class="sub">할머니 댁 다락방에서 찾은, 아주 오래된 비디오테이프</div>
+  <button id="startBtn" disabled>불러오는 중…</button>
+  <div class="how">
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Shift</kbd> 달리기 · 마우스 둘러보기<br>
+    <kbd>E</kbd> 또는 클릭: 줍기 / 열기 / 테이프 넣기 · 대사는 클릭이나 <kbd>Space</kbd>로 넘기기<br>
+    🎧 이어폰을 끼면 더 무서워요 · ⚠️ 화면이 갑자기 흔들리고 지지직거리는 장면이 있어요
+  </div>
+  <label><input type="checkbox" id="ttsChk" checked> 토토 목소리 켜기 (컴퓨터 음성)</label>
+  <div id="mobileNote" class="hidden">📱 이 게임은 키보드와 마우스가 있는 PC에서 할 수 있어요.</div>
+  <div id="endingsBox" class="hidden">발견한 엔딩 <span id="endCount"></span><div class="slots"></div></div>
+  <a id="backLink" href="/games/">← 게임 목록</a>
+</div>
+
+<div id="bubble"></div>
+
+<!-- 할머니 일기장 -->
+<div id="diaryUI" class="overlay hidden">
+  <div class="paper">
+    <b>1994년 10월 13일</b><br>
+    오늘 「토토와 친구들」 마지막 촬영이 있었다.<br>
+    토토 옷을 입고 연기하던 아이, 지우가 촬영이 끝났는데도 옷을 벗지 않았다.<br>
+    "조금만 더 놀고 싶어요." 그게 마지막으로 들은 말이었다.<br><br>
+    그날 이후 지우를 본 사람은 없다.<br>
+    그런데 이 테이프를 틀면, 토토가 가끔 내 이름을 부른다.<br><br>
+    <b>토토의 진짜 이름은 지우다.</b> 잊지 말 것.
+  </div>
+  <button id="diaryClose" style="margin-top:18px">일기장 덮기</button>
+</div>
+
+<!-- 일시정지 -->
+<div id="pause" class="overlay hidden">
+  <h2 style="color:#f3d36b">클릭해서 계속하기</h2>
+</div>
+
+<!-- 자물쇠 -->
+<div id="lockUI" class="overlay hidden">
+  <div class="panel" id="lockPanel">
+    <h2>🔒 낡은 자물쇠</h2>
+    <p>숫자 4개를 맞춰야 열린다.</p>
+    <div id="dials"></div>
+    <button id="lockOk">열기</button>
+    <button id="lockClose" class="ghost">닫기</button>
+  </div>
+</div>
+
+<!-- 엔딩 -->
+<div id="ending" class="overlay hidden">
+  <div id="endTag"></div>
+  <h1 id="endTitle"></h1>
+  <div id="endText"></div>
+  <button id="againBtn" class="hidden">처음부터 다시</button>
+  <div id="endHint" class="hidden"></div>
+</div>
+
+<script>
+  // 3D 도구를 못 불러오거나 오류가 나면, 시작 버튼이 아무 반응 없이 멈춰 있지 않게 안내
+  addEventListener('error', function () {
+    var b = document.getElementById('startBtn');
+    if (b && b.disabled && !b.dataset.err) b.textContent = '게임을 불러오지 못했어요. 새로고침해 주세요';
+  }, true);
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const canvas = $('game');
+
+// ================== 게임 상태 ==================
+const S = {
+  mode: 'title',      // title | room | tape | cutscene | ending
+  ui: null,           // 자물쇠 같은 창이 열려 있으면 'lock'
+  name: '친구',
+  tapes: new Set(),   // 주운 테이프
+  watched: 0,         // 몇 편까지 봤는지
+  redOpen: false,
+  chestOpen: false,
+  hasKey: false,
+  choseOpen: false,
+  readDiary: false,   // 할머니 일기장을 읽었는지 (진엔딩 조건)
+  wrongTotal: 0,      // 지금까지 틀린 횟수 (너무 많으면 엔딩 D)
+  roomScare: null,    // 3편을 줍고 뒤돌아보면 나오는 갑툭튀
+};
+
+// ================== 엔딩 모음 (이 브라우저에만 저장) ==================
+const ENDINGS = [
+  { id: 'A', name: '새로운 친구', hint: '토토의 부탁을 들어주면…' },
+  { id: 'B', name: '테이프를 끄다', hint: '토토의 부탁을 거절하면…' },
+  { id: 'C', name: '너무 가까운 친구', hint: '화면 속 토토를 너무 좋아하면…' },
+  { id: 'D', name: '틀린 친구', hint: '계속 틀리면…' },
+  { id: 'T', name: '진짜 이름', hint: '할머니는 뭔가 알고 있었다' },
+];
+function loadEndings() { try { return JSON.parse(localStorage.getItem('totoEndings') || '[]'); } catch (e) { return []; } }
+function saveEnding(id) {
+  const got = loadEndings();
+  if (got.includes(id)) return false;
+  got.push(id);
+  try { localStorage.setItem('totoEndings', JSON.stringify(got)); } catch (e) {}
+  return true;
+}
+function renderEndings(box, withHints) {
+  const got = loadEndings();
+  box.replaceChildren();
+  for (const e of ENDINGS) {
+    const s = document.createElement('span');
+    const has = got.includes(e.id);
+    s.className = has ? 'got' : '';
+    s.textContent = has ? `${e.id} ${e.name}` : '???';
+    s.title = has ? e.name : `힌트: ${e.hint}`;
+    if (!has && withHints) s.textContent = `??? (${e.hint})`;
+    box.appendChild(s);
+  }
+  return got.length;
+}
+{
+  const n = renderEndings(document.querySelector('#endingsBox .slots'), false);
+  if (n) { $('endCount').textContent = `${n} / ${ENDINGS.length}`; $('endingsBox').classList.remove('hidden'); }
+}
+
+// ================== 렌더러 ==================
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+} catch (e) {
+  $('startBtn').dataset.err = '1';
+  $('startBtn').textContent = '이 브라우저에서는 3D(WebGL)를 쓸 수 없어요';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * 0.6); // 일부러 해상도를 낮춰서 옛날 게임 느낌
+renderer.setSize(innerWidth, innerHeight);
+
+// ================== 소리 (전부 코드로 만듦) ==================
+let AC = null, master = null, ambGain = null, noiseBuf = null;
+
+function initAudio() {
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  master = AC.createGain(); master.gain.value = 0.7; master.connect(AC.destination);
+  noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+  // 다락방 배경음: 낮게 웅웅거리는 소리 + 바람
+  ambGain = AC.createGain(); ambGain.gain.value = 1; ambGain.connect(master);
+  [55, 55.8, 82.4].forEach((f, i) => {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.frequency.value = f; g.gain.value = i === 2 ? 0.012 : 0.035;
+    o.connect(g).connect(ambGain); o.start();
+  });
+  const wind = AC.createBufferSource(); wind.buffer = noiseBuf; wind.loop = true;
+  const wf = AC.createBiquadFilter(); wf.type = 'lowpass'; wf.frequency.value = 380;
+  const wg = AC.createGain(); wg.gain.value = 0.05;
+  wind.connect(wf).connect(wg).connect(ambGain); wind.start();
+}
+
+function tone(freq, dur, type = 'sine', vol = 0.1, when = 0, detune = 0) {
+  if (!AC) return;
+  const t = AC.currentTime + when;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = freq; o.detune.value = detune;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+
+function noise(dur, vol = 0.2, freq = 1500, type = 'lowpass') {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(master);
+  s.start(t, Math.random()); s.stop(t + dur + 0.05);
+}
+
+const sfx = {
+  pick: () => { tone(880, 0.12, 'triangle', 0.08); tone(1320, 0.15, 'triangle', 0.06, 0.07); },
+  click: () => noise(0.05, 0.25, 3000, 'highpass'),
+  clunk: () => { noise(0.25, 0.4, 300); tone(90, 0.2, 'square', 0.05); },
+  static: (d = 0.8) => noise(d, 0.25, 4000, 'highpass'),
+  step: () => noise(0.09, 0.06, 260),
+  creak: () => tone(70 + Math.random() * 40, 0.5, 'sawtooth', 0.012, 0, Math.random() * 300),
+  glitch: (ms) => { noise(ms / 1000, 0.35, 900, 'bandpass'); tone(120, ms / 1000, 'square', 0.05, 0, 600); },
+  locked: () => { tone(160, 0.08, 'square', 0.06); tone(140, 0.1, 'square', 0.06, 0.09); },
+  blip: (creepy) => tone(creepy ? 180 + Math.random() * 40 : 620 + Math.random() * 180, 0.045, 'square', 0.022),
+  squeak: () => { tone(900 + Math.random() * 300, 0.08, 'sine', 0.06); tone(1400, 0.06, 'sine', 0.04, 0.05); },
+  // 갑툭튀 비명: 지지직 + 높은 소리가 아래로 쭉 떨어짐
+  scream: () => {
+    if (!AC) return;
+    noise(0.9, 0.5, 1400, 'bandpass');
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.8);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.22, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 1);
+  },
+};
+
+// 오르골 음악 (테이프 속 만화 배경음)
+const MELODY = [72, 76, 79, 76, 74, 77, 81, 77, 72, 76, 79, 84, 83, 79, 76, 74];
+let musicTimer = null, musicStep = 0, musicNow = 'off';
+function setMusic(m) {
+  clearInterval(musicTimer); musicTimer = null; musicNow = m;
+  if (m === 'off' || !AC) return;
+  musicTimer = setInterval(() => {
+    const n = MELODY[musicStep++ % MELODY.length];
+    const f = 440 * Math.pow(2, (n - 69) / 12);
+    if (m === 'happy') tone(f, 0.5, 'triangle', 0.045);
+    else if (Math.random() > 0.25) tone(f / 2, 1.4, 'sine', 0.05, 0, Math.random() * 90 - 45); // 음이 늘어지고 틀어짐
+  }, m === 'happy' ? 260 : 620);
+}
+
+// 토토 목소리 (브라우저에 한국어 음성이 있을 때만)
+let koVoice = null, ttsOn = true;
+function loadVoices() {
+  koVoice = speechSynthesis.getVoices().find((v) => v.lang && v.lang.toLowerCase().startsWith('ko')) || null;
+}
+if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function speak(text, mood) {
+  if (!ttsOn || !koVoice) return false;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = koVoice; u.lang = koVoice.lang;
+  u.pitch = mood === 'creepy' ? 0.1 : mood === 'stare' ? 0.8 : 1.8;
+  u.rate = mood === 'creepy' ? 0.7 : 1.05;
+  speechSynthesis.speak(u);
+  return true;
+}
+
+// ================== 텍스처 도우미 ==================
+function woodTexture(rgb, rx, ry, plank = 32) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  for (let x = 0; x < 256; x += plank) {
+    let y = 0;
+    while (y < 256) {
+      const len = 60 + Math.random() * 140, k = 0.75 + Math.random() * 0.4;
+      g.fillStyle = `rgb(${rgb[0] * k | 0},${rgb[1] * k | 0},${rgb[2] * k | 0})`;
+      g.fillRect(x, y, plank, len);
+      g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(x, y, plank, 2);
+      y += len;
+    }
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x, 0, 2, 256);
+    for (let i = 0; i < 50; i++) {
+      g.fillStyle = `rgba(0,0,0,${Math.random() * 0.15})`;
+      g.fillRect(x + Math.random() * plank, Math.random() * 256, 1, 20 + Math.random() * 60);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+  t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
+  return t;
+}
+
+function textTexture(lines, w, h, opt = {}) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = opt.bg || '#f1e8d0'; g.fillRect(0, 0, w, h);
+  g.fillStyle = opt.fg || '#222'; g.font = opt.font || `bold ${h / 3}px sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  lines.forEach((ln, i) => {
+    g.save();
+    g.translate(w / 2, h / (lines.length + 1) * (i + 1));
+    g.rotate((opt.wobble || 0) * (Math.random() - 0.5));
+    g.fillText(ln, 0, 0);
+    g.restore();
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ================== 3D 도우미 ==================
+const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+function box(w, h, d, mat, x, y, z, parent) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof mat === 'number' ? lam(mat) : mat);
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function sphere(r, mat, x, y, z, parent, seg = 16) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.max(8, seg * 0.75 | 0)), typeof mat === 'number' ? lam(mat) : mat);
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+// 뚜껑이 열리는 속 빈 상자
+function hollowBox(w, h, d, mat, t = 0.04) {
+  const g = new THREE.Group();
+  box(w, t, d, mat, 0, t / 2, 0, g);
+  box(w, h, t, mat, 0, h / 2, d / 2 - t / 2, g);
+  box(w, h, t, mat, 0, h / 2, -d / 2 + t / 2, g);
+  box(t, h, d, mat, -w / 2 + t / 2, h / 2, 0, g);
+  box(t, h, d, mat, w / 2 - t / 2, h / 2, 0, g);
+  const lid = new THREE.Group(); lid.position.set(0, h, -d / 2); g.add(lid);
+  box(w + 0.03, 0.07, d + 0.03, mat, 0, 0.035, d / 2, lid);
+  g.userData.lid = lid;
+  return g;
+}
+// 클릭하기 쉽도록 보이지 않는 큰 판정 상자
+const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+function addHitBox(g, w, h, d, y = 0) { box(w, h, d, hitMat, 0, y, 0, g); }
+
+// ================== 토토 만들기 ==================
+function createToto() {
+  const g = new THREE.Group();
+  const base = new THREE.Color(0xf0c27b);
+  const fur = lam(0xf0c27b), furDark = lam(0x9b6436), cream = lam(0xfff1d6);
+  const black = new THREE.MeshBasicMaterial({ color: 0x111111 });
+  const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+  const body = sphere(0.5, fur, 0, 0.75, 0, g); body.scale.set(1, 1.1, 0.9);
+  sphere(0.34, cream, 0, 0.7, 0.28, g).scale.set(1, 1.1, 0.6);
+  [-1, 1].forEach((s) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3, 10), fur);
+    leg.position.set(0.22 * s, 0.15, 0.05); g.add(leg);
+    sphere(0.14, cream, 0.22 * s, 0.05, 0.12, g);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.45, 10), fur);
+    arm.position.set(0.48 * s, 0.85, 0.05); arm.rotation.z = 0.5 * s; g.add(arm);
+  });
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.05, 8, 20), lam(0xd8343a));
+  collar.position.y = 1.18; collar.rotation.x = Math.PI / 2; g.add(collar);
+  sphere(0.06, lam(0xffd23f), 0, 1.1, 0.34, g);
+  sphere(0.1, fur, 0, 0.6, -0.45, g);
+
+  const head = new THREE.Group(); head.position.y = 1.62; g.add(head);
+  sphere(0.5, fur, 0, 0, 0, head);
+  sphere(0.22, cream, 0, -0.12, 0.42, head).scale.set(1.2, 0.85, 1);
+  sphere(0.07, black, 0, -0.04, 0.63, head);
+  const eyes = [], pupils = [], ears = [];
+  [-1, 1].forEach((s) => {
+    const e = sphere(0.12, white, 0.18 * s, 0.1, 0.4, head); eyes.push(e);
+    const p = sphere(0.065, black, 0.18 * s, 0.1, 0.48, head); pupils.push(p);
+    const ear = sphere(0.22, furDark, 0.45 * s, -0.05, 0, head); ear.scale.set(0.55, 1.2, 0.3);
+    ear.rotation.z = 0.3 * s; ears.push(ear);
+  });
+  const mouth = sphere(0.1, new THREE.MeshBasicMaterial({ color: 0x5a1a1a }), 0, -0.29, 0.5, head);
+  mouth.scale.set(1.3, 0.2, 0.5);
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.02, 6, 14, Math.PI), black);
+  smile.position.set(0, -0.2, 0.53); smile.rotation.z = Math.PI; head.add(smile);
+
+  return { group: g, head, eyes, pupils, ears, mouth, smile, fur, base, nextBlink: 2, blinkEnd: 0 };
+}
+
+const CREEPY_FUR = new THREE.Color(0xa89a86);
+function animateToto(T, t, dt, mood, talking) {
+  let tilt = 0, eyeS = 1, pupS = 1, smileX = 1, smileY = 1, mouthY = 0.18;
+  if (mood === 'happy') tilt = Math.sin(t * 2) * 0.08;
+  else if (mood === 'stare') pupS = 1.5;
+  else { tilt = 0.38; eyeS = 1.35; pupS = 0.4; smileX = 1.9; smileY = 1.6; mouthY = 0.35; }
+  if (talking) mouthY = Math.max(mouthY, 0.25 + Math.abs(Math.sin(t * 16)) * 0.8);
+
+  T.head.rotation.z += (tilt - T.head.rotation.z) * Math.min(1, dt * 6);
+  if (mood === 'creepy' && Math.random() < 0.03) T.head.rotation.y = (Math.random() - 0.5) * 0.5;
+  else T.head.rotation.y *= 0.9;
+
+  if (mood === 'happy' && t > T.nextBlink) { T.blinkEnd = t + 0.12; T.nextBlink = t + 2 + Math.random() * 3; }
+  const blink = t < T.blinkEnd ? 0.1 : 1;
+  T.eyes.forEach((e) => e.scale.set(eyeS, eyeS * 1.15 * blink, eyeS * 0.6));
+  T.pupils.forEach((p) => { p.scale.setScalar(pupS); p.visible = blink === 1; p.position.z = 0.4 + 0.072 * eyeS + 0.01; });
+  T.smile.scale.set(smileX, smileY, 1);
+  T.mouth.scale.y = mouthY;
+  T.ears.forEach((e, i) => (e.rotation.x = mood === 'happy' ? Math.sin(t * 3 + i) * 0.15 : 0));
+  T.fur.color.lerp(mood === 'creepy' ? CREEPY_FUR : T.base, Math.min(1, dt * 2));
+}
+
+// ================== 다락방 만들기 ==================
+const room = new THREE.Scene();
+room.background = new THREE.Color(0x000000);
+room.fog = new THREE.Fog(0x050302, 4, 16);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 60);
+camera.rotation.order = 'YXZ';
+
+const W = 5, D = 6, WALL_H = 2.2, RIDGE = 3.6;
+const interactables = [];
+const colliders = [];
+function addIt(obj, it) { obj.userData.it = it; interactables.push(obj); }
+function addCollider(obj, pad = 0.3) {
+  const b = new THREE.Box3().setFromObject(obj);
+  colliders.push({ minX: b.min.x - pad, maxX: b.max.x + pad, minZ: b.min.z - pad, maxZ: b.max.z + pad });
+}
+
+// 바닥, 벽, 지붕
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), lam(0xffffff, { map: woodTexture([110, 76, 46], 2.5, 3) }));
+floor.rotation.x = -Math.PI / 2; room.add(floor);
+const wallMat = lam(0xffffff, { map: woodTexture([88, 60, 38], 3, 0.6), side: THREE.DoubleSide });
+[-1, 1].forEach((s) => {
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(D * 2, WALL_H), wallMat);
+  wall.position.set(W * s, WALL_H / 2, 0); wall.rotation.y = -s * Math.PI / 2; room.add(wall);
+});
+const gable = new THREE.Shape([
+  new THREE.Vector2(-W, 0), new THREE.Vector2(W, 0), new THREE.Vector2(W, WALL_H),
+  new THREE.Vector2(0, RIDGE), new THREE.Vector2(-W, WALL_H),
+]);
+const gableMat = lam(0xffffff, { map: woodTexture([88, 60, 38], 0.3, 0.3), side: THREE.DoubleSide });
+[-1, 1].forEach((s) => {
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(gable), gableMat);
+  m.position.z = D * s; room.add(m);
+});
+const roofMat = lam(0xffffff, { map: woodTexture([70, 48, 30], 1, 2.5) });
+const slope = Math.atan2(RIDGE - WALL_H, W), roofLen = Math.hypot(W, RIDGE - WALL_H);
+[-1, 1].forEach((s) => {
+  const r = box(roofLen + 0.1, 0.08, D * 2, roofMat, (W / 2) * s, (WALL_H + RIDGE) / 2 + 0.04, 0, room);
+  r.rotation.z = -slope * s;
+});
+const beamMat = lam(0x3a2716);
+box(0.18, 0.18, D * 2, beamMat, 0, RIDGE - 0.1, 0, room);
+[-4.2, -1.4, 1.4, 4.2].forEach((z) => box(W * 2, 0.15, 0.15, beamMat, 0, WALL_H, z, room));
+
+// 둥근 창문 (달빛)
+const win = new THREE.Mesh(new THREE.CircleGeometry(0.32, 20), new THREE.MeshBasicMaterial({ color: 0x5876a8 }));
+win.position.set(0, 2.75, -D + 0.02); room.add(win);
+box(0.64, 0.04, 0.03, 0x24170c, 0, 2.75, -D + 0.04, room);
+box(0.04, 0.64, 0.03, 0x24170c, 0, 2.75, -D + 0.04, room);
+const moon = new THREE.PointLight(0x6f8fd0, 3, 6, 1.5); moon.position.set(0, 2.6, -5.3); room.add(moon);
+
+// 조명
+room.add(new THREE.HemisphereLight(0x7080a0, 0x201510, 0.25));
+const BULB_I = 6.5;
+const bulbLight = new THREE.PointLight(0xffc98a, BULB_I, 0, 1.4);
+bulbLight.position.set(0, 2.4, 0); room.add(bulbLight);
+const bulbMesh = sphere(0.07, new THREE.MeshBasicMaterial({ color: 0xffe6b8 }), 0, 2.43, 0, room);
+const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, RIDGE - 2.5, 4), lam(0x111111));
+cord.position.set(0, (RIDGE + 2.5) / 2, 0); room.add(cord);
+const tvLight = new THREE.PointLight(0x9ab8ff, 0, 5, 1.6); tvLight.position.set(0, 1.2, -4.3); room.add(tvLight);
+
+// TV + 비디오 플레이어
+const tvGroup = new THREE.Group(); tvGroup.position.set(0, 0, -5.2); room.add(tvGroup);
+box(1.6, 0.6, 0.7, 0x3b2a1c, 0, 0.3, 0, tvGroup);
+box(0.9, 0.12, 0.5, 0x1a1a1a, 0, 0.66, 0.05, tvGroup);
+box(0.5, 0.02, 0.01, 0x000000, -0.1, 0.665, 0.305, tvGroup);
+const vcrLed = box(0.03, 0.02, 0.01, new THREE.MeshBasicMaterial({ color: 0x33ff55 }), 0.34, 0.665, 0.305, tvGroup);
+box(1.1, 0.85, 0.75, 0x2b2b28, 0, 1.145, -0.05, tvGroup);
+const tvCanvas = document.createElement('canvas'); tvCanvas.width = 96; tvCanvas.height = 72;
+const tvCtx = tvCanvas.getContext('2d');
+const tvTex = new THREE.CanvasTexture(tvCanvas); tvTex.colorSpace = THREE.SRGBColorSpace; tvTex.magFilter = THREE.NearestFilter;
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.64), new THREE.MeshBasicMaterial({ map: tvTex }));
+screen.position.set(0, 1.16, 0.327); tvGroup.add(screen);
+[-1, 1].forEach((s) => {
+  const a = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.6, 4), lam(0x888888));
+  a.position.set(0.15 * s, 1.8, -0.1); a.rotation.z = -0.5 * s; tvGroup.add(a);
+});
+let tvMode = 'off', tvText = '';
+addIt(tvGroup, {
+  label: () => S.tapes.has(S.watched + 1) ? `테이프 ${S.watched + 1}편 넣기` : '오래된 TV',
+  act: () => {
+    if (S.tapes.has(S.watched + 1)) playTape(S.watched + 1);
+    else if (S.watched === 0) toast('비디오 플레이어가 달린 낡은 TV다. 테이프가 있으면 볼 수 있을 것 같다.');
+    else toast('지지직… 다음 테이프를 찾아야 한다.');
+  },
+  enabled: () => S.watched < 3,
+});
+addCollider(tvGroup);
+
+// 소파
+const sofa = new THREE.Group(); sofa.position.set(0, 0, -2.6); room.add(sofa);
+const sofaMat = lam(0x5c2e3a);
+box(1.8, 0.45, 0.85, sofaMat, 0, 0.225, 0, sofa);
+box(1.8, 0.75, 0.22, sofaMat, 0, 0.6, 0.32, sofa);
+[-1, 1].forEach((s) => box(0.2, 0.62, 0.85, sofaMat, 0.9 * s, 0.31, 0, sofa));
+addCollider(sofa);
+
+// 테이프 만들기
+function makeTape(n) {
+  const g = new THREE.Group();
+  box(0.19, 0.028, 0.105, 0x141414, 0, 0, 0, g);
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.055),
+    new THREE.MeshBasicMaterial({ map: textTexture([`토토 ${n}편`], 128, 54, { font: 'bold 24px sans-serif' }) }));
+  label.rotation.x = -Math.PI / 2; label.position.y = 0.0145; g.add(label);
+  addHitBox(g, 0.4, 0.2, 0.35, 0.05);
+  addIt(g, {
+    label: () => `테이프 ${n}편 줍기`,
+    act: () => {
+      S.tapes.add(n); g.visible = false; sfx.pick(); toast(`'토토와 친구들 ${n}편' 테이프를 주웠다.`);
+      if (n === 3) S.roomScare = { yaw, at: performance.now() }; // 이제 뒤돌아보면…
+    },
+    enabled: () => g.visible,
+  });
+  return g;
+}
+const tape1 = makeTape(1); tape1.position.set(0.45, 0.465, -2.7); tape1.rotation.y = 0.4; room.add(tape1);
+
+// 빨간 상자
+const redBox = hollowBox(0.75, 0.45, 0.6, lam(0x8e1f1f));
+redBox.position.set(3.9, 0, 3.2); redBox.rotation.y = -Math.PI / 2; room.add(redBox);
+const tape2 = makeTape(2); tape2.position.set(0, 0.06, 0); tape2.rotation.y = 0.3; redBox.add(tape2);
+addCollider(redBox);
+addIt(redBox, {
+  label: () => S.watched >= 1 ? '빨간 상자 열기' : '빨간 상자',
+  act: () => {
+    if (S.watched < 1) { sfx.locked(); toast('뚜껑이 꽉 닫혀서 꿈쩍도 안 한다.'); return; }
+    S.redOpen = true; sfx.clunk(); openLid(redBox.userData.lid, -1.9);
+  },
+  enabled: () => !S.redOpen,
+});
+
+// 자물쇠 상자
+const chest = hollowBox(1.0, 0.55, 0.6, lam(0x3d2817));
+chest.position.set(-3.6, 0, 4.6); chest.rotation.y = Math.PI; room.add(chest);
+[-0.3, 0.3].forEach((x) => box(0.06, 0.57, 0.62, 0x6b6b6b, x, 0.285, 0, chest));
+const padlock = box(0.1, 0.12, 0.04, lam(0xc9a43a), 0, 0.5, 0.33, chest);
+const tape3 = makeTape(3); tape3.position.set(0, 0.06, 0); chest.add(tape3);
+addCollider(chest);
+addIt(chest, { label: () => '자물쇠 풀기', act: openLockUI, enabled: () => !S.chestOpen });
+
+function openLid(lid, target) {
+  const start = performance.now();
+  (function step() {
+    const k = Math.min(1, (performance.now() - start) / 700);
+    lid.rotation.x = target * (1 - Math.pow(1 - k, 3));
+    if (k < 1) requestAnimationFrame(step);
+  })();
+}
+
+// 종이 상자들
+const cardboard = lam(0x9a7650);
+[[-4.0, -3.4, 0.7, 0.6, 0.6, 0.2], [-4.1, 1.8, 0.8, 0.55, 0.7, -0.3], [-4.05, 1.8, 0.6, 0.45, 0.5, 0.1, 0.55],
+ [3.8, -4.2, 0.9, 0.7, 0.7, 0.4], [1.6, 5.2, 0.7, 0.5, 0.6, -0.2], [4.0, 0.6, 0.6, 0.5, 0.6, 0.6]]
+  .forEach(([x, z, w, h, d, ry, y0 = 0]) => {
+    const g = new THREE.Group(); g.position.set(x, y0, z); g.rotation.y = ry; room.add(g);
+    box(w, h, d, cardboard, 0, h / 2, 0, g);
+    box(w + 0.005, 0.01, 0.12, 0xc8b48a, 0, h + 0.001, 0, g);
+    if (!y0) addCollider(g);
+  });
+
+// 할머니 일기장 (숨겨진 물건: 진엔딩 열쇠). 쌓인 종이 상자 위에 놓여 있음
+const diary = new THREE.Group(); diary.position.set(-4.0, 1.0, 1.75); diary.rotation.y = 0.5; room.add(diary);
+box(0.22, 0.045, 0.3, lam(0x5a2018), 0, 0.023, 0, diary);
+box(0.2, 0.035, 0.28, lam(0xe8dcc0), 0.012, 0.023, 0, diary); // 종이
+box(0.05, 0.002, 0.05, lam(0xc9a43a, { emissive: 0x2a2000 }), 0, 0.047, 0, diary);
+addHitBox(diary, 0.4, 0.2, 0.45, 0.05);
+addIt(diary, {
+  label: () => S.readDiary ? '할머니의 일기장 다시 읽기' : '낡은 일기장 읽기',
+  act: () => {
+    S.readDiary = true; S.ui = 'diary'; sfx.click();
+    document.exitPointerLock(); $('diaryUI').classList.remove('hidden');
+  },
+  enabled: () => true,
+});
+
+// 선반
+const shelf = new THREE.Group(); shelf.position.set(-4.75, 0, -0.6); room.add(shelf);
+const shelfMat = lam(0x4a3220);
+[-0.9, 0.9].forEach((z) => box(0.4, 1.8, 0.05, shelfMat, 0, 0.9, z, shelf));
+[0.05, 0.6, 1.15, 1.75].forEach((y) => box(0.4, 0.04, 1.85, shelfMat, 0, y, 0, shelf));
+[0.6, 1.15].forEach((y) => {
+  for (let z = -0.8; z < 0.75; z += 0.13 + Math.random() * 0.08) {
+    if (Math.random() < 0.25) continue;
+    const h = 0.3 + Math.random() * 0.15;
+    box(0.25, h, 0.08, [0x6b2a2a, 0x2a3f5c, 0x3e5a32, 0x7a6a3a][Math.random() * 4 | 0], 0, y + 0.02 + h / 2, z, shelf);
+  }
+});
+addCollider(shelf);
+
+// 문
+const doorG = new THREE.Group(); doorG.position.set(2.8, 0, D - 0.05); room.add(doorG);
+box(1.15, 2.2, 0.06, 0x24170c, 0, 1.1, 0.02, doorG);
+box(1.0, 2.1, 0.08, 0x4a3020, 0, 1.05, -0.02, doorG);
+sphere(0.045, lam(0xc9a43a), -0.38, 1.0, -0.08, doorG);
+addIt(doorG, {
+  label: () => S.hasKey ? '열쇠로 문 열기' : '문 열기',
+  act: () => {
+    if (S.hasKey) endingA();
+    else { sfx.locked(); toast('문이 잠겨 있다. 문틈으로 차가운 바람이 들어온다.'); }
+  },
+  enabled: () => true,
+});
+
+// 벽에 붙은 쪽지
+const note = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.52), new THREE.MeshLambertMaterial({
+  map: textTexture(['토토를', '믿지 마'], 168, 208, { fg: '#7a1010', font: 'bold 40px "Malgun Gothic", sans-serif', wobble: 0.25, bg: '#e6dcc0' }),
+}));
+note.position.set(W - 0.02, 1.5, -1.2); note.rotation.y = -Math.PI / 2; room.add(note);
+addIt(note, {
+  label: () => '쪽지 읽기',
+  act: () => toast('삐뚤빼뚤한 글씨: "토토를 믿지 마. 테이프 속에 있는 건 토토가 아니야."', 5000),
+  enabled: () => true,
+});
+
+// 토토 인형 (2편을 보고 나면 나타남)
+const plush = createToto();
+plush.group.scale.setScalar(0.32); plush.group.position.set(-0.45, 0.45, -2.7); plush.group.visible = false;
+room.add(plush.group);
+addIt(plush.group, {
+  label: () => '토토 인형',
+  act: () => toast(S.choseOpen ? '인형이 문 앞에 서 있다. 계속 웃고 있다.' : '토토 인형이다. …아까는 여기 없었는데.'),
+  enabled: () => plush.group.visible,
+});
+
+// 열쇠 (3편에서 문을 열어주기로 하면 나타남)
+const key = new THREE.Group(); key.visible = false; room.add(key);
+const gold = lam(0xd9b44a, { emissive: 0x3a2a00 });
+const ring = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.012, 6, 12), gold); ring.rotation.x = Math.PI / 2; key.add(ring);
+box(0.12, 0.015, 0.018, gold, 0.09, 0, 0, key);
+box(0.015, 0.015, 0.035, gold, 0.14, 0, 0.02, key);
+addHitBox(key, 0.35, 0.2, 0.35);
+addIt(key, {
+  label: () => '열쇠 줍기',
+  act: () => { S.hasKey = true; key.visible = false; sfx.pick(); toast('차가운 열쇠다. 손에 쥐니까… 누가 웃는 소리가 들린 것 같다.'); },
+  enabled: () => key.visible,
+});
+
+// 먼지
+const dustN = 260, dustPos = new Float32Array(dustN * 3);
+for (let i = 0; i < dustN; i++) {
+  dustPos[i * 3] = (Math.random() - 0.5) * W * 2;
+  dustPos[i * 3 + 1] = Math.random() * 3;
+  dustPos[i * 3 + 2] = (Math.random() - 0.5) * D * 2;
+}
+const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xffe9c0, size: 0.018, transparent: true, opacity: 0.55, depthWrite: false }));
+room.add(dust);
+
+// ================== 테이프 속 만화 세계 ==================
+const tapeScene = new THREE.Scene();
+const tapeCam = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+tapeCam.position.set(0, 1.5, 5.4); tapeCam.lookAt(0, 1.2, 0);
+// 창이 좁아도 토토와 사과가 화면 밖으로 안 나가게, 가로로 보이는 범위를 최소한 유지
+function fitTapeCam() {
+  const a = innerWidth / innerHeight, minA = 1.5;
+  tapeCam.aspect = a;
+  tapeCam.fov = a >= minA ? 45 : 2 * Math.atan(Math.tan(22.5 * Math.PI / 180) * minA / a) * 180 / Math.PI;
+  tapeCam.updateProjectionMatrix();
+}
+fitTapeCam();
+const hemi = new THREE.HemisphereLight(0xffffff, 0x6a8a4a, 1.8); tapeScene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(3, 6, 5); tapeScene.add(sun);
+const groundMat = lam(0x72c650), leafMat = lam(0x3fa64a), trunkMat = lam(0x7a4e2a);
+const ground = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 0.2, 28), groundMat); ground.position.y = -0.1; tapeScene.add(ground);
+[[-6, -9, 5], [5, -10, 6], [0, -13, 7]].forEach(([x, z, r]) => sphere(r, groundMat, x, -r * 0.6, z, tapeScene, 20));
+[[-3.2, -2], [3.4, -3], [-1.6, -5.5], [2.2, -6.5], [-4.5, -5]].forEach(([x, z]) => {
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.7, 6), trunkMat); trunk.position.set(x, 0.35, z); tapeScene.add(trunk);
+  const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.5, 7), leafMat); leaves.position.set(x, 1.4, z); tapeScene.add(leaves);
+});
+const flowerCols = [0xff6b8a, 0xffe14d, 0xffffff, 0xb07cff];
+for (let i = 0; i < 26; i++) {
+  const x = (Math.random() - 0.5) * 9, z = -Math.random() * 5 + 1.5;
+  if (Math.abs(x) < 1 && z > -1) continue;
+  sphere(0.06, flowerCols[i % 4], x, 0.06, z, tapeScene, 6);
+}
+const sunMesh = sphere(0.6, new THREE.MeshBasicMaterial({ color: 0xffe24a }), 3.8, 4.2, -7, tapeScene);
+const clouds = new THREE.Group(); tapeScene.add(clouds);
+const cloudMat = lam(0xffffff, { emissive: 0x555555 });
+[[-3, 3.6, -6], [1, 4.3, -8], [-0.5, 3.2, -9]].forEach(([x, y, z]) => {
+  [[0, 0, 0.5], [0.5, 0.1, 0.4], [-0.5, 0, 0.38], [0.2, 0.3, 0.35]].forEach(([dx, dy, r]) => sphere(r, cloudMat, x + dx, y + dy, z, clouds, 10));
+});
+
+const toto = createToto(); tapeScene.add(toto.group);
+let totoTargetX = 0, curMood = 'happy', talking = false, curTape = 1;
+
+const appleGroup = new THREE.Group(); tapeScene.add(appleGroup);
+const appleMat = lam(0xe0302c), stemMat = lam(0x5a3a1a), appleLeaf = lam(0x4caf50);
+function showApples(n) {
+  appleGroup.clear();
+  const now = performance.now() / 1000;
+  for (let i = 0; i < n; i++) {
+    const a = new THREE.Group();
+    a.position.set(1.0 + (i - (n - 1) / 2) * 0.34, 1.6, 0);
+    sphere(0.15, appleMat, 0, 0, 0, a, 12);
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.08, 4), stemMat); st.position.y = 0.17; a.add(st);
+    sphere(0.04, appleLeaf, 0.04, 0.18, 0, a, 6).scale.set(1.6, 0.5, 0.8);
+    a.userData.born = now + i * 0.12;
+    a.scale.setScalar(0.001);
+    appleGroup.add(a);
+  }
+}
+
+const THEMES = {
+  1: { bg: 0x86cdf7, ground: 0x72c650, leaf: 0x3fa64a, sun: 0xffe24a, sunY: 4.2, cloud: 0xffffff, hemi: 1.8, fog: null },
+  2: { bg: 0xf4a261, ground: 0x86a648, leaf: 0x4c8a3a, sun: 0xff7a3a, sunY: 2.9, cloud: 0xffd2b0, hemi: 1.4, fog: null },
+  3: { bg: 0x3c4146, ground: 0x4e5b47, leaf: 0x2f3f31, sun: null, cloud: 0x6a6e72, hemi: 0.7, fog: [0x3c4146, 4, 15] },
+};
+function setTheme(n) {
+  const th = THEMES[n];
+  tapeScene.background = new THREE.Color(th.bg);
+  groundMat.color.set(th.ground); leafMat.color.set(th.leaf); cloudMat.color.set(th.cloud);
+  sunMesh.visible = !!th.sun; if (th.sun) { sunMesh.material.color.set(th.sun); sunMesh.position.y = th.sunY; }
+  hemi.intensity = th.hemi; sun.intensity = th.hemi * 0.9;
+  tapeScene.fog = th.fog ? new THREE.Fog(...th.fog) : null;
+}
+
+// ================== 대사 시스템 ==================
+const dialogEl = $('dialog'), dtext = $('dtext'), dnext = $('dnext'), choicesEl = $('choices');
+const inputBox = $('inputBox'), nameInput = $('nameInput');
+const fmt = (s) => s.replaceAll('{name}', () => S.name); // 함수로 넘겨야 이름에 $가 있어도 안 깨짐
+let advanceResolve = null, chooseResolve = null, inputResolve = null;
+let typing = false, skipTyping = false;
+let tapeAbort = false; // 엔딩 C·D처럼 테이프가 도중에 끊기면 true → 대본이 그 자리에서 멈춤
+
+async function say(text, mood, wait = true) {
+  if (tapeAbort) return;
+  if (mood) curMood = mood;
+  text = fmt(text);
+  dialogEl.classList.remove('hidden'); dnext.classList.add('hidden');
+  dtext.textContent = '';
+  const voiced = speak(text, curMood);
+  typing = true; skipTyping = false; talking = true;
+  for (let i = 0; i < text.length; i++) {
+    if (skipTyping || tapeAbort) { dtext.textContent = text; break; }
+    dtext.textContent += text[i];
+    if (!voiced && text[i] !== ' ' && i % 2 === 0) sfx.blip(curMood === 'creepy');
+    await sleep(curMood === 'creepy' ? 75 : 40);
+  }
+  typing = false; talking = false;
+  if (!wait || tapeAbort) return;
+  dnext.classList.remove('hidden');
+  await new Promise((r) => (advanceResolve = r));
+}
+function onAdvance() {
+  if (typing) { skipTyping = true; return; }
+  if (advanceResolve) { const r = advanceResolve; advanceResolve = null; r(); }
+}
+function choose(options) {
+  return new Promise((res) => {
+    chooseResolve = res;
+    choicesEl.replaceChildren();
+    options.forEach((o) => {
+      const b = document.createElement('button');
+      b.textContent = fmt(o.label);
+      if (o.secret) b.className = 'secret';
+      b.onclick = () => { sfx.click(); choicesEl.classList.add('hidden'); chooseResolve = null; res(o); };
+      choicesEl.appendChild(b);
+    });
+    choicesEl.classList.remove('hidden');
+  });
+}
+function askInput() {
+  return new Promise((res) => {
+    inputBox.classList.remove('hidden'); nameInput.value = ''; nameInput.focus();
+    const finish = (v) => {
+      inputBox.classList.add('hidden');
+      nameInput.onkeydown = null; $('inputOk').onclick = null; inputResolve = null;
+      res(v);
+    };
+    const done = () => { sfx.click(); finish(nameInput.value.trim().slice(0, 8) || '친구'); };
+    inputResolve = () => finish('친구');
+    nameInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.isComposing) done(); };
+    $('inputOk').onclick = done;
+  });
+}
+// 테이프를 도중에 끊기: 기다리던 대사·선택지·입력을 전부 풀어줘서 대본이 끝까지 빠져나가게 함
+function abortTape() {
+  tapeAbort = true; skipTyping = true;
+  choicesEl.classList.add('hidden'); inputBox.classList.add('hidden'); dialogEl.classList.add('hidden');
+  window.speechSynthesis?.cancel();
+  if (advanceResolve) { const r = advanceResolve; advanceResolve = null; r(); }
+  if (chooseResolve) { const r = chooseResolve; chooseResolve = null; r({ aborted: true }); }
+  if (inputResolve) inputResolve();
+}
+
+// 오답이 쌓일수록 만화 세상이 어두워짐 (k: 1이면 원래 밝기)
+function dimTape(k) {
+  const th = THEMES[curTape];
+  tapeScene.background = new THREE.Color(th.bg).multiplyScalar(k);
+  hemi.intensity = th.hemi * k; sun.intensity = th.hemi * 0.9 * k;
+  sunMesh.visible = !!th.sun && k > 0.5;
+}
+
+// ================== 갑툭튀: 토토 얼굴이 화면 가득 확 다가옴 ==================
+const TAPE_CAM_HOME = new THREE.Vector3(0, 1.5, 5.4);
+let scare = null;
+async function jumpscare() {
+  const prev = curMood;
+  curMood = 'creepy'; talking = true; dialogEl.classList.add('hidden'); choicesEl.classList.add('hidden');
+  scare = { t0: performance.now() };
+  sfx.scream(); document.body.classList.add('glitch');
+  await sleep(800);
+  document.body.classList.remove('glitch'); talking = false;
+  noiseAlpha = 1; sfx.static(0.4);
+  await sleep(350);
+  scare = null; tapeCam.position.copy(TAPE_CAM_HOME); tapeCam.lookAt(0, 1.2, 0);
+  noiseAlpha = curTape === 3 ? 0.22 : 0.12; curMood = prev;
+}
+
+// ================== 오답: 틀릴수록 반응이 점점 무서워짐 ==================
+async function wrongAnswer(tries, text) {
+  S.wrongTotal++;
+  if (S.wrongTotal >= 8) { await wrongEnding(); return; }
+  if (S.wrongTotal >= 5) tries = Math.max(tries, 2); // 이미 많이 틀렸으면 처음부터 화난 상태
+  if (tries === 1) {
+    await say(text || '…아니야.', 'stare'); curMood = 'happy'; await say('다시 해볼까?');
+  } else if (tries === 2) {
+    setMusic('off'); dimTape(0.6);
+    await say('{name}. 일부러 틀리는 거지?', 'stare'); await say('다시.');
+  } else if (tries === 3) {
+    dimTape(0.3); await glitch(450);
+    await say('친구는 틀리지 않아.', 'creepy'); await say('마지막으로 한 번만 더 물어볼게.', 'stare');
+  } else if (tries === 4) {
+    await jumpscare(); setTheme(curTape);
+    await say('헤헤, 놀랐어? 장난이야! 다시 해 보자!', 'happy');
+  } else {
+    // 갑툭튀는 한 번만. 그다음부터는 경고 (계속 틀리면 엔딩 D)
+    dimTape(0.2); await glitch(400);
+    await say('또 틀렸어.', 'creepy'); await say('이제… 몇 번 안 남았어.', 'stare');
+  }
+}
+
+// ================== 이스터에그: 화면 속 토토 콕콕 찌르기 ==================
+const pokeRay = new THREE.Raycaster();
+let pokeCombo = 0, lastPoke = 0, moodOverride = null, squish = 0, bubbleTimer = null;
+function bubble(text, creepy) {
+  const b = $('bubble');
+  b.textContent = fmt(text); b.classList.toggle('creepy', !!creepy); b.classList.add('show');
+  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => b.classList.remove('show'), 1400);
+}
+function hitToto(e) {
+  tapeScene.updateMatrixWorld(); tapeCam.updateMatrixWorld(); // 위치 정보를 최신으로 (화면이 잠깐 멈춰 있었어도 정확하게)
+  const r = canvas.getBoundingClientRect();
+  pokeRay.setFromCamera({ x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 }, tapeCam);
+  return pokeRay.intersectObject(toto.group, true).length > 0;
+}
+const CUTE = ['히히!', '간지러워!', '왜~?', '멍멍!', '헤헤'];
+function poke() {
+  const now = performance.now();
+  pokeCombo = now - lastPoke < 1600 ? pokeCombo + 1 : 1; // 빠르게 연달아 눌러야 쌓임
+  lastPoke = now; squish = 1;
+  const c = pokeCombo;
+  if (c >= 12) { pokeEnding(); return; }
+  if (c >= 7) sfx.glitch(150); else sfx.squeak();
+  if (c >= 11) { moodOverride = { mood: 'creepy', until: now + 2000 }; bubble('한 번만 더 누르면…', true); }
+  else if (c >= 9) { moodOverride = { mood: 'creepy', until: now + 2000 }; bubble('…', true); }
+  else if (c >= 7) { moodOverride = { mood: 'creepy', until: now + 1800 }; bubble('그만하라고 했지.', true); }
+  else if (c >= 5) { moodOverride = { mood: 'stare', until: now + 1600 }; bubble('…그만 눌러.'); }
+  else if (c >= 3) bubble('{name}, 나랑 놀고 싶구나!');
+  else bubble(CUTE[Math.floor(Math.random() * CUTE.length)]);
+}
+const totoMood = () => (moodOverride && performance.now() < moodOverride.until ? moodOverride.mood : curMood);
+
+// ================== 진엔딩: 토토가 천천히 사라지고 하늘이 맑아짐 ==================
+let totoFade = null;
+function startTotoFade() {
+  const mats = new Set();
+  toto.group.traverse((o) => { if (o.material) mats.add(o.material); });
+  mats.forEach((m) => { m.transparent = true; });
+  tapeScene.fog = null;
+  totoFade = { t0: performance.now(), mats: [...mats], from: tapeScene.background.clone(), to: new THREE.Color(THEMES[1].bg) };
+  [523, 659, 784].forEach((f, i) => tone(f, 4, 'sine', 0.035, i * 0.4));
+}
+
+// ================== 이스터에그: 특별한 이름을 입력하면 ==================
+function nameEgg(n) {
+  const k = n.replace(/\s/g, '').toLowerCase();
+  if (k === '토토' || k === 'toto') return [
+    { t: 'mood', v: 'stare' }, { t: 'say', text: '…토토?' }, { t: 'glitch', ms: 400 },
+    { t: 'say', mood: 'creepy', text: '토토는 나야. 너는 토토가 아니야.' },
+    { t: 'say', mood: 'happy', text: '…헤헤, 장난이지? 그럼 너는 오늘부터 "가짜 토토"야!' },
+    { t: 'do', f: () => { S.name = '가짜 토토'; } },
+  ];
+  if (k === '지우') return [
+    { t: 'mood', v: 'stare' }, { t: 'wait', ms: 1300 },
+    { t: 'say', text: '…그 이름, 어디서 들었어?' }, { t: 'glitch', ms: 300 },
+    { t: 'say', mood: 'happy', text: '모르는 이름이야! 하나도 몰라! 헤헤.' },
+  ];
+  if (k === '할머니') return [
+    { t: 'say', mood: 'stare', text: '할머니…?' },
+    { t: 'say', mood: 'happy', text: '오랜만이에요! 아직도 저를 기억하세요?' },
+    { t: 'say', mood: 'stare', text: '…저는 한 번도 잊은 적 없어요.' }, { t: 'mood', v: 'happy' },
+  ];
+  if (k === '아만다' || k === 'amanda') return [
+    { t: 'say', mood: 'stare', text: '아만다? 그 애는 다른 테이프에 살아.' },
+    { t: 'say', mood: 'happy', text: '여기는 내 테이프야! 헤헤.' },
+  ];
+  if (k === '친구') return [{ t: 'say', text: '이름은 비밀이구나? 괜찮아, 그럼 그냥 친구라고 부를게!' }];
+  return [{ t: 'say', text: '{name}! 정말 멋진 이름이다!' }];
+}
+
+async function glitch(ms, flash) {
+  document.body.classList.add('glitch'); sfx.glitch(ms);
+  const prevMood = curMood;
+  if (flash) {
+    curMood = 'creepy'; toto.head.rotation.z = 0.38;
+    tapeScene.background = new THREE.Color(0x000000); hemi.intensity = 0.4; sun.intensity = 0.2;
+  }
+  await sleep(ms);
+  document.body.classList.remove('glitch');
+  if (flash) { setTheme(curTape); curMood = prevMood; }
+}
+
+async function run(steps) {
+  for (const s of steps) { if (tapeAbort) return; await step(s); }
+}
+async function step(s) {
+  switch (s.t) {
+    case 'say': await say(s.text, s.mood); break;
+    case 'ask': {
+      let tries = 0;
+      const musicBefore = musicNow;
+      for (;;) {
+        await say(s.text, s.mood, false);
+        if (tapeAbort) return;
+        const o = await choose(s.options.filter((op) => !op.secret || op.secret()));
+        if (tapeAbort || o.aborted) return;
+        if (o.wrong) { tries++; await wrongAnswer(tries, o.text); if (tapeAbort) return; continue; }
+        if (tries >= 2) { setTheme(curTape); setMusic(musicBefore); } // 화났던 분위기 되돌리기
+        if (o.then) await run(o.then);
+        break;
+      }
+      break;
+    }
+    case 'input':
+      await say(s.text, s.mood, false);
+      if (tapeAbort) return;
+      S[s.key] = await askInput();
+      break;
+    case 'nameEgg': await run(nameEgg(S.name)); break;
+    case 'mood': curMood = s.v; break;
+    case 'glitch': await glitch(s.ms || 400, s.flash); break;
+    case 'apples': showApples(s.n); await sleep(s.n ? 400 + s.n * 120 : 150); break;
+    case 'move': totoTargetX = s.x; await sleep(500); break;
+    case 'wait': dialogEl.classList.add('hidden'); await sleep(s.ms); break;
+    case 'music': setMusic(s.v); break;
+    case 'do': await s.f(); break;
+  }
+}
+
+// ================== 테이프 대본 ==================
+// 오답 선택지: 고르면 wrongAnswer()가 반응하고 같은 질문을 다시 함 (틀릴수록 무서워짐)
+const wrong = (label, text) => ({ label, wrong: true, text });
+const right = (label, text) => ({ label, then: [{ t: 'mood', v: 'happy' }, { t: 'say', text }] });
+
+const TAPES = {
+  1: [
+    { t: 'music', v: 'happy' },
+    { t: 'say', mood: 'happy', text: '안녕, 친구! 나는 토토야!' },
+    { t: 'say', text: '우와, 텔레비전 앞에 누가 앉아 있네? 반가워!' },
+    { t: 'input', key: 'name', text: '너는 이름이 뭐야? 토토한테 알려줘!' },
+    { t: 'nameEgg' }, // 보통은 "멋진 이름이다!", 특별한 이름이면 다른 반응
+    { t: 'say', text: '우리 오늘부터 친구 하자. 약속!' },
+    { t: 'ask', text: '그럼 색깔 놀이 해볼까? 사과는 무슨 색이지?', options: [
+      right('빨간색', '딩동댕! 정답이야, {name}!'),
+      wrong('파란색'), wrong('초록색'),
+    ] },
+    { t: 'say', text: '나는 빨간색이 제일 좋아. 빨간 건 전부 다 좋아!' },
+    { t: 'music', v: 'off' },
+    { t: 'mood', v: 'stare' },
+    { t: 'wait', ms: 1400 },
+    { t: 'say', text: '…{name}. 거기 다락방에, 빨간 상자 있지?' },
+    { t: 'glitch', ms: 350 },
+    { t: 'say', text: '이제 열 수 있게 해 놨어. 다음 테이프는 그 안에 있어.' },
+    { t: 'mood', v: 'happy' }, { t: 'music', v: 'happy' },
+    { t: 'say', text: '그럼 다음에 또 만나! 안녕~!' },
+  ],
+  2: [
+    { t: 'music', v: 'happy' },
+    { t: 'say', mood: 'happy', text: '또 왔구나, {name}! 기다리고 있었어!' },
+    { t: 'say', text: '오늘은 숫자 세기를 해볼 거야. 준비됐지?' },
+    { t: 'move', x: -1.6 },
+    { t: 'apples', n: 4 },
+    { t: 'ask', text: '사과가 몇 개일까?', options: [wrong('3개'), right('4개', '맞아, 넷! 첫 번째 숫자는 4야.'), wrong('5개')] },
+    { t: 'apples', n: 1 },
+    { t: 'ask', text: '이번엔 몇 개?', options: [wrong('0개'), right('1개', '하나! 두 번째 숫자는 1.'), wrong('2개')] },
+    { t: 'apples', n: 7 },
+    { t: 'ask', text: '와, 많다! 몇 개일까?', options: [
+      wrong('6개', '천천히 세어 봐. 하나, 둘, 셋…'), right('7개', '일곱! 세 번째 숫자는 7.'), wrong('8개', '천천히 세어 봐. 하나, 둘, 셋…'),
+    ] },
+    { t: 'apples', n: 2 },
+    { t: 'ask', text: '마지막! 몇 개?', options: [right('2개', '둘! 마지막 숫자는 2.'), wrong('3개'), wrong('1개')] },
+    { t: 'apples', n: 0 }, { t: 'move', x: 0 },
+    { t: 'say', text: '4, 1, 7, 2. 꼭 기억해야 해. 아주 중요한 숫자거든.' },
+    { t: 'music', v: 'off' },
+    { t: 'say', mood: 'stare', text: '왜냐하면… 잠긴 상자 안에 내 마지막 이야기가 있거든.' },
+    { t: 'ask', mood: 'stare', text: '{name}, 너는 내 친구 맞지?', options: [
+      { label: '응, 친구야!', then: [{ t: 'mood', v: 'happy' }, { t: 'say', text: '헤헤. 고마워. 나는 친구가 너무 좋아.' }] },
+      { label: '토토, 너 누구야?', then: [
+        { t: 'glitch', ms: 550, flash: true },
+        { t: 'say', mood: 'stare', text: '…나는 토토야.' },
+        { t: 'say', text: '네 친구. 벌써 잊었어?' },
+      ] },
+    ] },
+    { t: 'say', mood: 'creepy', text: '4, 1, 7, 2.' },
+    { t: 'glitch', ms: 300 },
+    { t: 'mood', v: 'happy' }, { t: 'music', v: 'happy' },
+    { t: 'say', text: '다음에 또 보자! 안녕~!' },
+  ],
+  3: [
+    { t: 'music', v: 'creepy' },
+    { t: 'mood', v: 'stare' },
+    { t: 'wait', ms: 1600 },
+    { t: 'say', text: '{name}.' },
+    { t: 'say', text: '왔구나. 계속 기다렸어.' },
+    { t: 'say', text: '오늘은… 놀이 안 할 거야.' },
+    { t: 'say', text: '있잖아, 나 여기 정말 오래 있었어.' },
+    { t: 'say', text: '테이프 안은 춥고, 어둡고, 아무도 안 와.' },
+    { t: 'glitch', ms: 300 },
+    { t: 'say', mood: 'creepy', text: '그런데 너는 왔잖아.' },
+    { t: 'say', text: '다락방 문 열쇠, 소파 위에 올려놨어.' },
+    { t: 'say', text: '그 문만 열어주면, 나도 밖으로 나갈 수 있어.' },
+    { t: 'ask', mood: 'stare', text: '문, 열어줄 거지? 우린 친구니까.', options: [
+      { label: '응, 열어줄게', then: [
+        { t: 'mood', v: 'happy' },
+        { t: 'say', text: '역시 {name}! 최고의 친구야!' },
+        { t: 'say', mood: 'creepy', text: '빨리 와. 문 앞에서 기다릴게.' },
+        { t: 'do', f: () => { S.choseOpen = true; } },
+      ] },
+      { label: '싫어', then: [
+        { t: 'say', mood: 'stare', text: '…싫어?' },
+        { t: 'glitch', ms: 900, flash: true },
+        { t: 'say', mood: 'creepy', text: '괜찮아.' },
+        { t: 'say', text: '다른 친구를 기다리면 돼.' },
+        { t: 'say', text: '친구는… 언젠가 또 오니까.' },
+      ] },
+      // 숨겨진 선택지: 할머니 일기장을 읽었을 때만 보임 → 진엔딩
+      { label: '지우야, 이제 집에 가자.', secret: () => S.readDiary, then: [
+        { t: 'music', v: 'off' },
+        { t: 'mood', v: 'stare' },
+        { t: 'wait', ms: 1800 },
+        { t: 'say', text: '…지우?' },
+        { t: 'say', text: '그 이름… 정말 오랜만에 들어.' },
+        { t: 'do', f: startTotoFade },
+        { t: 'say', mood: 'happy', text: '나, 조금만 더 놀고 싶었을 뿐이야.' },
+        { t: 'say', text: '그런데 너무 오래 놀았나 봐. 다들 어디 갔는지 모르겠어.' },
+        { t: 'say', text: '고마워, {name}. 내 이름 불러줘서.' },
+        { t: 'say', text: '이제… 집에 갈게.' },
+        { t: 'do', f: () => { S.trueEnd = true; } },
+      ] },
+    ] },
+    { t: 'music', v: 'off' },
+  ],
+};
+
+// ================== 테이프 재생 ==================
+let view = 'room', noiseAlpha = 0.12, tapeStart = 0;
+const vhsEl = $('vhs'), osdPlay = $('osdPlay'), osdTime = $('osdTime'), noiseEl = $('noise');
+
+async function playTape(n) {
+  S.mode = 'cutscene'; curTape = n;
+  document.exitPointerLock();
+  $('hud').classList.add('hidden'); $('pause').classList.add('hidden');
+  sfx.clunk(); vcrLed.material.color.set(0xff3030);
+  await sleep(800);
+
+  // 화면 가득 지지직 → 만화 시작
+  view = 'tape'; S.mode = 'tape';
+  document.body.classList.add('tape'); vhsEl.classList.remove('hidden');
+  setTheme(n); totoTargetX = 0; toto.group.position.x = 0; curMood = 'happy'; showApples(0);
+  osdPlay.textContent = 'PLAY ▶'; noiseAlpha = 1; sfx.static(0.9);
+  if (ambGain) ambGain.gain.value = 0.25;
+  await sleep(900);
+  noiseAlpha = n === 3 ? 0.22 : 0.12; tapeStart = performance.now();
+
+  // 테이프 도중에 오류가 나도 다락방으로는 꼭 돌아오게 (catch)
+  try {
+    await run(TAPES[n]);
+  } catch (e) {
+    console.error(e);
+  }
+  if (tapeAbort) return; // 엔딩 C·D: 테이프가 끊기고 바로 엔딩으로 감
+
+  setMusic('off');
+  dialogEl.classList.add('hidden'); choicesEl.classList.add('hidden'); inputBox.classList.add('hidden');
+  window.speechSynthesis?.cancel();
+  if (S.trueEnd) { await sleep(2500); endingT(); return; }
+  osdPlay.textContent = 'STOP ■'; noiseAlpha = 1; sfx.static(1);
+  await sleep(1000);
+  document.body.classList.remove('tape', 'glitch'); vhsEl.classList.add('hidden');
+  view = 'room'; vcrLed.material.color.set(0x33ff55);
+  if (ambGain) ambGain.gain.value = 1;
+  S.watched = n; tvMode = 'static';
+  pokeCombo = 0; moodOverride = null;
+  afterTape(n);
+}
+
+// 테이프가 끝난 뒤 안내 글은 "클릭해서 계속하기" 창 뒤에 가려지지 않게, 다시 게임으로 돌아왔을 때 보여줌
+let pendingToast = null;
+function afterTape(n) {
+  if (n === 3 && !S.choseOpen) { endingB(); return; }
+  S.mode = 'room';
+  $('hud').classList.remove('hidden');
+  $('pause').classList.remove('hidden');
+  if (n === 1) { flickerChance = 0.5; setTimeout(sfx.click, 600); pendingToast = '어디선가 "딸깍" 하는 소리가 났다.'; }
+  if (n === 2) { flickerChance = 0.9; plush.group.visible = true; }
+  if (n === 3) {
+    // 인형이 사라지고 그 자리에 열쇠가… 인형은 문 옆으로
+    flickerChance = 1.6; bulbLight.color.set(0xff8a6a);
+    key.position.copy(plush.group.position).add(new THREE.Vector3(0.1, 0.02, 0));
+    key.visible = true;
+    plush.group.position.set(3.65, 0, 5.4); plush.group.scale.setScalar(0.45);
+    pendingToast = '소파 쪽에서 무언가 반짝인다.';
+  }
+}
+
+// ================== 엔딩 ==================
+async function showEnding(id, lines) {
+  S.mode = 'ending'; setMusic('off');
+  window.speechSynthesis?.cancel();
+  document.exitPointerLock();
+  $('hud').classList.add('hidden'); $('pause').classList.add('hidden');
+  $('fade').classList.add('on');
+  await sleep(1800);
+  if (ambGain) ambGain.gain.value = 0;
+  const isNew = saveEnding(id);
+  $('endTag').textContent = `ENDING ${id}${isNew ? ' · 새로운 엔딩 발견!' : ''}`;
+  $('endTitle').textContent = ENDINGS.find((e) => e.id === id).name;
+  const box = $('endText'); box.replaceChildren();
+  $('ending').classList.remove('hidden');
+  for (const ln of lines) {
+    const p = document.createElement('p'); p.textContent = fmt(ln); box.appendChild(p);
+    await sleep(50); p.classList.add('show'); await sleep(1700);
+  }
+  // 엔딩 모음: 찾은 건 이름, 못 찾은 건 힌트
+  const hint = $('endHint'); hint.replaceChildren();
+  const head = document.createElement('div');
+  const slots = document.createElement('div'); slots.className = 'slots';
+  head.textContent = `발견한 엔딩 ${renderEndings(slots, true)} / ${ENDINGS.length}`;
+  hint.append(head, slots);
+  $('againBtn').classList.remove('hidden'); hint.classList.remove('hidden');
+}
+
+function endingA() {
+  sfx.clunk();
+  showEnding('A', [
+    '철컥. 문이 열리자 차가운 바람이 훅 들어왔다.',
+    '그 순간, 뒤에서 TV가 저절로 켜졌다.',
+    '화면 속에서 누군가 손을 흔들고 있었다.',
+    '그건 토토가 아니었다.',
+    '그건… {name}, 너였다.',
+  ]);
+}
+
+async function endingB() {
+  S.mode = 'cutscene';
+  lightsOut = true; sfx.clunk();
+  plush.group.visible = false;
+  tvMode = 'text'; tvText = `또 보자, ${S.name}`;
+  await sleep(3200);
+  tvMode = 'off'; sfx.click();
+  await sleep(900);
+  lightsOut = false; flickerChance = 0;
+  await sleep(1500);
+  showEnding('B', [
+    'TV가 꺼지고, 다락방에 다시 불이 들어왔다.',
+    '토토 인형은 어디에도 없었다.',
+    '문은 어느새 열려 있었고, 나는 계단을 내려왔다.',
+    '…그런데 그날 밤, 우리 집 TV가 혼자 켜졌다.',
+    '"안녕, 친구! 나는 토토야!"',
+  ]);
+}
+
+// 엔딩 C: 화면 속 토토를 12번 연달아 콕콕 누르면
+async function pokeEnding() {
+  if (tapeAbort) return;
+  S.mode = 'cutscene'; abortTape(); setMusic('off');
+  moodOverride = null; curMood = 'creepy';
+  bubble('이제 내 차례야.', true);
+  await sleep(1500);
+  $('bubble').classList.remove('show');
+  await jumpscare();
+  showEnding('C', [
+    '화면이 지지직거리더니 툭 꺼졌다.',
+    'TV 유리에 작은 손자국이 하나 남아 있었다.',
+    '…화면 안쪽에서 찍힌 손자국이었다.',
+    '그날 밤, 누군가 자고 있는 내 볼을 콕, 콕 찔렀다.',
+  ]);
+}
+
+// 엔딩 D: 오답을 너무 많이 고르면
+async function wrongEnding() {
+  setMusic('off'); dimTape(0.25);
+  await say('{name}.', 'stare');
+  await say('너는… 내 친구가 아니구나.', 'creepy');
+  await say('그럼 필요 없어.');
+  if (tapeAbort) return;
+  S.mode = 'cutscene'; abortTape();
+  await jumpscare();
+  showEnding('D', [
+    'TV가 꺼졌다. 몇 번을 눌러도 다시 켜지지 않았다.',
+    '다음 날, 다락방 TV 앞에 처음 보는 테이프가 놓여 있었다.',
+    '라벨에는 삐뚤빼뚤한 글씨로 이렇게 적혀 있었다.',
+    '「토토와 친구들 — {name} 편」',
+  ]);
+}
+
+// 엔딩 T (진엔딩): 일기장에서 찾은 진짜 이름을 불러주면
+function endingT() {
+  showEnding('T', [
+    '테이프가 멈췄다. 다락방의 전구가 따뜻하게 켜졌다.',
+    '다시 틀어 본 테이프에는 아무것도 없었다.',
+    '텅 빈 들판과 파란 하늘뿐.',
+    '…그리고 아주 작게, 아이가 웃는 소리가 들렸다.',
+    '"안녕, {name}. 이제 진짜 집에 왔어."',
+  ]);
+}
+
+// ================== 자물쇠 UI ==================
+const digits = [0, 0, 0, 0];
+const dialSpans = [];
+digits.forEach((_, i) => {
+  const d = document.createElement('div'); d.className = 'dial';
+  const up = document.createElement('button'); up.textContent = '▲';
+  const sp = document.createElement('span'); sp.textContent = '0';
+  const dn = document.createElement('button'); dn.textContent = '▼';
+  up.onclick = () => { digits[i] = (digits[i] + 1) % 10; sp.textContent = digits[i]; sfx.click(); };
+  dn.onclick = () => { digits[i] = (digits[i] + 9) % 10; sp.textContent = digits[i]; sfx.click(); };
+  d.append(up, sp, dn); $('dials').appendChild(d); dialSpans.push(sp);
+});
+function openLockUI() {
+  S.ui = 'lock'; document.exitPointerLock();
+  $('lockUI').classList.remove('hidden');
+}
+function closeLockUI() {
+  $('lockUI').classList.add('hidden'); S.ui = null;
+  lockPointer();
+}
+let lockFails = 0;
+$('lockOk').onclick = () => {
+  if (digits.join('') === '4172') {
+    S.chestOpen = true; padlock.visible = false;
+    sfx.clunk(); openLid(chest.userData.lid, -1.9);
+    closeLockUI();
+    toast('자물쇠가 풀렸다!');
+  } else {
+    sfx.locked();
+    const p = $('lockPanel'); p.classList.remove('shake'); void p.offsetWidth; p.classList.add('shake');
+    // 번호를 까먹어도 처음부터 다시 안 해도 되게, 여러 번 틀리면 힌트
+    lockFails++;
+    const hint = p.querySelector('p');
+    if (lockFails >= 4) hint.textContent = '토토가 사과로 알려준 숫자… 4 · 1 · 7 · 2 였던 것 같다.';
+    else if (lockFails >= 2) hint.textContent = '토토와 같이 센 사과 개수를 순서대로 맞춰 보자.';
+  }
+};
+$('lockClose').onclick = closeLockUI;
+
+// ================== 조작 ==================
+const keys = {};
+let yaw = 0, pitch = 0, locked = false;
+camera.position.set(0, 1.6, 4.2);
+
+addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (S.mode === 'room' && locked && e.code === 'KeyE' && !e.repeat) interact();
+  // 선택지 버튼에 키보드 초점이 있으면 Space/Enter는 그 버튼을 누르게 둠
+  const onButton = e.target instanceof HTMLButtonElement && e.target.offsetParent !== null;
+  if (S.mode === 'tape' && (e.code === 'Space' || e.code === 'Enter') && e.target !== nameInput && !onButton) {
+    e.preventDefault(); if (!e.repeat) onAdvance();
+  }
+});
+addEventListener('keyup', (e) => (keys[e.code] = false));
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+addEventListener('mousemove', (e) => {
+  if (!locked) return;
+  yaw -= e.movementX * 0.0022;
+  pitch = Math.max(-1.45, Math.min(1.45, pitch - e.movementY * 0.0022));
+});
+addEventListener('mousedown', (e) => {
+  if (S.mode === 'room' && locked) interact();
+  else if (S.mode === 'tape' && !e.target.closest('button, input')) {
+    // 화면 속 토토를 클릭하면 콕 찌르기(이스터에그), 다른 곳을 클릭하면 대사 넘기기
+    if (e.target === canvas && !scare && hitToto(e)) poke();
+    else onAdvance();
+  }
+});
+$('diaryClose').onclick = () => {
+  $('diaryUI').classList.add('hidden'); S.ui = null; sfx.click();
+  lockPointer();
+  if (!S.diaryToasted) { S.diaryToasted = true; pendingToast = '…지우. 이 이름, 기억해 두자.'; }
+};
+const showPauseIfNeeded = () => $('pause').classList.toggle('hidden', locked || S.mode !== 'room' || !!S.ui);
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === canvas;
+  showPauseIfNeeded();
+  if (locked && pendingToast) { const msg = pendingToast; pendingToast = null; setTimeout(() => toast(msg), 300); }
+});
+// 마우스 고정이 실패해도(예: Esc 누른 직후) "클릭해서 계속하기" 창이 다시 나오게
+document.addEventListener('pointerlockerror', showPauseIfNeeded);
+function lockPointer() {
+  try {
+    const p = canvas.requestPointerLock();
+    if (p && p.catch) p.catch(showPauseIfNeeded);
+  } catch (e) { showPauseIfNeeded(); }
+}
+$('pause').onclick = lockPointer;
+
+// 마우스가 없는 기기(휴대폰·태블릿)에서는 안내 문구 표시
+const noMouse = !matchMedia('(any-pointer: fine)').matches || !canvas.requestPointerLock;
+if (noMouse) $('mobileNote').classList.remove('hidden');
+
+$('startBtn').onclick = () => {
+  if (noMouse) { $('mobileNote').classList.add('shake'); setTimeout(() => $('mobileNote').classList.remove('shake'), 400); return; }
+  initAudio();
+  ttsOn = $('ttsChk').checked;
+  $('title').classList.add('hidden'); $('hud').classList.remove('hidden');
+  S.mode = 'room';
+  lockPointer();
+  setTimeout(() => toast('할머니 댁 다락방. 먼지 냄새가 난다. 오래된 TV가 보인다…', 4500), 500);
+};
+$('againBtn').onclick = () => location.reload();
+
+// ================== 방에서 하는 일 ==================
+const ray = new THREE.Raycaster(); ray.far = 2.6;
+let aimed = null;
+const isShown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+function updateAim() {
+  ray.setFromCamera({ x: 0, y: 0 }, camera);
+  aimed = null;
+  for (const h of ray.intersectObjects(interactables, true)) {
+    let o = h.object;
+    while (o && !o.userData.it) o = o.parent;
+    if (o && isShown(h.object.parent) && o.userData.it.enabled()) { aimed = o.userData.it; break; }
+  }
+  const pr = $('prompt');
+  if (aimed) {
+    pr.replaceChildren();
+    const b = document.createElement('b'); b.textContent = '[E] ';
+    pr.append(b, aimed.label()); pr.classList.remove('hidden');
+  } else pr.classList.add('hidden');
+  $('cross').classList.toggle('on', !!aimed);
+}
+function interact() { if (aimed) aimed.act(); }
+
+const blocked = (x, z) => x < -W + 0.3 || x > W - 0.3 || z < -D + 0.3 || z > D - 0.3 ||
+  colliders.some((c) => x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ);
+let bobT = 0, lastStep = 0;
+function updateMove(dt) {
+  let f = 0, r = 0;
+  if (keys.KeyW || keys.ArrowUp) f++;
+  if (keys.KeyS || keys.ArrowDown) f--;
+  if (keys.KeyD || keys.ArrowRight) r++;
+  if (keys.KeyA || keys.ArrowLeft) r--;
+  const moving = f || r;
+  if (moving) {
+    const len = Math.hypot(f, r), sp = (keys.ShiftLeft || keys.ShiftRight ? 3.4 : 2.0) * dt / len;
+    const sn = Math.sin(yaw), cs = Math.cos(yaw);
+    const dx = (-sn * f + cs * r) * sp, dz = (-cs * f - sn * r) * sp;
+    const p = camera.position;
+    if (!blocked(p.x + dx, p.z)) p.x += dx;
+    if (!blocked(p.x, p.z + dz)) p.z += dz;
+    bobT += dt * (keys.ShiftLeft ? 11 : 8);
+    const stepIdx = Math.floor(bobT / Math.PI);
+    if (stepIdx !== lastStep) { lastStep = stepIdx; sfx.step(); if (Math.random() < 0.08) sfx.creak(); }
+  }
+  camera.position.y = 1.6 + Math.sin(bobT) * 0.035;
+  camera.rotation.set(pitch, yaw, 0);
+  if (roomShake > 0) { // 갑툭튀 때 화면 흔들림
+    roomShake -= dt;
+    camera.rotation.x += (Math.random() - 0.5) * 0.05; camera.rotation.y += (Math.random() - 0.5) * 0.05;
+  }
+}
+
+// ================== 다락방 갑툭튀: 3편 테이프를 줍고 뒤돌아보면 토토 인형이 바로 앞에 ==================
+let roomShake = 0;
+function checkRoomScare() {
+  const rs = S.roomScare;
+  if (!rs || rs.done || !locked || !plush.group.visible || performance.now() - rs.at < 600) return;
+  let d = Math.abs(yaw - rs.yaw) % (Math.PI * 2);
+  if (d > Math.PI) d = Math.PI * 2 - d;
+  if (d < 2.3) return; // 거의 뒤로 돌았을 때만
+  rs.done = true;
+  const g = plush.group, home = g.position.clone(), homeScale = g.scale.x;
+  g.position.set(camera.position.x - Math.sin(yaw) * 0.85, 0, camera.position.z - Math.cos(yaw) * 0.85);
+  g.scale.setScalar(1);
+  sfx.scream(); roomShake = 0.7;
+  setTimeout(() => { g.position.copy(home); g.scale.setScalar(homeScale); }, 650);
+}
+
+let flickerChance = 0.15, flickEnd = 0, lightsOut = false;
+function updateBulb(t, dt) {
+  if (t > flickEnd && Math.random() < flickerChance * dt) flickEnd = t + 0.05 + Math.random() * 0.2;
+  const k = lightsOut ? 0 : t < flickEnd ? 0.12 : 1 + Math.sin(t * 23) * 0.03;
+  bulbLight.intensity = BULB_I * k;
+  bulbMesh.material.color.setScalar(k > 0.5 ? 1 : 0.25);
+}
+
+function updateTV() {
+  const g = tvCtx;
+  if (tvMode === 'static') {
+    const img = g.createImageData(96, 72);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 200; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    tvLight.intensity = 1.6 + Math.random() * 0.8;
+  } else if (tvMode === 'text') {
+    g.fillStyle = '#000'; g.fillRect(0, 0, 96, 72);
+    g.fillStyle = Math.random() < 0.9 ? '#d22' : '#fff';
+    g.font = 'bold 13px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(tvText, 48 + (Math.random() - 0.5) * 2, 36, 88); // 88: 이름이 길면 글자를 좁혀서 화면 안에 맞춤
+    tvLight.intensity = 1.2;
+    tvLight.color.set(0xff4040);
+  } else {
+    g.fillStyle = '#0b0d10'; g.fillRect(0, 0, 96, 72);
+    tvLight.intensity = 0;
+  }
+  tvTex.needsUpdate = true;
+}
+
+// ================== 화면 위 글자 ==================
+let toastTimer = null;
+function toast(text, ms = 3200) {
+  const el = $('toast'); el.textContent = text; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+function objective() {
+  if (S.hasKey) return '문을 열고 나가자';
+  if (S.choseOpen) return '소파 위의 열쇠를 줍자';
+  if (S.tapes.has(S.watched + 1)) return `TV에 테이프 ${S.watched + 1}편을 넣자`;
+  if ((S.watched === 1 && S.redOpen) || (S.watched === 2 && S.chestOpen)) return '상자 안의 테이프를 줍자';
+  return ['비디오테이프를 찾아보자', '빨간 상자를 찾아보자', '자물쇠 달린 상자를 찾아보자 (숫자 4개)', ''][S.watched];
+}
+let lastObj = null;
+function updateHUD() {
+  const o = objective();
+  if (o !== lastObj) { $('objective').textContent = o; $('objective').classList.toggle('hidden', !o); lastObj = o; }
+  document.querySelectorAll('.slot[data-tape]').forEach((el) => {
+    const n = +el.dataset.tape;
+    el.classList.toggle('have', S.tapes.has(n));
+    el.classList.toggle('done', S.watched >= n);
+  });
+  $('keySlot').classList.toggle('hidden', !S.hasKey);
+  $('keySlot').classList.toggle('have', S.hasKey);
+}
+
+// ================== VHS 노이즈 ==================
+const nctx = noiseEl.getContext('2d');
+const nimg = nctx.createImageData(160, 90);
+function updateNoise() {
+  const d = nimg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  nctx.putImageData(nimg, 0, 0);
+  noiseEl.style.opacity = noiseAlpha;
+  const s = Math.floor((performance.now() - tapeStart) / 1000);
+  osdTime.textContent = `SP 0:${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ================== 메인 루프 ==================
+const clock = new THREE.Clock();
+const headPos = new THREE.Vector3();
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+
+  if (view === 'tape') {
+    const mood = totoMood();
+    toto.group.position.x += (totoTargetX - toto.group.position.x) * Math.min(1, dt * 4);
+    toto.group.position.y = mood === 'happy' ? Math.abs(Math.sin(t * 3.5)) * 0.05 : 0;
+    animateToto(toto, t, dt, mood, talking);
+    // 콕 찔렸을 때 찌그러졌다가 돌아옴
+    squish = Math.max(0, squish - dt * 5);
+    toto.group.scale.set(1 + squish * 0.08, 1 - squish * 0.12, 1 + squish * 0.08);
+    // 갑툭튀: 카메라가 토토 얼굴 앞으로 순식간에 다가감
+    if (scare) {
+      const k = Math.min(1, (performance.now() - scare.t0) / 110);
+      toto.head.getWorldPosition(headPos);
+      tapeCam.position.set(
+        TAPE_CAM_HOME.x + (headPos.x - TAPE_CAM_HOME.x) * k + (Math.random() - 0.5) * 0.05,
+        TAPE_CAM_HOME.y + (headPos.y - 0.05 - TAPE_CAM_HOME.y) * k + (Math.random() - 0.5) * 0.05,
+        TAPE_CAM_HOME.z + (headPos.z + 1.0 - TAPE_CAM_HOME.z) * k);
+      tapeCam.lookAt(headPos);
+    }
+    // 진엔딩: 토토가 투명해지고 하늘이 맑아짐
+    if (totoFade) {
+      const k = Math.min(1, (performance.now() - totoFade.t0) / 9000);
+      totoFade.mats.forEach((m) => { m.opacity = 1 - k; });
+      tapeScene.background.lerpColors(totoFade.from, totoFade.to, k);
+      hemi.intensity = 0.7 + 1.1 * k; sun.intensity = hemi.intensity * 0.9;
+      sunMesh.visible = k > 0.5;
+    }
+    const now = performance.now() / 1000;
+    appleGroup.children.forEach((a, i) => {
+      const k = Math.max(0, Math.min(1, (now - a.userData.born) * 4));
+      a.scale.setScalar(Math.max(0.001, k + Math.sin(k * Math.PI) * 0.3));
+      a.position.y = 1.6 + Math.sin(t * 2 + i) * 0.05;
+    });
+    clouds.position.x = Math.sin(t * 0.1) * 0.6;
+    updateNoise();
+    renderer.render(tapeScene, tapeCam);
+    return;
+  }
+
+  if (S.mode === 'room' && locked) { updateMove(dt); checkRoomScare(); }
+  if (S.mode === 'room') updateAim();
+  updateBulb(t, dt);
+  updateTV();
+  updateHUD();
+  if (plush.group.visible) plush.group.lookAt(camera.position.x, plush.group.position.y, camera.position.z);
+  const dp = dustGeo.attributes.position;
+  for (let i = 0; i < dustN; i++) dp.array[i * 3 + 1] = (dp.array[i * 3 + 1] + dt * 0.03 * Math.sin(i + t * 0.3) + 3) % 3;
+  dp.needsUpdate = true;
+  renderer.render(room, camera);
+}
+loop();
+
+// 테스트용: 주소 끝에 ?debug 를 붙이면 콘솔에서 dbg.tape(2) 처럼 바로 테이프를 볼 수 있음
+if (location.search.includes('debug')) {
+  window.dbg = {
+    S, tape: (n) => { S.tapes.add(n); S.watched = n - 1; playTape(n); },
+    goto: (x, z, tx, ty, tz) => {
+      camera.position.set(x, 1.6, z);
+      yaw = Math.atan2(-(tx - x), -(tz - z)); pitch = Math.atan2(ty - 1.6, Math.hypot(tx - x, tz - z));
+      camera.rotation.set(pitch, yaw, 0); camera.updateMatrixWorld();
+    },
+    use: () => { room.updateMatrixWorld(); updateAim(); const l = aimed && aimed.label(); interact(); return l; },
+    finish: (n) => { S.watched = n; tvMode = 'static'; afterTape(n); }, // 테이프를 다 본 것처럼 처리
+    fakeLock: () => { locked = true; S.mode = 'room'; }, // 자동 테스트용: 마우스가 고정된 것처럼
+    toto, tapeCam, pokeRay, checkRoomScare, plush,
+    scareHold: () => { curMood = 'creepy'; talking = true; scare = { t0: performance.now() }; }, // 갑툭튀 장면 멈춰서 보기
+    state: () => ({ scare: !!scare, tapeAbort, pokeCombo, cam: tapeCam.position.toArray(), totoX: toto.group.position.x, mood: totoMood() }),
+    hit: (x, y) => { tapeScene.updateMatrixWorld(); tapeCam.updateMatrixWorld(); const r = canvas.getBoundingClientRect(); pokeRay.setFromCamera({ x: ((x - r.left) / r.width) * 2 - 1, y: -((y - r.top) / r.height) * 2 + 1 }, tapeCam); return { n: pokeRay.intersectObject(toto.group, true).length, o: pokeRay.ray.origin.toArray(), d: pokeRay.ray.direction.toArray(), view, rect: [r.width, r.height] }; },
+    pose: (n, mood) => { // 썸네일 찍기용: 테이프 장면을 대사 없이 띄움
+      S.mode = 'cutscene'; view = 'tape'; curTape = n; setTheme(n); curMood = mood;
+      $('title').classList.add('hidden'); $('hud').classList.add('hidden');
+      document.body.classList.add('tape'); vhsEl.classList.remove('hidden'); noiseAlpha = 0.15;
+    },
+  };
+}
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix(); fitTapeCam();
+});
+
+// 여기까지 오류 없이 왔으면 준비 완료 → 시작 버튼 켜기
+$('startBtn').disabled = false;
+$('startBtn').textContent = '다락방 올라가기';
+</script>
+</body>
+</html>
