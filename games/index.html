@@ -1,0 +1,40 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="index,follow"><link rel="canonical" href="https://querybot.kr/games/"><meta name="description" content="QueryBot Games — 설치 없이 브라우저에서 바로 하는 게임 모음"><meta property="og:type" content="website"><meta property="og:title" content="QueryBot Games"><meta property="og:description" content="설치 없이 브라우저에서 바로 하는 게임 모음"><meta property="og:url" content="https://querybot.kr/games/"><meta property="og:image" content="https://querybot.kr/games/toto/thumb.jpg"><title>QueryBot Games</title><link rel="stylesheet" href="/assets/style.css">
+<style>
+html{background:var(--bg)}body{min-height:100vh;background-repeat:no-repeat}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:20px;margin-top:10px}
+.game{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:linear-gradient(145deg,#101a2c,#0b1220);transition:transform .2s,border-color .2s}
+a.game:hover{transform:translateY(-4px);border-color:#3c5784}
+.thumb{position:relative;aspect-ratio:16/9;background:#05070c center/cover no-repeat}
+.thumb .badge{position:absolute;left:12px;top:12px;font-size:12px;font-weight:800;padding:4px 9px;border-radius:20px;background:#000a;color:#ffd75e;border:1px solid #ffd75e55}
+.ginfo{padding:20px 22px 22px;display:flex;flex-direction:column;flex:1}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.tags span{font-size:12px;font-weight:700;color:#a9d1ff;background:#17325b;padding:3px 9px;border-radius:20px}
+.tags span.horror{color:#ffb4b4;background:#4a1820}
+.game h3{margin:0 0 6px;font-size:22px;letter-spacing:-.03em}
+.game p{margin:0 0 18px;color:var(--muted);font-size:15px}
+.play{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;min-height:42px;padding:0 18px;border-radius:12px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.game.soon{border-style:dashed;justify-content:center;align-items:center;text-align:center;min-height:300px;background:#0b1220}
+.game.soon .icon{margin:0 auto 14px}
+.game.soon p{margin:0}
+</style></head><body>
+<header class="nav"><div class="wrap navin"><a class="brand" href="/games/">Query<b>Bot</b> Games</a><nav class="navlinks"><a href="/" data-ko="QueryBot 홈" data-en="QueryBot Home">QueryBot 홈</a></nav><button class="lang">EN</button></div></header>
+<main>
+<section class="pagehead"><div class="wrap"><div class="eyebrow">QUERYBOT GAMES</div><h1 data-ko="브라우저에서 바로 하는 게임" data-en="Games that run right in your browser">브라우저에서 바로 하는 게임</h1><p class="lead" data-ko="설치 없이 클릭 한 번이면 시작해요. 직접 만든 게임을 하나씩 모아두는 곳입니다." data-en="No install, just click and play. A growing collection of games we made ourselves.">설치 없이 클릭 한 번이면 시작해요. 직접 만든 게임을 하나씩 모아두는 곳입니다.</p></div></section>
+<section class="section" style="padding-top:10px"><div class="wrap"><div class="games">
+<a class="game" href="/games/toto/">
+  <div class="thumb" style="background-image:url('/games/toto/thumb.jpg')"><span class="badge">NEW</span></div>
+  <div class="ginfo">
+    <div class="tags"><span class="horror" data-ko="공포" data-en="Horror">공포</span><span>3D</span><span data-ko="PC 전용" data-en="PC only">PC 전용</span><span data-ko="약 10분" data-en="~10 min">약 10분</span></div>
+    <h3 data-ko="토토와 친구들" data-en="Toto &amp; Friends">토토와 친구들</h3>
+    <p data-ko="할머니 댁 다락방에서 찾은 오래된 비디오테이프. 귀여운 강아지 토토가 화면 너머의 나에게 말을 걸기 시작합니다. 엔딩 5개와 숨겨진 이스터에그." data-en="An old videotape found in grandma's attic. Toto, a cute cartoon dog, starts talking to you through the screen. Five endings and hidden secrets.">할머니 댁 다락방에서 찾은 오래된 비디오테이프. 귀여운 강아지 토토가 화면 너머의 나에게 말을 걸기 시작합니다. 엔딩 5개와 숨겨진 이스터에그.</p>
+    <span class="play" data-ko="플레이 ▶" data-en="Play ▶">플레이 ▶</span>
+  </div>
+</a>
+<div class="game soon">
+  <div class="icon">+</div>
+  <h3 data-ko="다음 게임 준비 중" data-en="Next game in progress">다음 게임 준비 중</h3>
+  <p data-ko="곧 새로운 게임이 올라와요." data-en="More games are on the way.">곧 새로운 게임이 올라와요.</p>
+</div>
+</div></div></section>
+</main>
+<footer class="footer"><div class="wrap footin"><div class="brand">QueryBot Games</div><a href="/" data-ko="QueryBot 홈" data-en="QueryBot Home">QueryBot 홈</a><div>© 2026 QueryBot. All rights reserved.</div></div></footer><script src="/assets/app.js"></script></body></html>
