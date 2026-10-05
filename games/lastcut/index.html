@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마지막 컷 · QueryBot Games</title>
+<meta name="description" content="실종된 언니의 필름 카메라. 언니가 마지막으로 찍은 장소에서 같은 사진을 다시 찍는다. 브라우저에서 바로 하는 3D 공포 게임.">
+<link rel="canonical" href="https://querybot.kr/games/lastcut/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="마지막 컷 — 3D 공포 게임">
+<meta property="og:description" content="찍을 땐 아무도 없었다. 사진에만 찍혀 있었다.">
+<meta property="og:url" content="https://querybot.kr/games/lastcut/">
+<meta property="og:image" content="https://querybot.kr/games/lastcut/thumb.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%B7%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: #000; overflow: hidden;
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    color: #eee; user-select: none;
+  }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; filter: contrast(1.06) saturate(.82); }
+  .hidden { display: none !important; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 20; padding: 16px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; background: rgba(0, 0, 0, .88);
+  }
+  button {
+    font: inherit; font-size: 18px; cursor: pointer; padding: 12px 26px; margin: 6px;
+    border: 2px solid #d9cfb8; background: #1d1b17; color: #d9cfb8; border-radius: 10px;
+  }
+  button:hover { background: #d9cfb8; color: #15130f; }
+  button.ghost { border-color: #666; color: #aaa; background: transparent; }
+  button.ghost:hover { background: #444; color: #fff; }
+
+  /* ---------- 타이틀 ---------- */
+  #title h1 {
+    font-size: clamp(40px, 8vw, 84px); margin: 0 0 6px; color: #e8e0cc; letter-spacing: 10px;
+    font-family: 'Gungsuh', 'Batang', serif; font-weight: normal; text-shadow: 0 0 24px rgba(255, 140, 60, .25);
+  }
+  #title .sub { color: #9a8f7a; margin-bottom: 28px; font-size: 18px; }
+  #title .how { color: #8a8a8a; font-size: 15px; line-height: 1.9; margin: 20px 0 6px; }
+  #title kbd { background: #2a2a2a; border: 1px solid #555; border-radius: 4px; padding: 1px 7px; color: #ddd; font-family: inherit; }
+  #mobileNote { margin-top: 18px; padding: 10px 16px; border: 1px solid #5a4e3a; border-radius: 10px; color: #d9cfb8; font-size: 15px; }
+  #backLink { position: absolute; left: 18px; top: 14px; color: #77705f; font-size: 15px; text-decoration: none; }
+  #backLink:hover { color: #d9cfb8; }
+
+  /* ---------- 인화된 사진 (흰 테두리) ---------- */
+  .print { background: #ece6d8; padding: 12px 12px 34px; box-shadow: 0 14px 50px #000; position: relative; }
+  .print img { display: block; width: 100%; }
+  .print .cap { position: absolute; left: 0; right: 0; bottom: 8px; font-size: 13px; color: #6b6355; font-family: 'Gungsuh', 'Batang', serif; }
+
+  /* ---------- 처음 이야기 ---------- */
+  #intro .print { width: min(80vw, calc(40vh * 1.5 + 24px)); transform: rotate(-1.5deg); margin-bottom: 26px; }
+  #introText { max-width: 600px; font-size: 18px; line-height: 1.9; color: #c9c2b2; margin-bottom: 20px; }
+  #introText p { margin: 0 0 8px; opacity: 0; transition: opacity 1.2s; }
+  #introText p.show { opacity: 1; }
+
+  /* ---------- 걸을 때 HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 8; }
+  #cross { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: rgba(255, 255, 255, .6); }
+  #cross.on { background: #e8d9a8; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; }
+  #prompt {
+    position: absolute; left: 50%; top: calc(50% + 28px); transform: translateX(-50%);
+    background: rgba(0, 0, 0, .65); padding: 6px 14px; border-radius: 8px; font-size: 17px; white-space: nowrap;
+  }
+  #prompt b { color: #e8d9a8; }
+  #objective { position: absolute; left: 18px; top: 16px; font-size: 15px; color: #cfc6b2; text-shadow: 1px 1px 2px #000; }
+  #objective::before { content: '▸ '; color: #e8d9a8; }
+  #filmCount { position: absolute; right: 18px; top: 14px; font-family: Consolas, monospace; font-size: 16px; color: #cfc6b2; text-shadow: 1px 1px 2px #000; }
+  #refThumb { position: absolute; left: 18px; bottom: 18px; width: 200px; padding: 6px 6px 22px; transform: rotate(-3deg); }
+  #refThumb .cap { font-size: 11px; bottom: 4px; }
+  #toast {
+    position: absolute; left: 50%; bottom: 12%; transform: translateX(-50%); max-width: min(90vw, 640px);
+    background: rgba(0, 0, 0, .75); padding: 12px 20px; border-radius: 10px; font-size: 18px; line-height: 1.6;
+    opacity: 0; transition: opacity .4s; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ---------- 옛날 카메라 느낌 (입자 + 비네팅) ---------- */
+  #grainBox { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #grain { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .1; image-rendering: pixelated; }
+  #grainBox .vig { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, .8) 100%); }
+
+  /* ---------- 뷰파인더 ---------- */
+  #vf { position: fixed; inset: 0; pointer-events: none; z-index: 7; }
+  #vfFrame { position: absolute; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, .62); }
+  #vfRef { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .32; filter: grayscale(.4); }
+  .vc { position: absolute; width: 36px; height: 36px; border: 0 solid rgba(255, 255, 255, .85); }
+  .vc.tl { left: 12px; top: 12px; border-left-width: 3px; border-top-width: 3px; }
+  .vc.tr { right: 12px; top: 12px; border-right-width: 3px; border-top-width: 3px; }
+  .vc.bl { left: 12px; bottom: 12px; border-left-width: 3px; border-bottom-width: 3px; }
+  .vc.br { right: 12px; bottom: 12px; border-right-width: 3px; border-bottom-width: 3px; }
+  #vfMid { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 1px solid rgba(255, 255, 255, .6); border-radius: 50%; }
+  #vfInfo {
+    position: absolute; left: 0; right: 0; bottom: -34px; display: flex; gap: 22px; justify-content: center; align-items: center;
+    font-family: Consolas, monospace; font-size: 15px; color: #ddd; text-shadow: 1px 1px 2px #000;
+  }
+  #vfLed { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #333; vertical-align: -1px; margin-right: 6px; }
+  #vfLed.near { background: #7a5a20; }
+  #vfLed.ok { background: #ffd34a; box-shadow: 0 0 10px #ffd34a; }
+  #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 9; }
+  #flash.on { opacity: .45; }
+  #flash.off { transition: opacity .45s; }
+
+  /* ---------- 사진 크게 보기 ---------- */
+  #photoView .print { width: min(86vw, calc(62vh * 1.5 + 24px)); transform: rotate(1deg); }
+  #photoView.red { background: rgba(10, 0, 0, .9); }
+  #photoView.red .print { background: #4a120d; }
+  /* 빨간 전구 아래에서 보는 느낌. 색을 다 지우면 빨간 가디건이 안 보여서 살짝만 물들임 */
+  #photoView.red .print img { filter: sepia(.35) brightness(1.25) contrast(1.1); }
+  #photoView.red .print::after { content: ''; position: absolute; inset: 12px 12px 34px; background: rgba(255, 50, 30, .38); mix-blend-mode: multiply; pointer-events: none; }
+  #photoView.red .print .cap { color: #c46a5a; }
+  #photoView button { margin-top: 22px; }
+
+  /* ---------- 장면 전환 ---------- */
+  #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 1.6s; z-index: 15; }
+  #fade.on { opacity: 1; }
+  #card {
+    position: fixed; inset: 0; z-index: 16; display: flex; align-items: center; justify-content: center; pointer-events: none;
+    font-size: clamp(30px, 5.5vw, 60px); color: #d8c9a6; letter-spacing: 8px; opacity: 0; transition: opacity 1s;
+    font-family: 'Gungsuh', 'Batang', serif;
+  }
+  #card.show { opacity: 1; }
+  #ending { background: #000; }
+  #ending h1 { margin: 0 0 18px; color: #e8e0cc; font-size: clamp(28px, 4.5vw, 46px); font-family: 'Gungsuh', 'Batang', serif; font-weight: normal; }
+  #ending p { max-width: 600px; font-size: 18px; line-height: 1.9; color: #aaa; margin: 0 0 22px; }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- 옛날 카메라 느낌 -->
+<div id="grainBox">
+  <canvas id="grain" width="160" height="90"></canvas>
+  <div class="vig"></div>
+</div>
+
+<!-- 걸을 때 HUD -->
+<div id="hud" class="hidden">
+  <div id="cross"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="objective"></div>
+  <div id="filmCount"></div>
+  <div id="refThumb" class="print"><img alt=""><div class="cap">언니 사진 · '26.8.25</div></div>
+  <div id="toast"></div>
+</div>
+
+<!-- 뷰파인더 (카메라를 들었을 때) -->
+<div id="vf" class="hidden">
+  <div id="vfFrame">
+    <img id="vfRef" alt="">
+    <div class="vc tl"></div><div class="vc tr"></div><div class="vc bl"></div><div class="vc br"></div>
+    <div id="vfMid"></div>
+    <div id="vfInfo"><span><i id="vfLed"></i>구도</span><span id="vfFilm"></span><span>R 언니 사진 겹쳐 보기</span></div>
+  </div>
+</div>
+<div id="flash"></div>
+
+<div id="fade"></div>
+<div id="card"></div>
+
+<!-- 타이틀 -->
+<div id="title" class="overlay">
+  <h1>마지막 컷</h1>
+  <div class="sub">실종된 언니의 필름 카메라</div>
+  <button id="startBtn" disabled>불러오는 중…</button>
+  <div class="how">
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Shift</kbd> 달리기 · 마우스 둘러보기<br>
+    오른쪽 클릭(또는 <kbd>Q</kbd>)을 누르고 있으면 카메라 들기 · 들고 있을 때 왼쪽 클릭으로 찍기<br>
+    <kbd>E</kbd> 또는 클릭: 살펴보기 · 🎧 이어폰을 끼면 더 무서워요 · ⚠️ 사진을 찍을 때 화면이 잠깐 밝아져요
+  </div>
+  <div id="mobileNote" class="hidden">📱 이 게임은 키보드와 마우스가 있는 PC에서 할 수 있어요.</div>
+  <a id="backLink" href="/games/">← 게임 목록</a>
+</div>
+
+<!-- 처음 이야기 -->
+<div id="intro" class="overlay hidden">
+  <div class="print"><img id="introImg" alt=""><div class="cap">'26.8.25 · 언니가 찍은 첫 번째 사진</div></div>
+  <div id="introText">
+    <p>언니가 사라진 지 41일.</p>
+    <p>언니 방 서랍에서 필름 카메라가 나왔다. 안에 남아 있던 필름을 현상하니, 사진이 다섯 장 있었다.</p>
+    <p>첫 번째 사진은 우리 동네 놀이터. 밤이다.</p>
+    <p>…언니는 여기서 뭘 찍으려고 했던 걸까.</p>
+  </div>
+  <button id="introGo" class="hidden">놀이터로 가기</button>
+</div>
+
+<!-- 사진 크게 보기 -->
+<div id="photoView" class="overlay hidden">
+  <div class="print"><img id="photoImg" alt=""><div class="cap" id="photoCap"></div></div>
+  <button id="photoClose">내려놓기</button>
+</div>
+
+<!-- 일시정지 -->
+<div id="pause" class="overlay hidden">
+  <h2 style="color:#d9cfb8; font-weight:normal">클릭해서 계속하기</h2>
+</div>
+
+<!-- 끝 -->
+<div id="ending" class="overlay hidden">
+  <h1>프로토타입은 여기까지</h1>
+  <p>언니의 필름에는 아직 사진이 네 장 더 남아 있다.<br>다음 사진은 지하보도.</p>
+  <div>
+    <button id="againBtn">처음부터 다시</button>
+    <button class="ghost" onclick="location.href='/games/'">게임 목록</button>
+  </div>
+</div>
+
+<script>
+  // 3D 도구를 못 불러오거나 오류가 나면, 시작 버튼이 아무 반응 없이 멈춰 있지 않게 안내
+  addEventListener('error', function () {
+    var b = document.getElementById('startBtn');
+    if (b && b.disabled && !b.dataset.err) b.textContent = '게임을 불러오지 못했어요. 새로고침해 주세요';
+  }, true);
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const canvas = $('game');
+const DEG = Math.PI / 180;
+
+// ================== 게임 상태 ==================
+const S = {
+  mode: 'title',     // title | intro | play | cutscene | ending
+  place: 'park',     // park(놀이터) | dark(언니 방 암실)
+  ui: null,          // 사진을 크게 보고 있으면 'photo'
+  film: 24,          // 남은 필름
+  aim: false,        // 카메라를 들고 있는지
+  refOverlay: true,  // 뷰파인더에 언니 사진을 겹쳐 보는지
+  shot: null,        // 놀이터에서 제대로 찍은 사진 { a: 처음 사진, b: 바뀐 사진 }
+  dark: 'start',     // 암실 진행: start → developing → ready → waitAway → waitBack → changed → done
+};
+
+// ================== 렌더러 ==================
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+} catch (e) {
+  $('startBtn').dataset.err = '1';
+  $('startBtn').textContent = '이 브라우저에서는 3D(WebGL)를 쓸 수 없어요';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * 0.6); // 일부러 해상도를 낮춰서 옛날 카메라 느낌
+renderer.setSize(innerWidth, innerHeight);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 90);
+camera.rotation.order = 'YXZ';
+
+// 사진에만 찍히는 것들은 1번 레이어에 둠. 플레이어 눈(camera)은 0번만, 사진기(photoCam)는 0번+1번을 봄
+const LAYER_PHOTO = 1;
+const photoCam = new THREE.PerspectiveCamera(42, 1.5, 0.05, 90);
+photoCam.rotation.order = 'YXZ';
+photoCam.layers.enable(LAYER_PHOTO);
+
+// ================== 소리 (전부 코드로 만듦) ==================
+let AC = null, master = null, noiseBuf = null;
+const amb = {}; // 장소별 배경음 볼륨
+
+function initAudio() {
+  if (AC) return;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+  master = AC.createGain(); master.gain.value = 0.7; master.connect(AC.destination);
+  noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+  const loopNoise = (freq, vol, out, type = 'lowpass') => {
+    const s = AC.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = AC.createGain(); g.gain.value = vol;
+    s.connect(f).connect(g).connect(out); s.start(0, Math.random() * 2);
+  };
+  const hum = (freq, vol, out, type = 'sine') => {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = vol;
+    o.connect(g).connect(out); o.start();
+  };
+  // 놀이터: 바람 + 멀리서 들리는 차 소리
+  amb.park = AC.createGain(); amb.park.gain.value = 0; amb.park.connect(master);
+  loopNoise(340, 0.05, amb.park);
+  loopNoise(120, 0.08, amb.park);
+  hum(55, 0.008, amb.park);
+  // 암실: 환풍기 웅웅거림 + 빨간 전구 지직거림
+  amb.dark = AC.createGain(); amb.dark.gain.value = 0; amb.dark.connect(master);
+  loopNoise(220, 0.07, amb.dark);
+  hum(120, 0.006, amb.dark, 'sawtooth');
+  hum(60, 0.02, amb.dark);
+}
+function setAmb(place) {
+  if (!AC) return;
+  for (const k in amb) amb[k].gain.setTargetAtTime(k === place ? 1 : 0, AC.currentTime, 0.6);
+}
+
+function tone(freq, dur, type = 'sine', vol = 0.1, when = 0, detune = 0) {
+  if (!AC) return;
+  const t = AC.currentTime + when;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.value = freq; o.detune.value = detune;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+
+function noise(dur, vol = 0.2, freq = 1500, type = 'lowpass', when = 0) {
+  if (!AC) return;
+  const t = AC.currentTime + when;
+  const s = AC.createBufferSource(); s.buffer = noiseBuf;
+  const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = AC.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(master);
+  s.start(t, Math.random()); s.stop(t + dur + 0.05);
+}
+
+// 음높이가 미끄러지는 소리 (그네 삐걱, 물방울)
+function slide(f0, f1, dur, type, vol, when = 0) {
+  if (!AC) return;
+  const t = AC.currentTime + when;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05);
+}
+
+const sfx = {
+  step: () => noise(0.09, 0.07, S.place === 'park' ? 650 : 280),
+  click: () => noise(0.05, 0.22, 3000, 'highpass'),
+  paper: () => noise(0.18, 0.12, 2200, 'bandpass'),
+  // 필름 카메라 셔터: 철컥
+  shutter: () => { noise(0.03, 0.5, 4000, 'highpass'); tone(1800, 0.02, 'square', 0.04); noise(0.05, 0.3, 2500, 'bandpass', 0.07); },
+  // 필름 감기: 드르륵
+  wind: () => { for (let i = 0; i < 7; i++) noise(0.025, 0.16, 2600, 'bandpass', i * 0.055); },
+  beep: () => tone(2300, 0.05, 'square', 0.025),
+  locked: () => { tone(160, 0.08, 'square', 0.05); tone(140, 0.1, 'square', 0.05, 0.09); },
+  swing: (vol) => slide(340 + Math.random() * 60, 260, 0.55, 'sawtooth', 0.02 * vol),
+  cricket: () => { for (let i = 0; i < 3; i++) tone(4300, 0.035, 'sine', 0.01, i * 0.07); },
+  slosh: () => { noise(0.7, 0.14, 500); noise(0.4, 0.06, 900, 'bandpass', 0.25); },
+  drip: () => slide(1400 + Math.random() * 500, 500, 0.09, 'sine', 0.05),
+  // 뭔가 이상할 때: 낮게 울리는 불협화음
+  sting: () => {
+    tone(55, 2.6, 'sawtooth', 0.05); tone(58.3, 2.6, 'sawtooth', 0.04);
+    tone(466, 1.8, 'sine', 0.025, 0.05); tone(494, 1.8, 'sine', 0.025, 0.05);
+    noise(1.6, 0.16, 700, 'bandpass');
+  },
+};
+
+// ================== 텍스처 도우미 ==================
+function speckleTexture(rgb, spread, rx, ry, size = 128) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d');
+  const img = g.createImageData(size, size);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const k = 1 + (Math.random() - 0.5) * spread;
+    img.data[i] = rgb[0] * k; img.data[i + 1] = rgb[1] * k; img.data[i + 2] = rgb[2] * k; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+  t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
+  return t;
+}
+
+// 아파트 벽: 대부분 꺼진 창문, 가끔 켜진 창문
+function windowsTexture(cols, rows) {
+  const c = document.createElement('canvas'); c.width = cols * 16; c.height = rows * 16;
+  const g = c.getContext('2d');
+  g.fillStyle = '#1a1b20'; g.fillRect(0, 0, c.width, c.height);
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const r = Math.random();
+    g.fillStyle = r < 0.06 ? '#d8b46a' : r < 0.075 ? '#8ea6d8' : '#0c0d10';
+    g.fillRect(x * 16 + 3, y * 16 + 4, 10, 8);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
+  return t;
+}
+
+function textTexture(text, w, h, opt = {}) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = opt.bg || '#d8d8d0'; g.fillRect(0, 0, w, h);
+  g.fillStyle = opt.fg || '#222'; g.font = opt.font || `bold ${h * 0.6}px sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, w / 2, h / 2);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ================== 3D 도우미 ==================
+const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+const matOf = (m) => (typeof m === 'number' ? lam(m) : m);
+function box(w, h, d, mat, x, y, z, parent) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matOf(mat));
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function cyl(rt, rb, h, mat, x, y, z, parent, seg = 10) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), matOf(mat));
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function sphere(r, mat, x, y, z, parent, seg = 14) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.max(8, seg * 0.75 | 0)), matOf(mat));
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function plane(w, h, mat, parent) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), matOf(mat));
+  parent.add(m); return m;
+}
+// 클릭하기 쉽도록 보이지 않는 큰 판정 상자
+const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+function hitBox(w, h, d, x, y, z, parent) { return box(w, h, d, hitMat, x, y, z, parent); }
+
+const interactables = { park: [], dark: [] };
+function addIt(obj, place, it) { obj.userData.it = it; interactables[place].push(obj); }
+const colliders = { park: [], dark: [] };
+function addCol(place, minX, maxX, minZ, maxZ) { colliders[place].push({ minX, maxX, minZ, maxZ }); }
+
+// ================== 언니 (사진에만 찍힘) ==================
+function createFigure() {
+  const g = new THREE.Group();
+  const coat = lam(0x6a1d1a), skin = lam(0xbab2a6), hair = lam(0x0c0a09), dark = lam(0x18181c);
+  box(0.11, 0.82, 0.12, dark, -0.09, 0.41, 0, g);
+  box(0.11, 0.82, 0.12, dark, 0.09, 0.41, 0, g);
+  cyl(0.17, 0.22, 0.66, coat, 0, 1.12, 0, g);                      // 빨간 가디건 (실종된 날 입은 옷)
+  box(0.08, 0.7, 0.09, coat, -0.25, 1.06, 0, g);                    // 팔은 축 늘어뜨림
+  box(0.08, 0.7, 0.09, coat, 0.25, 1.06, 0, g);
+  sphere(0.045, skin, -0.25, 0.69, 0, g); sphere(0.045, skin, 0.25, 0.69, 0, g);
+  cyl(0.045, 0.05, 0.1, skin, 0, 1.48, 0, g);
+  const head = sphere(0.11, skin, 0, 1.6, 0, g); head.scale.y = 1.15;
+  sphere(0.122, hair, 0, 1.64, -0.025, g);
+  box(0.26, 0.46, 0.08, hair, 0, 1.43, -0.08, g);                   // 뒷머리
+  box(0.07, 0.36, 0.03, hair, -0.075, 1.5, 0.1, g);                  // 얼굴을 반쯤 가린 앞머리
+  box(0.07, 0.3, 0.03, hair, 0.08, 1.52, 0.1, g);
+  const eye = new THREE.MeshBasicMaterial({ color: 0x050505 });
+  sphere(0.016, eye, -0.035, 1.6, 0.1, g, 6); sphere(0.016, eye, 0.04, 1.6, 0.1, g, 6);
+  g.traverse((o) => o.layers.set(LAYER_PHOTO));
+  return g;
+}
+
+// ================== 놀이터 만들기 ==================
+const park = new THREE.Scene();
+park.background = new THREE.Color(0x07090f);
+park.fog = new THREE.Fog(0x07090f, 8, 52);
+park.add(new THREE.HemisphereLight(0x3a4a78, 0x0a0806, 1.1));
+
+{
+  const ground = plane(80, 80, lam(0xffffff, { map: speckleTexture([42, 42, 46], 0.35, 30, 30) }), park);
+  ground.rotation.x = -Math.PI / 2;
+  const sand = plane(17, 13, lam(0xffffff, { map: speckleTexture([120, 104, 82], 0.45, 10, 8) }), park);
+  sand.rotation.x = -Math.PI / 2; sand.position.set(0.5, 0.006, -1.5);
+}
+
+// 놀이터를 둘러싼 낮은 생울타리 (입구는 남서쪽)
+{
+  const hedge = lam(0x17251a);
+  box(23.4, 0.9, 0.7, hedge, 0, 0.45, -11.7, park);
+  box(0.7, 0.9, 23.4, hedge, -11.7, 0.45, 0, park);
+  box(0.7, 0.9, 23.4, hedge, 11.7, 0.45, 0, park);
+  box(15.6, 0.9, 0.7, hedge, 3.9, 0.45, 11.7, park);
+  box(4.4, 0.9, 0.7, hedge, -9.5, 0.45, 11.7, park);
+}
+
+// 미끄럼틀
+{
+  const g = new THREE.Group(); g.position.set(-4, 0, -3.2); park.add(g);
+  const post = lam(0x2f4b66), red = lam(0x7d2620);
+  for (const x of [-0.55, 0.55]) for (const z of [-0.55, 0.55]) cyl(0.05, 0.05, 1.9, post, x, 0.95, z, g);
+  box(1.2, 0.08, 1.2, post, 0, 1.5, 0, g);
+  box(1.2, 0.5, 0.04, red, 0, 1.78, -0.6, g);
+  box(0.04, 0.5, 1.2, red, -0.6, 1.78, 0, g);
+  box(0.04, 0.5, 1.2, red, 0.6, 1.78, 0, g);
+  for (let i = 1; i < 6; i++) box(0.9, 0.04, 0.05, post, 0, i * 0.25, -0.75, g);   // 사다리
+  const chute = new THREE.Group(); chute.position.set(0, 0.8, 1.6); chute.rotation.x = 0.62; g.add(chute);
+  box(0.6, 0.05, 2.6, red, 0, 0, 0, chute);
+  box(0.04, 0.18, 2.6, red, -0.3, 0.08, 0, chute);
+  box(0.04, 0.18, 2.6, red, 0.3, 0.08, 0, chute);
+  addCol('park', -4.7, -3.3, -4.05, -0.3);
+}
+
+// 그네 (오른쪽 그네는 바람도 없는데 혼자 흔들림)
+let swingB;
+{
+  const g = new THREE.Group(); g.position.set(2.5, 0, -3); park.add(g);
+  const metal = lam(0x4a5560), chain = lam(0x777d84), seat = lam(0x2c2b2a);
+  cyl(0.05, 0.05, 3.5, metal, 0, 2.3, 0, g).rotation.z = Math.PI / 2;
+  for (const sx of [-1.6, 1.6]) for (const sz of [-1, 1]) {
+    cyl(0.045, 0.045, 2.4, metal, sx, 1.15, sz * 0.225, g).rotation.x = sz > 0 ? -0.19 : 0.19;
+  }
+  const makeSwing = (x) => {
+    const p = new THREE.Group(); p.position.set(x, 2.28, 0); g.add(p);
+    box(0.015, 1.76, 0.015, chain, -0.21, -0.88, 0, p);
+    box(0.015, 1.76, 0.015, chain, 0.21, -0.88, 0, p);
+    box(0.5, 0.05, 0.19, seat, 0, -1.78, 0, p);
+    return p;
+  };
+  makeSwing(-0.7);
+  swingB = makeSwing(0.7);
+  addCol('park', 0.8, 4.2, -3.6, -2.4);
+}
+
+// 시소
+{
+  const g = new THREE.Group(); g.position.set(0.5, 0, 2); park.add(g);
+  box(0.2, 0.38, 0.3, 0x3a3a3a, 0, 0.19, 0, g);
+  const p = new THREE.Group(); p.position.y = 0.4; p.rotation.z = 0.19; g.add(p);
+  box(3, 0.07, 0.26, 0x6b5a2a, 0, 0, 0, p);
+  for (const x of [-1.25, 1.25]) box(0.04, 0.22, 0.2, 0x333333, x, 0.14, 0, p);
+  addCol('park', -1.1, 2.1, 1.75, 2.25);
+}
+
+// 벤치
+{
+  const g = new THREE.Group(); g.position.set(-7, 0, 3); park.add(g);
+  const wood = lam(0x4a3524), iron = lam(0x222222);
+  box(0.45, 0.06, 1.7, wood, 0, 0.46, 0, g);
+  box(0.06, 0.4, 1.7, wood, -0.22, 0.75, 0, g);
+  for (const z of [-0.7, 0.7]) box(0.42, 0.46, 0.06, iron, 0, 0.23, z, g);
+  addCol('park', -7.35, -6.65, 2.1, 3.9);
+}
+
+// 가로등 (멀리 있는 하나는 깜빡임)
+const streetLights = [];
+function streetLight(x, z, intensity) {
+  const pole = lam(0x2a2d31);
+  cyl(0.06, 0.08, 4.2, pole, x, 2.1, z, park);
+  box(0.5, 0.12, 0.25, pole, x, 4.2, z, park);
+  const bulb = box(0.38, 0.04, 0.18, new THREE.MeshBasicMaterial({ color: 0xffd7a0 }), x, 4.13, z, park);
+  const l = new THREE.PointLight(0xffa860, intensity, 22, 1.4);
+  l.position.set(x, 4, z); park.add(l);
+  addCol('park', x - 0.15, x + 0.15, z - 0.15, z + 0.15);
+  const s = { light: l, bulb, base: intensity };
+  streetLights.push(s);
+  return s;
+}
+streetLight(-8.5, -8, 32);
+streetLight(8.5, 6, 32);
+const farLight = streetLight(7.6, -12.7, 28);   // 생울타리 너머. 사진 속 언니가 이 불빛 바로 뒤에 서 있음
+
+// 나무
+{
+  const trunk = lam(0x2a1f17), leaf = lam(0x14201a);
+  for (const [x, z, s] of [[-9.6, -9.8, 1.1], [9.7, -9.6, 1.3], [-9.8, 6.5, 1], [9.6, 9.7, 1.2], [-2, -13.5, 1.4], [12.5, -4, 1.3]]) {
+    cyl(0.12, 0.16, 2.2, trunk, x, 1.1, z, park);
+    sphere(1.1 * s, leaf, x, 2.6 + s * 0.6, z, park, 9);
+    if (Math.abs(x) < 11 && Math.abs(z) < 11) addCol('park', x - 0.3, x + 0.3, z - 0.3, z + 0.3);
+  }
+}
+
+// 놀이터 주변 아파트
+{
+  for (const [x, z, w, d, h] of [[-15, -28, 14, 9, 34], [3, -30, 14, 9, 40], [20, -27, 12, 9, 30], [-28, -6, 9, 16, 30], [29, 2, 9, 18, 36], [-24, 22, 12, 9, 28]]) {
+    const mat = new THREE.MeshBasicMaterial({ map: windowsTexture(Math.round(Math.max(w, d) * 1.2), Math.round(h / 2.8)), color: 0x7a7a7a });
+    box(w, h, d, mat, x, h / 2, z, park);
+  }
+}
+
+// 사진 찍을 때 터지는 플래시 (평소엔 꺼져 있음. 조명 개수가 바뀌면 화면이 멈칫해서 미리 넣어 둠)
+const flashLight = new THREE.PointLight(0xfff4e6, 0, 16, 2);
+park.add(flashLight);
+
+const figure = createFigure();
+figure.visible = false;
+park.add(figure);
+// 사진 속 언니 위치: 처음엔 생울타리 너머 가로등 아래, 바뀐 사진에선 그네 바로 뒤
+const FIG_FAR = new THREE.Vector3(6.6, 0, -13.8);
+const FIG_NEAR = new THREE.Vector3(2.5, 0, -4.4);
+
+// 언니가 첫 번째 사진을 찍은 자리
+const TARGET = { pos: new THREE.Vector3(-1.5, 1.6, 6.5), yaw: -0.1, pitch: -0.05 };
+const PHOTO_FOV = 42;
+
+const parkWalkable = (x, z) => Math.abs(x) < 11 && Math.abs(z) < 11;
+
+// ================== 언니 방 암실 만들기 ==================
+const dark = new THREE.Scene();
+dark.background = new THREE.Color(0x000000);
+dark.add(new THREE.HemisphereLight(0x2a0806, 0x050000, 0.5));
+const RED_I = 5;
+const redLight = new THREE.PointLight(0xff2a14, RED_I, 7, 1.3);
+redLight.position.set(0, 2.25, -0.9); dark.add(redLight);
+const redBulb = sphere(0.07, new THREE.MeshBasicMaterial({ color: 0xff3a24 }), 0, 2.32, -0.9, dark);
+
+let trayPhoto, trayCover, coverMat, photoMat;
+const TRAY_POS = new THREE.Vector3(-0.8, 0.98, -1.42);
+{
+  const wall = lam(0xffffff, { map: speckleTexture([70, 64, 60], 0.2, 3, 2) });
+  const W = 3.2, D = 3.6, H = 2.45;
+  const floor = plane(W, D, lam(0x2a2522), dark); floor.rotation.x = -Math.PI / 2;
+  const ceil = plane(W, D, lam(0x1a1715), dark); ceil.rotation.x = Math.PI / 2; ceil.position.y = H;
+  const wN = plane(W, H, wall, dark); wN.position.set(0, H / 2, -D / 2);
+  const wS = plane(W, H, wall, dark); wS.position.set(0, H / 2, D / 2); wS.rotation.y = Math.PI;
+  const wW = plane(D, H, wall, dark); wW.position.set(-W / 2, H / 2, 0); wW.rotation.y = Math.PI / 2;
+  const wE = plane(D, H, wall, dark); wE.position.set(W / 2, H / 2, 0); wE.rotation.y = -Math.PI / 2;
+
+  // 작업대와 트레이 3개 (현상 · 정지 · 정착)
+  const wood = lam(0x3a2c22);
+  box(2.9, 0.06, 0.62, wood, 0, 0.92, -1.48, dark);
+  for (const x of [-1.38, 1.38]) for (const z of [-1.74, -1.22]) box(0.05, 0.92, 0.05, wood, x, 0.46, z, dark);
+  addCol('dark', -1.6, 1.6, -1.8, -1.12);
+  const trayMat = lam(0xd5d3cb), liquid = lam(0x1d1612);
+  ['현상', '정지', '정착'].forEach((label, i) => {
+    const x = -0.8 + i * 0.8;
+    box(0.52, 0.015, 0.4, trayMat, x, 0.955, -1.42, dark);
+    box(0.52, 0.06, 0.015, trayMat, x, 0.98, -1.22, dark);
+    box(0.52, 0.06, 0.015, trayMat, x, 0.98, -1.62, dark);
+    box(0.015, 0.06, 0.4, trayMat, x - 0.26, 0.98, -1.42, dark);
+    box(0.015, 0.06, 0.4, trayMat, x + 0.26, 0.98, -1.42, dark);
+    const lq = plane(0.49, 0.37, liquid, dark); lq.rotation.x = -Math.PI / 2; lq.position.set(x, 0.99, -1.42);
+    const tag = plane(0.16, 0.05, lam(0xffffff, { map: textTexture(label, 128, 40) }), dark);
+    tag.position.set(x, 0.985, -1.211);
+  });
+  // 현상액 속 인화지 (처음엔 숨겨 둠). 하얀 덮개가 점점 투명해지면서 사진이 떠오름
+  photoMat = lam(0xffffff);
+  trayPhoto = plane(0.36, 0.24, photoMat, dark);
+  trayPhoto.rotation.x = -Math.PI / 2; trayPhoto.position.set(TRAY_POS.x, 0.993, TRAY_POS.z);
+  coverMat = lam(0xf4f1e8, { transparent: true, opacity: 1 });
+  trayCover = plane(0.36, 0.24, coverMat, dark);
+  trayCover.rotation.x = -Math.PI / 2; trayCover.position.set(TRAY_POS.x, 0.995, TRAY_POS.z);
+  trayPhoto.visible = trayCover.visible = false;
+  const trayHit = hitBox(0.6, 0.3, 0.5, TRAY_POS.x, 1.0, TRAY_POS.z, dark);
+  addIt(trayHit, 'dark', {
+    label: () => ({ start: '인화지를 현상액에 담그기', ready: '사진 집어서 보기', changed: '사진 다시 보기' }[S.dark] || '사진 보기'),
+    enabled: () => S.dark !== 'developing' && S.dark !== 'done',
+    act: () => trayAct(),
+  });
+  ['정지액이다. 시큼한 냄새가 난다.', '정착액. 언니는 항상 이걸 마지막에 썼다.'].forEach((msg, i) => {
+    addIt(hitBox(0.55, 0.3, 0.45, i * 0.8, 1.0, -1.42, dark), 'dark', { label: () => '살펴보기', enabled: () => true, act: () => toast(msg) });
+  });
+
+  // 확대기 (오른쪽 벽 작은 탁자 위)
+  box(0.6, 0.05, 0.7, wood, 1.25, 0.8, 0.4, dark);
+  for (const z of [0.1, 0.7]) box(0.05, 0.8, 0.05, wood, 1.0, 0.4, z, dark);
+  addCol('dark', 0.92, 1.6, 0.02, 0.78);
+  box(0.4, 0.04, 0.45, 0x1a1a1a, 1.25, 0.84, 0.4, dark);
+  cyl(0.025, 0.025, 0.9, 0x2a2a2a, 1.4, 1.3, 0.4, dark);
+  box(0.24, 0.22, 0.26, 0x222222, 1.28, 1.45, 0.4, dark);
+  addIt(hitBox(0.5, 0.9, 0.6, 1.25, 1.2, 0.4, dark), 'dark', {
+    label: () => '확대기 살펴보기', enabled: () => true,
+    act: () => toast('언니가 쓰던 확대기. 손잡이에 먼지가 하나도 없다.'),
+  });
+
+  // 문 (뒤쪽 벽)
+  box(0.9, 2.0, 0.06, 0x2e2420, 0.6, 1.0, 1.77, dark);
+  sphere(0.035, 0x8a7a5a, 0.25, 1.0, 1.73, dark);
+  addIt(hitBox(1, 2, 0.3, 0.6, 1.0, 1.7, dark), 'dark', {
+    label: () => '문', enabled: () => true,
+    act: () => toast('지금 문을 열면 빛이 들어와서 사진이 망가진다.'),
+  });
+
+  // 빨랫줄 (언니가 찍은 사진이 집게에 걸려 있음)
+  cyl(0.006, 0.006, 3.2, 0x8a8a8a, 0, 2.02, -0.45, dark).rotation.z = Math.PI / 2;
+}
+
+const parkSpawn = () => { camera.position.set(-6, 1.6, 10); yaw = -0.35; pitch = 0; };
+const darkSpawn = () => { camera.position.set(-0.2, 1.6, 1.0); yaw = 0; pitch = -0.15; };
+const darkWalkable = (x, z) => Math.abs(x) < 1.35 && z > -1.3 && z < 1.5;
+
+// ================== 사진 찍기 ==================
+const PW = 600, PH = 400;
+
+// 장면을 사진기 시점으로 한 장 렌더링해서 2D 캔버스로 복사
+function snap(scene, pose, withFlash) {
+  photoCam.fov = PHOTO_FOV; photoCam.aspect = PW / PH; photoCam.updateProjectionMatrix();
+  photoCam.position.copy(pose.pos); photoCam.rotation.set(pose.pitch, pose.yaw, 0);
+  photoCam.updateMatrixWorld();
+  flashLight.position.copy(pose.pos);
+  flashLight.intensity = withFlash ? 22 : 0;
+  // 잠깐 캔버스 크기를 사진 크기로 바꿔서 그리고, 같은 순간에 복사한 뒤 원래대로 (화면에는 안 보임)
+  const pr = renderer.getPixelRatio();
+  renderer.setPixelRatio(1); renderer.setSize(PW, PH, false);
+  renderer.render(scene, photoCam);
+  const raw = document.createElement('canvas'); raw.width = PW; raw.height = PH;
+  raw.getContext('2d').drawImage(canvas, 0, 0, PW, PH);
+  renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false);
+  flashLight.intensity = 0;
+  return raw;
+}
+
+// 필름 사진처럼: 살짝 번지고, 입자 끼고, 가장자리 어둡고, 날짜 찍힘
+function filmify(raw, opt) {
+  const c = document.createElement('canvas'); c.width = PW; c.height = PH;
+  const g = c.getContext('2d');
+  g.filter = opt.old ? 'blur(0.7px) sepia(.4) saturate(.7) contrast(1.12)' : 'blur(0.5px) sepia(.15) saturate(.85) contrast(1.12)';
+  g.drawImage(raw, 0, 0);
+  g.filter = 'none';
+  const img = g.getImageData(0, 0, PW, PH), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 36; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(img, 0, 0);
+  const vg = g.createRadialGradient(PW / 2, PH / 2, PH * 0.32, PW / 2, PH / 2, PW * 0.62);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.6)');
+  g.fillStyle = vg; g.fillRect(0, 0, PW, PH);
+  if (opt.old) { // 오래된 필름 끝의 빛샘
+    const lk = g.createLinearGradient(0, 0, PW * 0.25, 0);
+    lk.addColorStop(0, 'rgba(255,110,40,.32)'); lk.addColorStop(1, 'rgba(255,110,40,0)');
+    g.fillStyle = lk; g.fillRect(0, 0, PW, PH);
+  }
+  g.font = 'bold 24px Consolas, monospace'; g.textAlign = 'right';
+  g.shadowColor = 'rgba(255,90,20,.9)'; g.shadowBlur = 6; g.fillStyle = '#ff9a3c';
+  g.fillText(opt.date, PW - 28, PH - 26);
+  return c;
+}
+
+function photoTexture(c) {
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// 언니가 찍은 사진들 (게임 시작 전에 미리 만들어 둠). 언니 사진에는 언니가 안 찍힘
+const REF = {};
+function buildRefPhotos() {
+  park.updateMatrixWorld();
+  figure.visible = false;
+  REF.main = filmify(snap(park, TARGET, true), { old: true, date: "'26 8 25" });
+  const extra = [
+    { pos: new THREE.Vector3(1.2, 1.3, -0.4), yaw: -0.5, pitch: -0.25 },    // 그네 가까이
+    { pos: new THREE.Vector3(-6.5, 1.6, 0.5), yaw: 0.35, pitch: 0.05 },     // 미끄럼틀
+    { pos: new THREE.Vector3(0, 1.6, -9), yaw: -0.1, pitch: 0.42 },         // 아파트 창문들
+  ].map((p) => filmify(snap(park, p, true), { old: true, date: "'26 8 25" }));
+  REF.extra = extra;
+
+  const url = REF.main.toDataURL('image/jpeg', 0.9);
+  $('introImg').src = url; $('vfRef').src = url;
+  document.querySelector('#refThumb img').src = url;
+
+  // 암실 빨랫줄에 걸어 둠
+  [REF.main, ...extra].forEach((c, i) => {
+    const x = -1.05 + i * 0.62;
+    const p = plane(0.24, 0.16, lam(0xffffff, { map: photoTexture(c), side: THREE.DoubleSide }), dark);
+    p.position.set(x, 1.92, -0.45); p.rotation.z = (Math.random() - 0.5) * 0.08;
+    box(0.02, 0.04, 0.012, 0x777777, x, 2.01, -0.45, dark);
+    addIt(hitBox(0.3, 0.3, 0.2, x, 1.92, -0.45, dark), 'dark', {
+      label: () => '언니가 찍은 사진 보기', enabled: () => true,
+      act: () => showPhoto(c, i === 0 ? "'26.8.25 · 언니가 찍은 첫 번째 사진" : "'26.8.25 · 언니가 찍은 사진", true),
+    });
+  });
+}
+
+// 지금 자세가 언니 사진과 얼마나 비슷한지
+const angDiff = (a, b) => { let d = Math.abs(a - b) % (Math.PI * 2); return d > Math.PI ? Math.PI * 2 - d : d; };
+function alignment() {
+  const d = Math.hypot(camera.position.x - TARGET.pos.x, camera.position.z - TARGET.pos.z);
+  const dy = angDiff(yaw, TARGET.yaw), dp = Math.abs(pitch - TARGET.pitch);
+  return { ok: d < 0.75 && dy < 0.09 && dp < 0.09, near: d < 2.2 && dy < 0.35 && dp < 0.3 };
+}
+
+let shooting = false;
+function shoot() {
+  if (shooting || S.mode !== 'play') return;
+  const al = alignment();
+  if (S.film <= 1 && !al.ok) { sfx.locked(); toast('마지막 한 장이다. 언니 사진이랑 똑같이 맞춰야 한다.'); return; }
+  shooting = true;
+  S.film--;
+  sfx.shutter(); flashFx();
+  setTimeout(() => sfx.wind(), 300);
+  setTimeout(() => { shooting = false; }, 900);
+  if (!al.ok) {
+    setTimeout(() => toast('…언니 사진이랑 구도가 다르다. 같은 자리에서, 같은 곳을 봐야 한다.'), 500);
+    return;
+  }
+  // 제대로 찍음. 이 순간의 장면으로 두 장을 만들어 둠: 처음 보는 사진, 그리고 나중에 바뀌어 있을 사진
+  const pose = { pos: camera.position.clone(), yaw, pitch };
+  const date = "'26 10 5";
+  farLight.light.intensity = farLight.base; // 깜빡이는 순간에 찍혀서 언니가 안 보이는 일이 없게
+  figure.visible = true;
+  figure.position.copy(FIG_FAR); figure.lookAt(pose.pos.x, 0, pose.pos.z);
+  park.updateMatrixWorld();
+  const a = filmify(snap(park, pose, true), { date });
+  figure.position.copy(FIG_NEAR); figure.lookAt(pose.pos.x, 0, pose.pos.z);
+  park.updateMatrixWorld();
+  const b = filmify(snap(park, pose, true), { date });
+  figure.visible = false;
+  S.shot = { a, b };
+  goDarkroom();
+}
+
+function flashFx() {
+  const f = $('flash');
+  f.classList.remove('off'); f.classList.add('on');
+  requestAnimationFrame(() => requestAnimationFrame(() => { f.classList.add('off'); f.classList.remove('on'); }));
+}
+
+// ================== 장면 전환 ==================
+async function showCard(text, ms = 2400) {
+  const c = $('card'); c.textContent = text; c.classList.add('show');
+  await sleep(ms);
+  c.classList.remove('show');
+  await sleep(1000);
+}
+
+async function goDarkroom() {
+  S.mode = 'cutscene';
+  await sleep(1400);
+  toast('찍었다. …집에 가서 현상해 보자.', 2600);
+  await sleep(2600);
+  $('fade').classList.add('on');
+  await sleep(1700);
+  S.place = 'dark'; darkSpawn(); setAmb('dark');
+  $('refThumb').classList.add('hidden'); $('filmCount').classList.add('hidden');
+  await showCard('그날 밤, 언니 방');
+  $('fade').classList.remove('on');
+  S.mode = 'play'; S.dark = 'start';
+  setTimeout(() => toast('언니가 암실로 쓰던 방. 빨간 전구 하나만 켜져 있다.', 3800), 800);
+}
+
+// ================== 암실에서 하는 일 ==================
+let devStart = 0, awayT = 0;
+function trayAct() {
+  if (S.dark === 'start') {
+    S.dark = 'developing'; devStart = performance.now();
+    photoMat.map = photoTexture(S.shot.a); photoMat.needsUpdate = true;
+    trayPhoto.visible = trayCover.visible = true; coverMat.opacity = 1;
+    sfx.slosh();
+    toast('인화지를 현상액에 담갔다. 천천히 흔들어 준다…');
+    return;
+  }
+  const changed = S.dark === 'waitBack' || S.dark === 'changed';
+  showPhoto(changed ? S.shot.b : S.shot.a, changed ? '…' : "'26.10.5 · 놀이터", true, () => afterView(changed));
+}
+
+function afterView(changed) {
+  if (!changed) {
+    if (S.dark === 'ready') {
+      S.dark = 'waitAway';
+      setTimeout(() => toast('…그네 너머, 생울타리 뒤에 누가 서 있다. 찍을 땐 아무도 없었는데.', 4200), 400);
+    }
+    return;
+  }
+  endSequence();
+}
+
+async function endSequence() {
+  S.dark = 'done'; S.mode = 'cutscene';
+  await sleep(700);
+  lightsOut = true; sfx.sting();
+  await sleep(2200);
+  lightsOut = false; flickEnd = clock.elapsedTime + 1.2;
+  toast('빨간 가디건. 언니가 사라진 날 입고 나간 옷이다.', 3600);
+  await sleep(3800);
+  $('fade').classList.add('on');
+  await sleep(1700);
+  await showCard('다음 사진 · 지하보도', 2600);
+  document.exitPointerLock();
+  $('hud').classList.add('hidden');
+  $('ending').classList.remove('hidden');
+  S.mode = 'ending';
+}
+
+// ================== 사진 크게 보기 ==================
+let photoOnClose = null;
+function showPhoto(c, caption, red, onClose) {
+  S.ui = 'photo'; photoOnClose = onClose || null;
+  $('photoImg').src = c.toDataURL('image/jpeg', 0.92);
+  $('photoCap').textContent = caption;
+  $('photoView').classList.toggle('red', !!red);
+  $('photoView').classList.remove('hidden');
+  $('toast').classList.remove('show');
+  sfx.paper();
+  document.exitPointerLock();
+}
+$('photoClose').onclick = () => {
+  $('photoView').classList.add('hidden'); S.ui = null; sfx.paper();
+  lockPointer();
+  const cb = photoOnClose; photoOnClose = null;
+  if (cb) cb();
+};
+
+// ================== 조작 ==================
+const keys = {};
+let yaw = 0, pitch = 0, locked = false, mouseAim = false;
+parkSpawn();
+
+addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (S.mode !== 'play' || !locked || S.ui || e.repeat) return;
+  if (e.code === 'KeyE') interact();
+  if (e.code === 'Space' && S.aim) { e.preventDefault(); shoot(); }
+  if (e.code === 'KeyR' && S.aim) { S.refOverlay = !S.refOverlay; sfx.click(); }
+});
+addEventListener('keyup', (e) => (keys[e.code] = false));
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouseAim = false; });
+addEventListener('mousemove', (e) => {
+  if (!locked) return;
+  const k = S.aim ? 0.0011 : 0.0022; // 카메라를 들면 천천히 움직여서 구도를 맞추기 쉽게
+  yaw -= e.movementX * k;
+  pitch = Math.max(-1.45, Math.min(1.45, pitch - e.movementY * k));
+});
+addEventListener('mousedown', (e) => {
+  if (!locked || S.mode !== 'play' || S.ui) return;
+  if (e.button === 2) mouseAim = true;
+  else if (e.button === 0) { if (S.aim) shoot(); else interact(); }
+});
+addEventListener('mouseup', (e) => { if (e.button === 2) mouseAim = false; });
+addEventListener('contextmenu', (e) => e.preventDefault());
+
+const showPauseIfNeeded = () => $('pause').classList.toggle('hidden', locked || !(S.mode === 'play' || S.mode === 'cutscene') || !!S.ui);
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === canvas;
+  if (!locked) mouseAim = false;
+  showPauseIfNeeded();
+});
+document.addEventListener('pointerlockerror', showPauseIfNeeded);
+function lockPointer() {
+  try {
+    const p = canvas.requestPointerLock();
+    if (p && p.catch) p.catch(showPauseIfNeeded);
+  } catch (e) { showPauseIfNeeded(); }
+}
+$('pause').onclick = lockPointer;
+
+// 마우스가 없는 기기(휴대폰·태블릿)에서는 안내 문구 표시
+const noMouse = !matchMedia('(any-pointer: fine)').matches || !canvas.requestPointerLock;
+if (noMouse) $('mobileNote').classList.remove('hidden');
+
+$('startBtn').onclick = async () => {
+  if (noMouse) return;
+  initAudio();
+  $('title').classList.add('hidden'); $('intro').classList.remove('hidden');
+  S.mode = 'intro';
+  for (const p of $('introText').querySelectorAll('p')) { p.classList.add('show'); await sleep(1500); }
+  $('introGo').classList.remove('hidden');
+};
+$('introGo').onclick = () => {
+  $('intro').classList.add('hidden'); $('hud').classList.remove('hidden');
+  S.mode = 'play'; setAmb('park');
+  lockPointer();
+  setTimeout(() => toast('언니 사진과 같은 자리를 찾자. 오른쪽 클릭(또는 Q)을 누르고 있으면 카메라를 든다.', 5200), 600);
+};
+$('againBtn').onclick = () => location.reload();
+
+// ================== 걷기 ==================
+const ray = new THREE.Raycaster(); ray.far = 2.2;
+let aimed = null;
+function updateAim() {
+  aimed = null;
+  if (!S.aim) {
+    ray.setFromCamera({ x: 0, y: 0 }, camera);
+    for (const h of ray.intersectObjects(interactables[S.place], false)) {
+      const it = h.object.userData.it;
+      if (it && it.enabled()) { aimed = it; break; }
+    }
+  }
+  const pr = $('prompt');
+  if (aimed && S.mode === 'play') {
+    pr.replaceChildren();
+    const b = document.createElement('b'); b.textContent = '[E] ';
+    pr.append(b, aimed.label()); pr.classList.remove('hidden');
+  } else pr.classList.add('hidden');
+  $('cross').classList.toggle('on', !!aimed);
+}
+function interact() { if (aimed) aimed.act(); }
+
+const R = 0.25; // 몸 두께
+function blocked(x, z) {
+  const ok = S.place === 'park' ? parkWalkable(x, z) : darkWalkable(x, z);
+  return !ok || colliders[S.place].some((c) => x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R);
+}
+let bobT = 0, lastStep = 0;
+function updateMove(dt) {
+  let f = 0, r = 0;
+  if (keys.KeyW || keys.ArrowUp) f++;
+  if (keys.KeyS || keys.ArrowDown) f--;
+  if (keys.KeyD || keys.ArrowRight) r++;
+  if (keys.KeyA || keys.ArrowLeft) r--;
+  const run = (keys.ShiftLeft || keys.ShiftRight) && !S.aim;
+  if (f || r) {
+    const len = Math.hypot(f, r), sp = (S.aim ? 1.0 : run ? 3.4 : 2.0) * dt / len;
+    const sn = Math.sin(yaw), cs = Math.cos(yaw);
+    const dx = (-sn * f + cs * r) * sp, dz = (-cs * f - sn * r) * sp;
+    const p = camera.position;
+    if (!blocked(p.x + dx, p.z)) p.x += dx;
+    if (!blocked(p.x, p.z + dz)) p.z += dz;
+    bobT += dt * (run ? 11 : 8);
+    const stepIdx = Math.floor(bobT / Math.PI);
+    if (stepIdx !== lastStep) { lastStep = stepIdx; sfx.step(); }
+  }
+  camera.position.y = 1.6 + Math.sin(bobT) * (S.aim ? 0.008 : 0.035);
+}
+
+// ================== 화면 위 글자 ==================
+let toastTimer = null;
+function toast(text, ms = 3400) {
+  const el = $('toast'); el.textContent = text; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+function objective() {
+  if (S.place === 'park') return S.shot ? '' : '언니 사진과 같은 자리에서, 같은 구도로 찍자';
+  return { start: '인화지를 현상액(왼쪽 트레이)에 담그자', developing: '사진이 떠오르길 기다리자', ready: '사진을 집어서 보자', changed: '사진을 다시 보자' }[S.dark] || '';
+}
+let lastObj = null;
+function updateHUD() {
+  const o = objective();
+  if (o !== lastObj) { $('objective').textContent = o; $('objective').classList.toggle('hidden', !o); lastObj = o; }
+  $('filmCount').textContent = `필름 ${S.film}`;
+}
+
+// ================== 뷰파인더 ==================
+// 화면 가운데 3:2 틀 = 찍히는 범위. 틀 높이가 사진 화각(42도)이 되도록 눈의 화각을 맞춤
+let aimFov = PHOTO_FOV;
+function layoutVF() {
+  const W = innerWidth, H = innerHeight, A = PW / PH;
+  let fw, fh;
+  if (W / H >= A) { fh = H * 0.84; fw = fh * A; } else { fw = W * 0.9; fh = fw / A; }
+  aimFov = 2 * Math.atan(Math.tan(PHOTO_FOV / 2 * DEG) * H / fh) / DEG;
+  const f = $('vfFrame').style;
+  f.width = `${fw}px`; f.height = `${fh}px`; f.left = `${(W - fw) / 2}px`; f.top = `${(H - fh) / 2}px`;
+}
+layoutVF();
+let wasOk = false;
+function updateViewfinder() {
+  $('vf').classList.toggle('hidden', !S.aim);
+  $('refThumb').classList.toggle('hidden', S.aim || S.place !== 'park');
+  if (!S.aim) { wasOk = false; return; }
+  $('vfRef').style.opacity = S.refOverlay ? 0.32 : 0;
+  $('vfFilm').textContent = `필름 ${S.film}`;
+  const al = alignment();
+  $('vfLed').className = al.ok ? 'ok' : al.near ? 'near' : '';
+  if (al.ok && !wasOk) sfx.beep();
+  wasOk = al.ok;
+}
+
+// ================== 장소별 움직임 ==================
+let swingDir = 1, nextCricket = 0, nextDrip = 0;
+let flickEnd = 0, lightsOut = false;
+function updatePark(t, dt) {
+  // 혼자 흔들리는 그네 + 끝에 닿을 때마다 삐걱
+  const v = Math.cos(t * 1.7);
+  swingB.rotation.x = Math.sin(t * 1.7) * 0.3;
+  if (Math.sign(v) !== swingDir) {
+    swingDir = Math.sign(v);
+    const d = camera.position.distanceTo(new THREE.Vector3(3.2, 1, -3));
+    sfx.swing(Math.max(0.15, 1 - d / 20));
+  }
+  if (t > nextCricket) { nextCricket = t + 1.5 + Math.random() * 4; sfx.cricket(); }
+  // 멀리 있는 가로등 깜빡임
+  if (t > flickEnd && Math.random() < 0.25 * dt) flickEnd = t + 0.05 + Math.random() * 0.25;
+  const k = t < flickEnd ? 0.1 : 1;
+  farLight.light.intensity = farLight.base * k;
+  farLight.bulb.material.color.setScalar(k > 0.5 ? 1 : 0.3);
+}
+
+const fwd = new THREE.Vector3(), toTray = new THREE.Vector3();
+function lookAngleToTray() {
+  camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+  toTray.set(TRAY_POS.x - camera.position.x, 0, TRAY_POS.z - camera.position.z).normalize();
+  return Math.acos(Math.max(-1, Math.min(1, fwd.dot(toTray))));
+}
+function updateDark(t, dt) {
+  // 현상: 처음엔 아무것도 안 보이다가 천천히 떠오름
+  if (S.dark === 'developing') {
+    const k = Math.min(1, (performance.now() - devStart) / 9000);
+    coverMat.opacity = 1 - k * k * (3 - 2 * k);
+    if (k >= 1) { S.dark = 'ready'; toast('사진이 다 떠올랐다.'); }
+  }
+  // 사진을 보고 등을 돌리면, 그 사이에 사진이 바뀜
+  if (S.dark === 'waitAway') {
+    if (lookAngleToTray() > 1.9) awayT += dt; else awayT = 0;
+    if (awayT > 1.2) {
+      S.dark = 'waitBack';
+      photoMat.map = photoTexture(S.shot.b); photoMat.needsUpdate = true;
+    }
+  } else if (S.dark === 'waitBack' && lookAngleToTray() < 0.5) {
+    S.dark = 'changed'; sfx.sting();
+    toast('…사진이 아까랑 다르다.', 3000);
+  }
+  if (t > nextDrip) { nextDrip = t + 2.5 + Math.random() * 5; sfx.drip(); }
+  // 빨간 전구 깜빡임
+  if (t > flickEnd && Math.random() < 0.08 * dt) flickEnd = t + 0.05 + Math.random() * 0.15;
+  const k = lightsOut ? 0 : t < flickEnd ? 0.15 : 1 + Math.sin(t * 31) * 0.02;
+  redLight.intensity = RED_I * k;
+  redBulb.material.color.setRGB(k > 0.5 ? 1 : 0.2, k > 0.5 ? 0.23 : 0.04, k > 0.5 ? 0.14 : 0.02);
+}
+
+// ================== 입자 (옛날 카메라 느낌) ==================
+const grainEl = $('grain'), gctx = grainEl.getContext('2d');
+const gimg = gctx.createImageData(160, 90);
+function updateGrain() {
+  const d = gimg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  gctx.putImageData(gimg, 0, 0);
+}
+
+// ================== 메인 루프 ==================
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  frame();
+}
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  const playing = S.mode === 'play' && !S.ui;
+  S.aim = playing && locked && S.place === 'park' && !S.shot && (mouseAim || !!keys.KeyQ);
+  if (playing && locked) updateMove(dt);
+  camera.rotation.set(pitch, yaw, 0);
+  const fov = S.aim ? aimFov : 70;
+  if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 12); camera.updateProjectionMatrix(); }
+  if (S.place === 'park') updatePark(t, dt); else updateDark(t, dt);
+  updateAim();
+  updateViewfinder();
+  updateHUD();
+  updateGrain();
+  renderer.render(S.place === 'park' ? park : dark, camera);
+}
+
+buildRefPhotos();
+loop();
+
+// 테스트용: 주소 끝에 ?debug 를 붙이면 콘솔에서 dbg.target() 처럼 바로 쓸 수 있음
+if (location.search.includes('debug')) {
+  window.dbg = {
+    S, camera, TARGET, figure, park, dark, flashLight, snap, filmify, streetLights,
+    fakeLock: () => { locked = true; }, // 자동 테스트용: 마우스가 고정된 것처럼
+    play: () => { $('title').classList.add('hidden'); $('intro').classList.add('hidden'); $('hud').classList.remove('hidden'); S.mode = 'play'; locked = true; },
+    goto: (x, z, y_, p_) => { camera.position.set(x, 1.6, z); yaw = y_; pitch = p_ || 0; },
+    target: () => { camera.position.copy(TARGET.pos); yaw = TARGET.yaw; pitch = TARGET.pitch; },
+    aim: (on = true) => { mouseAim = on; },
+    shoot,
+    align: alignment,
+    tick: (n = 1) => { for (let i = 0; i < n; i++) frame(); },
+    dark: () => { dbg.target(); shoot(); },           // 놀이터를 건너뛰고 바로 암실로
+    dev: () => { devStart = performance.now() - 9000; }, // 현상 바로 끝내기
+    turn: (a) => { yaw += a; },
+    lookTray: () => { yaw = Math.atan2(-(TRAY_POS.x - camera.position.x), -(TRAY_POS.z - camera.position.z)); pitch = -0.6; },
+    use: () => { updateAim(); const l = aimed && aimed.label(); interact(); return l; },
+    closePhoto: () => $('photoClose').onclick(),
+    ref: REF,
+  };
+}
+
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  layoutVF();
+});
+
+// 여기까지 오류 없이 왔으면 준비 완료 → 시작 버튼 켜기
+$('startBtn').disabled = false;
+$('startBtn').textContent = '시작하기';
+</script>
+</body>
+</html>
