@@ -21,6 +21,15 @@
     color: #eee; user-select: none;
   }
   #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+  /* 화면 해상도는 옛날 게임처럼 유지하고, 가장자리와 색감만 살짝 영화처럼 잡는다. */
+  #atmosphere {
+    position: fixed; inset: 0; z-index: 4; pointer-events: none;
+    background:
+      radial-gradient(ellipse at 50% 42%, transparent 38%, rgba(8, 3, 1, .16) 72%, rgba(0, 0, 0, .52) 100%),
+      linear-gradient(115deg, rgba(65, 28, 4, .05), transparent 42%, rgba(15, 30, 70, .06));
+    mix-blend-mode: multiply;
+  }
+  body.tape #atmosphere { display: none; }
   body.tape #game { filter: saturate(1.35) contrast(1.08) blur(0.6px); }
   .hidden { display: none !important; }
 
@@ -196,6 +205,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="atmosphere" aria-hidden="true"></div>
 
 <!-- VHS 효과 (테이프 볼 때) -->
 <div id="vhs" class="hidden">
@@ -374,6 +384,11 @@ try {
 }
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5) * 0.6); // 일부러 해상도를 낮춰서 옛날 게임 느낌
 renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // ================== 소리 (전부 코드로 만듦) ==================
 let AC = null, master = null, ambGain = null, noiseBuf = null;
@@ -537,10 +552,12 @@ function textTexture(lines, w, h, opt = {}) {
 const lam = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 function box(w, h, d, mat, x, y, z, parent) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof mat === 'number' ? lam(mat) : mat);
+  m.castShadow = true; m.receiveShadow = true;
   m.position.set(x, y, z); parent.add(m); return m;
 }
 function sphere(r, mat, x, y, z, parent, seg = 16) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.max(8, seg * 0.75 | 0)), typeof mat === 'number' ? lam(mat) : mat);
+  m.castShadow = true; m.receiveShadow = true;
   m.position.set(x, y, z); parent.add(m); return m;
 }
 // 뚜껑이 열리는 속 빈 상자
@@ -558,7 +575,10 @@ function hollowBox(w, h, d, mat, t = 0.04) {
 }
 // 클릭하기 쉽도록 보이지 않는 큰 판정 상자
 const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
-function addHitBox(g, w, h, d, y = 0) { box(w, h, d, hitMat, 0, y, 0, g); }
+function addHitBox(g, w, h, d, y = 0) {
+  const hit = box(w, h, d, hitMat, 0, y, 0, g);
+  hit.castShadow = false; hit.receiveShadow = false;
+}
 
 // ================== 토토 만들기 ==================
 function createToto() {
@@ -641,11 +661,17 @@ function addCollider(obj, pad = 0.3) {
 }
 
 // 바닥, 벽, 지붕
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), lam(0xffffff, { map: woodTexture([110, 76, 46], 2.5, 3) }));
-floor.rotation.x = -Math.PI / 2; room.add(floor);
-const wallMat = lam(0xffffff, { map: woodTexture([88, 60, 38], 3, 0.6), side: THREE.DoubleSide });
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, map: woodTexture([110, 76, 46], 2.5, 3), roughness: 0.72, metalness: 0,
+});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; room.add(floor);
+const wallMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, map: woodTexture([88, 60, 38], 3, 0.6), roughness: 0.88, metalness: 0, side: THREE.DoubleSide,
+});
 function wallPiece(x, z, len, h, y) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(len, h), wallMat);
+  m.receiveShadow = true;
   m.position.set(x, y, z); m.rotation.y = x > 0 ? -Math.PI / 2 : Math.PI / 2; room.add(m); return m;
 }
 wallPiece(W, 0, D * 2, WALL_H, WALL_H / 2); // 오른쪽 벽
@@ -658,12 +684,16 @@ const gable = new THREE.Shape([
   new THREE.Vector2(-W, 0), new THREE.Vector2(W, 0), new THREE.Vector2(W, WALL_H),
   new THREE.Vector2(0, RIDGE), new THREE.Vector2(-W, WALL_H),
 ]);
-const gableMat = lam(0xffffff, { map: woodTexture([88, 60, 38], 0.3, 0.3), side: THREE.DoubleSide });
+const gableMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, map: woodTexture([88, 60, 38], 0.3, 0.3), roughness: 0.9, metalness: 0, side: THREE.DoubleSide,
+});
 [-1, 1].forEach((s) => {
   const m = new THREE.Mesh(new THREE.ShapeGeometry(gable), gableMat);
   m.position.z = D * s; room.add(m);
 });
-const roofMat = lam(0xffffff, { map: woodTexture([70, 48, 30], 1, 2.5) });
+const roofMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, map: woodTexture([70, 48, 30], 1, 2.5), roughness: 0.94, metalness: 0,
+});
 const slope = Math.atan2(RIDGE - WALL_H, W), roofLen = Math.hypot(W, RIDGE - WALL_H);
 [-1, 1].forEach((s) => {
   const r = box(roofLen + 0.1, 0.08, D * 2, roofMat, (W / 2) * s, (WALL_H + RIDGE) / 2 + 0.04, 0, room);
@@ -691,6 +721,15 @@ let flashOn = false;
 const BULB_I = 6.5;
 const bulbLight = new THREE.PointLight(0xffc98a, BULB_I, 0, 1.4);
 bulbLight.position.set(0, 2.4, 0); room.add(bulbLight);
+// 전구 아래의 부드러운 그림자. PointLight 그림자보다 가벼워서 브라우저 성능을 지킨다.
+const BULB_SHADOW_I = 2.4;
+const bulbShadow = new THREE.SpotLight(0xffd3a2, BULB_SHADOW_I, 8, 1.05, 0.58, 1.5);
+bulbShadow.position.set(0, 2.38, 0);
+bulbShadow.target.position.set(0, 0, -0.35);
+bulbShadow.castShadow = true;
+bulbShadow.shadow.mapSize.set(512, 512);
+bulbShadow.shadow.bias = -0.00035;
+room.add(bulbShadow, bulbShadow.target);
 const bulbMesh = sphere(0.07, new THREE.MeshBasicMaterial({ color: 0xffe6b8 }), 0, 2.43, 0, room);
 const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, RIDGE - 2.5, 4), lam(0x111111));
 cord.position.set(0, (RIDGE + 2.5) / 2, 0); room.add(cord);
@@ -1997,6 +2036,7 @@ function updateBulb(t, dt) {
   if (t > flickEnd && Math.random() < flickerChance * dt) flickEnd = t + 0.05 + Math.random() * 0.2;
   const k = lightsOut ? 0 : t < flickEnd ? 0.12 : 1 + Math.sin(t * 23) * 0.03;
   bulbLight.intensity = BULB_I * k;
+  bulbShadow.intensity = BULB_SHADOW_I * k;
   bulbMesh.material.color.setScalar(k > 0.5 ? 1 : 0.25);
 }
 
