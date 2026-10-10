@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>별의 설화 · QueryBot Games</title>
-<meta name="description" content="부서진 별을 되찾는 방치형 판타지 RPG. 캠프에서 준비하고, 전투에서 앞으로 나아가세요.">
+<meta name="description" content="부서진 별을 되찾는 방치형 판타지 RPG. 캠프에서 강화하고 전투에서 스테이지를 돌파한다.">
+<link rel="canonical" href="https://querybot.kr/games/star/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="별의 설화 — 방치형 판타지 RPG">
+<meta property="og:description" content="부서진 별을 되찾는 방치형 판타지 RPG. 캠프에서 강화하고 전투에서 스테이지를 돌파한다.">
+<meta property="og:url" content="https://querybot.kr/games/star/">
+<meta property="og:image" content="https://querybot.kr/games/star/thumb.jpg">
 <style>
 :root{--bg:#0d1020;--panel:#161b33;--panel2:#1d2443;--line:#2c3563;--text:#eef1ff;--muted:#9aa3cf;--gold:#ffd25e;--accent:#7aa8ff;--good:#6fe39a;--bad:#ff6b7a}
 *{box-sizing:border-box}
@@ -122,6 +128,9 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 .baghead small{font-weight:600}
 .baghead button:disabled{opacity:.4;cursor:not-allowed}
 .baghead button{padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:800}
+.up button.danger{background:linear-gradient(180deg,#ff8a96,#d83a4a);color:#fff}
+.up button.plain{background:#3a4a7a;color:#dfe6ff}
+.note a{color:var(--accent)}
 .note{font-size:12px;color:var(--muted);margin:4px 2px 0}
 
 #sleep{position:fixed;inset:0;z-index:20;background:#05060de8;display:flex;align-items:center;justify-content:center;text-align:center}
@@ -129,6 +138,10 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 #sleep p{color:var(--muted);line-height:1.6;margin:0 0 20px}
 #sleep button{padding:12px 28px;border-radius:12px;border:0;background:linear-gradient(180deg,#ffdf7e,#e8ad2e);color:#2a1c00;font-weight:900;font-size:16px}
 /* 시작 화면 */
+.gbtn{display:inline-flex;align-items:center;gap:10px;padding:12px 26px;border-radius:12px;border:0;background:#fff;color:#1f1f1f;font-weight:800;font-size:16px;box-shadow:0 4px 16px #0006}
+.gbtn:hover{background:#f1f3f4}
+#start .small{margin:14px 0 0;font-size:13px;color:var(--muted);line-height:1.6}
+#start .small a{color:var(--accent)}
 #start{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 20%,#2a2f6b,#0b0d1c 70%);display:flex;align-items:center;justify-content:center;z-index:10}
 #start .box{text-align:center;padding:20px}
 #start h1{margin:0 0 4px;font-size:52px;letter-spacing:-.03em;color:var(--gold);text-shadow:0 0 24px #ffd25e66}
@@ -147,6 +160,12 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
   <div class="box">
     <h1>별의 설화</h1>
     <p>부서진 별을 되찾는 여행</p>
+    <div id="loginBox">
+      <button id="loginBtn" class="gbtn"><svg viewBox="0 0 48 48" width="22" height="22"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>구글로 로그인</button>
+      <div class="msg" id="loginMsg"></div>
+      <p class="small">로그인 후 시작 · 진행 상황은 계정에 저장되어 어느 기기에서든 이어서 플레이<br><a href="privacy.html" target="_blank">개인정보처리방침</a></p>
+    </div>
+    <div id="createBox" hidden>
     <div class="pick">
       <button data-g="m"><canvas width="32" height="32" id="pm"></canvas>남자</button>
       <button data-g="f"><canvas width="32" height="32" id="pf"></canvas>여자</button>
@@ -154,6 +173,7 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
     <input id="nameIn" maxlength="8" placeholder="이름 입력 (최대 8자)">
     <button id="go">모험 시작</button>
     <div class="msg" id="startMsg"></div>
+    </div>
   </div>
 </div>
 
@@ -221,7 +241,7 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
 <script src="sprites.js"></script>
-<script src="my-save.js"></script>
 <script src="game.js"></script>
+<script type="module" src="cloud.js"></script>
 </body>
 </html>

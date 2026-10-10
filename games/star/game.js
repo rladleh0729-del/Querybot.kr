@@ -3,7 +3,8 @@
 
 // 주소에 ?test를 붙이면 테스트용 저장을 따로 쓴다 (진짜 진행을 건드리지 않음)
 const TEST = new URLSearchParams(location.search).has('test');
-const SAVE_KEY = 'starTale.save.v1' + (TEST ? '.test' : '');
+const SAVE_BASE = 'starTale.save.v1';
+let SAVE_KEY = SAVE_BASE + (TEST ? '.test' : '');   // 로그인하면 계정별 키로 바뀐다 (useAccountKey)
 const LAST_STAGE = 20;      // 챕터 1의 마지막 스테이지 (챕터 보스는 다음 단계에서)
 const SCALE = 3;            // 320×180 도트 화면을 960×540으로 키워 그림
 const GROUND = 140;
@@ -233,13 +234,24 @@ function writeSave() {
 }
 
 function readSave() {
+  try { return migrateSave(JSON.parse(localStorage.getItem(SAVE_KEY))); }
+  catch (e) { return null; }
+}
+
+// 로그인한 계정 전용 세이브 키로 바꾼다.
+// 로그인 기능 전에 쓰던 세이브(계정 없는 키)가 있으면, 이 브라우저에서 처음 로그인한 계정으로 옮긴다.
+function useAccountKey(uid) {
+  SAVE_KEY = SAVE_BASE + '.' + uid;
   try {
-    let s = JSON.parse(localStorage.getItem(SAVE_KEY));
-    // 임시: 세이브가 없는 브라우저는 개발자 세이브로 시작 (my-save.js)
-    if (!s && !TEST && window.DEFAULT_SAVE) {
-      s = JSON.parse(JSON.stringify(window.DEFAULT_SAVE));
-      s.chestAt = s.savedAt = Date.now();
-    }
+    const old = localStorage.getItem(SAVE_BASE);
+    if (old && !localStorage.getItem(SAVE_KEY)) localStorage.setItem(SAVE_KEY, old);
+    if (old) localStorage.removeItem(SAVE_BASE);
+  } catch (e) { /* 무시 */ }
+}
+
+// 옛날 형식의 세이브를 지금 형식으로 맞춘다
+function migrateSave(s) {
+  try {
     if (!s || !s.name || !s.lv) return null;
     // 옛날 저장(1단계) 이어받기
     if (s.chest === undefined) { s.chest = 0; s.chestAt = Date.now(); s.potions = 3; }
@@ -485,6 +497,7 @@ function endBattle(result) {
   }
   if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
   writeSave();
+  cloudUpload();
   $('rTitle').textContent = { won: `스테이지 1-${r.stage} 클리어!`, lost: '패배…', retreat: '후퇴' }[result];
   $('rTitle').style.color = { won: '#ffd25e', lost: '#ff9aa6', retreat: '#c8d6ff' }[result];
   $('rText').innerHTML = text;
@@ -638,7 +651,7 @@ function updateHud() {
   $('lBattleSub').textContent = done ? '챕터 보스 준비 중' : '들꽃 평원 1-' + save.stage;
   $('toBattle').classList.toggle('lock', done);
   $('lName').textContent = save.name;
-  $('lPower').textContent = '전투력 ' + fmt(power(s));
+  refreshSettings();
   $('chestRate').textContent = `초당 ${idleRate().toFixed(1)} G`;
   updateChest();
   if (!$('modal').hidden) refreshModal();
@@ -912,10 +925,166 @@ function holdButton(btn, fn) {
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, stop));
 }
 
+// ── 클라우드 세이브 (구글 로그인, cloud.js) ────
+// cloudRev: 마지막으로 클라우드와 맞춘 버전 표시. 클라우드와 같으면 이 기기가 이어서 진행한 것이라 그냥 올리고,
+// 다르면 다른 기기에서 진행한 것이므로 어느 쪽을 쓸지 고르게 한다.
+const CLOUD_EVERY = 30000;
+let cloudBusy = false, cloudChoice = false, cloudAt = 0, cloudMsg = '';
+
+function cloudOn() { return !TEST && window.Cloud && window.Cloud.user && save && !sleeping; }
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hhmm = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
+
+async function cloudUpload() {
+  if (!cloudOn() || cloudBusy || cloudChoice) return;
+  cloudBusy = true;
+  try {
+    save.cloudRev = Math.random().toString(36).slice(2);
+    writeSave();
+    await window.Cloud.save(save);
+    cloudAt = Date.now();
+    cloudMsg = '';
+  } catch (e) {
+    console.warn(e);
+    cloudMsg = '클라우드 저장 실패';
+  }
+  cloudBusy = false;
+  refreshSettings();
+}
+
+async function cloudSyncOnLogin() {
+  if (!cloudOn() || cloudBusy) return;
+  cloudBusy = true;
+  let remote;
+  try { remote = await window.Cloud.load(); }
+  catch (e) { console.warn(e); cloudMsg = '클라우드 불러오기 실패'; cloudBusy = false; refreshSettings(); return; }
+  cloudBusy = false;
+  if (!remote || remote.cloudRev === save.cloudRev) return cloudUpload();   // 첫 로그인이거나 이 기기가 이어서 진행한 것
+  showSyncChoice(remote);
+}
+
+function saveSummary(s) {
+  return `스테이지 1-${Math.min(s.stage, LAST_STAGE)} · 골드 ${fmt(s.gold)} · 공격력 Lv ${s.lv.atk}<br>마지막 저장 ${s.savedAt ? hhmm(s.savedAt) : '-'}`;
+}
+
+function showSyncChoice(remote) {
+  cloudChoice = true;
+  modalKind = 'sync';
+  $('mTitle').textContent = '세이브 선택';
+  $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
+    <p class="note" style="margin-bottom:10px">클라우드와 이 기기의 진행 상황이 서로 다름 · 사용할 세이브 선택</p>
+    <div class="up"><div class="nm">클라우드 세이브</div><div class="val">${saveSummary(remote)}</div><button id="useCloud">사용</button></div>
+    <div class="up"><div class="nm">이 기기 세이브</div><div class="val">${saveSummary(save)}</div><button id="useLocal">사용</button></div>
+    <p class="note">선택하지 않은 쪽은 덮어써짐</p>`;
+  $('useCloud').onclick = () => {
+    sleeping = true;                                       // 다시 불러오기 전에 이 기기 세이브가 덮어쓰지 않도록
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(remote)); } catch (e) { /* 무시 */ }
+    location.reload();
+  };
+  $('useLocal').onclick = () => { cloudChoice = false; closeModal(); cloudUpload(); };
+  $('modal').hidden = false;
+}
+
+function openSettings() {
+  modalKind = 'settings';
+  $('mTitle').textContent = '설정';
+  $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div id="setBody"></div>';
+  $('modal').hidden = false;
+  refreshSettings();
+}
+
+function refreshSettings() {
+  $('lPower').textContent = '전투력 ' + fmt(power(stats)) + (cloudOn() ? ' · ☁ 클라우드' : '');
+  if (modalKind !== 'settings') return;
+  const u = window.Cloud && window.Cloud.user;
+  let acct;
+  if (TEST) acct = '<p class="note">테스트 모드 · 클라우드 저장 꺼짐</p>';
+  else if (!window.Cloud) acct = '<p class="note">로그인 기능 불러오는 중…</p>';
+  else if (u) acct = `<div class="up"><div class="nm">구글 계정<small>${esc(u.email || '')}</small></div>
+      <div class="val">클라우드 저장 켜짐 · ${cloudChoice ? '세이브 선택 대기' : cloudBusy ? '동기화 중…' : cloudAt ? '마지막 저장 ' + hhmm(cloudAt) : '대기 중'}${cloudMsg ? ' · ' + cloudMsg : ''}</div>
+      <button id="cloudOut" class="plain">로그아웃</button></div>`;
+  else acct = `<div class="up"><div class="nm">클라우드 저장<small>꺼짐</small></div>
+      <div class="val">구글 로그인 시 다른 기기에서도 이어서 플레이${cloudMsg ? ' · <span style="color:var(--bad)">' + cloudMsg + '</span>' : ''}</div>
+      <button id="cloudIn">구글로 로그인</button></div>`;
+  $('setBody').innerHTML = acct + `
+    <div class="up"><div class="nm">처음부터 하기</div><div class="val">이 기기의 진행 상황 삭제</div><button id="resetBtn" class="danger">초기화</button></div>
+    <p class="note"><a href="privacy.html" target="_blank">개인정보처리방침</a></p>`;
+  if ($('cloudIn')) $('cloudIn').onclick = async () => {
+    cloudMsg = '';
+    try { await window.Cloud.signIn(); }
+    catch (e) {
+      cloudMsg = e.code === 'auth/popup-blocked' ? '팝업 차단됨 · 팝업 허용 필요'
+        : e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request' ? '' : '로그인 실패';
+      refreshSettings();
+    }
+  };
+  if ($('cloudOut')) $('cloudOut').onclick = async () => {
+    await cloudUpload();
+    writeSave();
+    await window.Cloud.signOut();
+  };
+  $('resetBtn').onclick = resetGame;
+}
+
+function resetGame() {
+  if (!confirm('처음부터 시작\n이 기기의 진행 상황 전체 삭제' + (cloudOn() ? '\n(클라우드 세이브는 유지)' : ''))) return;
+  save = null;
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ }
+  location.reload();
+}
+
+// ── 로그인 관문: 로그인해야 시작 (?test는 예외) ──
+let booted = false;
+
+function showLogin(state) {
+  $('start').hidden = false;
+  $('loginBox').hidden = false;
+  $('createBox').hidden = true;
+  $('loginBtn').hidden = state === 'checking';
+  $('loginMsg').textContent = state === 'checking' ? '로그인 확인 중…' : state || '';
+}
+
+async function afterLogin(user) {
+  showLogin('checking');
+  $('loginMsg').textContent = '세이브 불러오는 중…';
+  useAccountKey(user.uid);
+  const local = readSave();
+  let remote = null;
+  try { remote = migrateSave(await window.Cloud.load()); }
+  catch (e) { console.warn(e); return showLogin('세이브 불러오기 실패 · 새로고침 후 다시 시도'); }
+  $('start').hidden = true;
+  booted = true;
+  if (!local && remote) {                 // 이 기기에 없으면 클라우드 세이브로
+    save = remote;
+    writeSave();
+    begin();
+  } else if (local) {                     // 이 기기 세이브로 시작 → 클라우드와 비교 (begin 안에서)
+    save = local;
+    begin();
+  } else {                                // 처음 하는 계정: 캐릭터 만들기
+    booted = false;
+    showStart();
+  }
+}
+
+window.addEventListener('cloud-user', e => {
+  const user = e.detail;
+  if (TEST || !spritesReady) return;       // 그림 준비 전이면 시작 코드가 상태를 확인한다
+  if (!booted) {
+    if (user) afterLogin(user);
+    else showLogin();
+    return;
+  }
+  if (!user) { sleeping = true; location.reload(); return; }   // 로그아웃 → 로그인 화면으로
+  if (save && stats) refreshSettings();
+});
+
 // ── 시작 화면 ───────────────────────────────
 function showStart() {
   const box = $('start');
   box.hidden = false;
+  $('loginBox').hidden = true;
+  $('createBox').hidden = false;
   let gender = null;
   for (const g of ['m', 'f']) {
     const c = $('p' + g).getContext('2d');
@@ -936,6 +1105,7 @@ function showStart() {
     if (!name) return ($('startMsg').textContent = '이름 입력 필요');
     save = newSave(name, gender);
     box.hidden = true;
+    booted = true;
     writeSave();
     begin();
   };
@@ -977,12 +1147,7 @@ function begin() {
     writeSave();
     floatsLobby.push({ text: '저장 완료!', t: 0, x: 160, y: 60, color: '#ffffff', big: true });
   };
-  $('lReset').onclick = () => {
-    if (!confirm('처음부터 시작\n저장된 진행 상황 전체 삭제')) return;
-    save = null;
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ }
-    location.reload();
-  };
+  $('lReset').onclick = openSettings;
 
   showScreen('lobby');
   let last = performance.now();
@@ -1000,11 +1165,31 @@ function begin() {
   };
   requestAnimationFrame(frame);
   setInterval(writeSave, 5000);
+  setInterval(cloudUpload, CLOUD_EVERY);
   window.addEventListener('beforeunload', writeSave);
+  if (window.Cloud && window.Cloud.user) cloudSyncOnLogin();
 }
 
+let spritesReady = false;
+
 loadSprites().then(() => {
+  spritesReady = true;
   claimTab();
-  save = readSave();
-  if (save) begin(); else showStart();
+  if (TEST) {                              // 테스트: 로그인 없이 브라우저 저장만
+    save = readSave();
+    if (save) begin(); else showStart();
+    return;
+  }
+  $('loginBtn').onclick = async () => {
+    $('loginMsg').textContent = '';
+    try { await window.Cloud.signIn(); }
+    catch (e) {
+      $('loginMsg').textContent = e.code === 'auth/popup-blocked' ? '팝업 차단됨 · 팝업 허용 필요'
+        : e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request' ? '' : '로그인 실패';
+    }
+  };
+  if (window.Cloud) {                      // cloud.js가 먼저 준비됐으면 지금 상태로 시작
+    if (window.Cloud.ready) window.Cloud.user ? afterLogin(window.Cloud.user) : showLogin();
+    else showLogin('checking');
+  } else showLogin('checking');
 });
