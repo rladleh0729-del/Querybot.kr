@@ -1056,6 +1056,21 @@ function drawCampfire(x) {
   }
 }
 
+// ── 이스터에그: 오래 플레이할수록 미소가 뒤집힌다 ──
+// 15분: 일자 입, 30분: 거꾸로 미소. 탭을 5분 넘게 떠났다 오면(쉬고 오면) 다시 웃는다.
+let playStart = performance.now(), hiddenAt = 0, mood = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) hiddenAt = performance.now();
+  else if (hiddenAt && performance.now() - hiddenAt > 5 * 60000) playStart = performance.now();
+});
+function updateMood() {
+  const min = (performance.now() - playStart) / 60000;
+  const m = min >= 30 ? 2 : min >= 15 ? 1 : 0;
+  if (m > mood) say('hero', m === 1 ? '조금 피곤하네…' : '…우리 좀 쉬었다 할까?', 4);
+  mood = m;
+}
+function face(name) { return (mood && SPR[name + '_m' + mood]) || SPR[name]; }
+
 function renderLobby() {
   drawImg(SPR.tent, 50, GROUND - 38, 48);
   drawCampfire(104);
@@ -1065,11 +1080,11 @@ function renderLobby() {
   (save.party || []).forEach((id, i) => {
     const x = spots[i];
     shadow(x + 16);
-    drawImg(SPR[allyById(id).sprite], x, GROUND - 31 + Math.round(Math.sin(time * 3 + 1 + i) * 0.8));
+    drawImg(face(allyById(id).sprite), x, GROUND - 31 + Math.round(Math.sin(time * 3 + 1 + i) * 0.8));
     pos[id] = [x + 16, GROUND - 32];
   });
   shadow(138);
-  drawImg(SPR['hero_' + save.gender], 122, GROUND - 31 + bob);
+  drawImg(face('hero_' + save.gender), 122, GROUND - 31 + bob);
   drawBubbles(pos);
   floatsLobby.forEach(f => f.t += 1 / 60);
   floatsLobby = floatsLobby.filter(f => f.t < 1);
@@ -1083,7 +1098,7 @@ function renderBattle() {
   shadow(hx + 16);
   ctx.save();
   if (battle.state === 'lost') ctx.globalAlpha = 0.35;
-  drawImg(SPR['hero_' + save.gender], hx, GROUND - 31 + bob, 32, hero.hurt);
+  drawImg(face('hero_' + save.gender), hx, GROUND - 31 + bob, 32, hero.hurt);
   ctx.restore();
   // 뿌리 감옥 경고(발밑 빛)와 묶임
   if (battle.mech === 'root' && battle.mechWarn) {
@@ -1104,7 +1119,7 @@ function renderBattle() {
     const x = allyX(i);
     const act = battle.fx.find(f => f.i === i);
     shadow(x + 16);
-    drawImg(SPR[allyById(id).sprite], x + (act ? 3 : 0), GROUND - 31 + (walking ? bob : Math.round(Math.sin(time * 4 + i + 1) * 0.8)));
+    drawImg(face(allyById(id).sprite), x + (act ? 3 : 0), GROUND - 31 + (walking ? bob : Math.round(Math.sin(time * 4 + i + 1) * 0.8)));
   });
   for (const f of battle.fx) {
     const ax = (allyX(f.i) + 22) * SCALE, ay = (GROUND - 20) * SCALE;
@@ -1130,7 +1145,7 @@ function renderBattle() {
     ctx.save();
     if (m.dead > 0) ctx.globalAlpha = m.dead * 2;
     shadow(m.x + size / 2, m.king ? 26 : m.boss ? 15 : 11);
-    drawImg(SPR[m.sprite], m.x, GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
+    drawImg(face(m.sprite), m.x, GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
     ctx.restore();
     if (i === 0 && m.dead <= 0) {
       hpBar(m.x + 2, GROUND - size - 5, size - 4, m.hp / m.maxHp, '#ff6b7a');
@@ -1718,6 +1733,7 @@ function begin() {
     if (screen === 'battle') { updateBattle(dt); updateBattleBars(); }
     dialogTick(dt);
     updateBubbles(dt);
+    updateMood();
     shake = Math.max(0, shake - dt);
     tick += dt;
     if (tick > 0.25) { tick = 0; accrue(); updateChest(); updateShopTimer(); }

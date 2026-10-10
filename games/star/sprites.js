@@ -41,7 +41,15 @@ function eye(g, x, y, iris, s = 1) {
   g.beginPath(); g.arc(x + 1.5 * s, y + 2.2 * s, 0.9 * s, 0, TAU); g.fill();
 }
 function blush(g, x, y, s = 1) { g.fillStyle = 'rgba(255,120,140,0.35)'; g.beginPath(); g.ellipse(x, y, 4.5 * s, 2.6 * s, 0, 0, TAU); g.fill(); }
-function smile(g, x, y, w = 4) { g.strokeStyle = OUT; g.lineWidth = 2; g.beginPath(); g.arc(x, y - 2, w, 0.25 * Math.PI, 0.75 * Math.PI); g.stroke(); }
+// 입 모양. MOOD 0 = 웃음, 1 = 일자, 2 = 거꾸로 (오래 플레이하면 바뀌는 이스터에그)
+let MOOD = 0;
+function smile(g, x, y, w = 4) {
+  g.strokeStyle = OUT; g.lineWidth = 2; g.beginPath();
+  if (MOOD === 0) g.arc(x, y - 2, w, 0.25 * Math.PI, 0.75 * Math.PI);
+  else if (MOOD === 1) { g.moveTo(x - w * 0.7, y + 0.6); g.lineTo(x + w * 0.7, y + 0.6); }
+  else g.arc(x, y + 4.5, w, 1.25 * Math.PI, 1.75 * Math.PI);
+  g.stroke();
+}
 
 function star(g, x, y, r, fill) {
   shape(g, () => {
@@ -506,6 +514,13 @@ function loadSprites() {
     icon_acc: drawRingIcon(),
   };
   Object.assign(SPR, built);
+  // 이스터에그용 표정 그림: 이름_m1 (일자 입), 이름_m2 (거꾸로 미소)
+  const moody = { hero_m: drawBoy, hero_f: drawGirl, miru: drawMiru, serin: drawSerin, slime: drawSlime, mushroom: drawMushroom, bee: drawBee, wisp: drawWisp };
+  for (const m of [1, 2]) {
+    MOOD = m;
+    for (const [k, f] of Object.entries(moody)) SPR[k + '_m' + m] = f();
+  }
+  MOOD = 0;
   return Promise.all(Object.keys(built).map(name => new Promise(done => {
     const img = new Image();
     img.onload = () => { SPR[name] = img; done(); };
