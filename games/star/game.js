@@ -81,12 +81,12 @@ function skillCost(sk, lv) { return Math.floor(sk.cost * Math.pow(1.6, lv)); }  
 // ── 장비 ─────────────────────────────────────
 const GRADES = [
   // min~max: 1스테이지 기준 수치(%). mult: 판매 가격 배율
-  { name: '일반', color: '#c8cde0', weight: 600, min: 1,  max: 8,   mult: 1 },
-  { name: '고급', color: '#6fe39a', weight: 250, min: 6,  max: 14,  mult: 2 },
-  { name: '희귀', color: '#6fb2ff', weight: 100, min: 12, max: 24,  mult: 3.5 },
-  { name: '영웅', color: '#c48cff', weight: 40,  min: 22, max: 40,  mult: 6, pierce: 5 },
-  { name: '전설', color: '#ffb84a', weight: 9,   min: 38, max: 65,  mult: 10, pierce: 10 },
-  { name: '신화', color: '#ff5a6e', weight: 1,   min: 60, max: 100, mult: 17, pierce: 20 },
+  { name: '일반', color: '#8a8f9e', weight: 600, min: 1,  max: 8,   mult: 1 },
+  { name: '고급', color: '#2f9a4a', weight: 250, min: 6,  max: 14,  mult: 2 },
+  { name: '희귀', color: '#2f74d8', weight: 100, min: 12, max: 24,  mult: 3.5 },
+  { name: '영웅', color: '#8a3fd0', weight: 40,  min: 22, max: 40,  mult: 6, pierce: 5 },
+  { name: '전설', color: '#e0820a', weight: 9,   min: 38, max: 65,  mult: 10, pierce: 10 },
+  { name: '신화', color: '#e0304a', weight: 1,   min: 60, max: 100, mult: 17, pierce: 20 },
 ];
 const GEAR_SLOTS = [
   { id: 'weapon', name: '무기',   names: ['낡은 검', '강철 검', '기사의 검', '영웅의 검', '전설의 검', '별의 검'],       stat: '공격력' },
@@ -796,9 +796,8 @@ function showLine() {
   $('dBox').classList.toggle('narr', L.who === 'narr');
   $('dName').textContent = sp.name;
   const c = $('dPortrait').getContext('2d');
-  c.imageSmoothingEnabled = false;
-  c.clearRect(0, 0, 64, 64);
-  if (sp.img) c.drawImage(sp.img, 0, 0, 64, 64);
+  c.clearRect(0, 0, 128, 128);
+  if (sp.img) c.drawImage(sp.img, 0, 0, 128, 128);
   dlg.chars = 0;
   $('dText').textContent = '';
 }
@@ -1022,21 +1021,39 @@ function drawFloats(list, defaultX, defaultY) {
 }
 
 function drawCampfire(x) {
-  const p = (px, py, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(px * SCALE, py * SCALE, w * SCALE, h * SCALE); };
-  // 빛
-  const glow = ctx.createRadialGradient((x + 6) * SCALE, (GROUND - 6) * SCALE, 0, (x + 6) * SCALE, (GROUND - 6) * SCALE, 40 * SCALE);
-  glow.addColorStop(0, '#ffb04a44'); glow.addColorStop(1, '#ffb04a00');
+  const cx = (x + 6) * SCALE, by = (GROUND - 1) * SCALE;
+  // 따뜻한 빛
+  const glow = ctx.createRadialGradient(cx, by - 20, 0, cx, by - 20, 130);
+  glow.addColorStop(0, 'rgba(255,180,80,0.35)'); glow.addColorStop(1, 'rgba(255,180,80,0)');
   ctx.fillStyle = glow;
-  ctx.fillRect((x - 40) * SCALE, (GROUND - 46) * SCALE, 92 * SCALE, 60 * SCALE);
-  // 장작
-  p(x, GROUND - 2, 13, 2, '#5a3a20'); p(x + 2, GROUND - 3, 9, 1, '#6b4a2b');
-  // 불꽃 (깜빡임)
-  const f = Math.floor(time * 8) % 3;
-  const hgt = [9, 11, 10][f];
-  p(x + 3, GROUND - 2 - hgt + 3, 7, hgt - 3, '#e8502a');
-  p(x + 4, GROUND - 2 - hgt + 1 + f % 2, 5, hgt - 3, '#ff9a2a');
-  p(x + 5, GROUND - hgt + 3, 3, hgt - 5, '#ffe27a');
-  p(x + 6 + (f - 1), GROUND - hgt - 2, 1, 2, '#ff9a2a');
+  ctx.fillRect(cx - 130, by - 150, 260, 200);
+  // 장작 두 개 (엇갈리게)
+  ctx.lineCap = 'round';
+  for (const [dx, rot] of [[-1, 0.35], [1, -0.35]]) {
+    ctx.save(); ctx.translate(cx, by - 4); ctx.rotate(rot);
+    ctx.fillStyle = '#7a4a2a'; ctx.strokeStyle = '#3b2626'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect(-22, -5, 44, 10, 5); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  // 불꽃 세 겹 (흔들림)
+  const flame = (h, w, color, ph) => {
+    const sway = Math.sin(time * 9 + ph) * 4, hh = h * (0.9 + 0.12 * Math.sin(time * 13 + ph));
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx - w, by - 8);
+    ctx.quadraticCurveTo(cx - w * 1.1, by - 8 - hh * 0.55, cx + sway, by - 8 - hh);
+    ctx.quadraticCurveTo(cx + w * 1.1, by - 8 - hh * 0.55, cx + w, by - 8);
+    ctx.closePath(); ctx.fill();
+  };
+  flame(46, 17, '#e8502a', 0);
+  flame(34, 12, '#ff9a2a', 1.3);
+  flame(20, 7, '#ffe27a', 2.6);
+  // 불티
+  for (let i = 0; i < 3; i++) {
+    const t = (time * 0.8 + i / 3) % 1;
+    ctx.fillStyle = `rgba(255,200,100,${1 - t})`;
+    ctx.beginPath(); ctx.arc(cx + Math.sin(t * 9 + i) * 10, by - 40 - t * 50, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 function renderLobby() {
@@ -1130,7 +1147,8 @@ let camX = 0;            // 배경 카메라 위치 (웨이브 사이에 앞으�
 let lastDt = 0;
 
 function render() {
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - 0.5) * 18 * shake, (Math.random() - 0.5) * 12 * shake);
   Scenery.setTheme(chapter(screen === 'battle' && battle ? chOf(battle.stage) : campChapter()).theme);
@@ -1165,8 +1183,8 @@ function updateChest() {
     updateChest.full = full;
     const c = $('chestCv').getContext('2d');
     c.imageSmoothingEnabled = false;
-    c.clearRect(0, 0, 24, 20);
-    c.drawImage(full ? SPR.chest_full : SPR.chest, 0, 0);
+    c.clearRect(0, 0, 72, 60);
+    c.drawImage(full ? SPR.chest_full : SPR.chest, 0, 0, 72, 60);
   }
 }
 
@@ -1525,9 +1543,8 @@ function openSettings() {
 
 function drawBattleIcon() {
   const ic = $('battleIcon').getContext('2d');
-  ic.imageSmoothingEnabled = false;
-  ic.clearRect(0, 0, 32, 32);
-  ic.drawImage(SPR['hero_' + save.gender], 0, 0);
+  ic.clearRect(0, 0, 96, 96);
+  ic.drawImage(SPR['hero_' + save.gender], 0, 0, 96, 96);
 }
 
 function refreshSettings() {
@@ -1626,7 +1643,8 @@ function showStart() {
   for (const g of ['m', 'f']) {
     const c = $('p' + g).getContext('2d');
     c.imageSmoothingEnabled = false;
-    c.drawImage(SPR['hero_' + g], 0, 0);
+    c.clearRect(0, 0, 96, 96);
+    c.drawImage(SPR['hero_' + g], 0, 0, 96, 96);
   }
   box.querySelectorAll('.pick button').forEach(b => b.onclick = () => {
     gender = b.dataset.g;
@@ -1662,7 +1680,7 @@ function begin() {
   refreshStats();
   $('game').hidden = false;
   drawBattleIcon();
-  document.querySelectorAll('.picon').forEach(c => { const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(SPR.potion, 0, 0); });
+  document.querySelectorAll('.picon').forEach(c => c.getContext('2d').drawImage(SPR.potion, 0, 0, c.width, c.height));
 
   $('toBattle').onclick = () => openStages();
   $('retreat').onclick = () => {
