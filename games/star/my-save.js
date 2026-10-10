@@ -1,3 +1,0 @@
-// 임시: 다른 컴퓨터에서도 개발자 진행으로 시작하기 위한 기본 세이브 (2026-10-10 기준)
-// 브라우저에 세이브가 없을 때만 쓰인다. 구글 로그인을 붙이면 이 파일은 삭제한다.
-window.DEFAULT_SAVE = {"name":"여자테스트","gender":"f","gold":5063,"stage":12,"lv":{"atk":56,"hp":30,"regen":2,"crit":30,"aspd":12},"chest":0,"chestAt":0,"potions":9,"skills":{"strike":3,"whirl":3},"slots":["strike","whirl",null],"autoSkill":false,"items":[{"id":1,"slot":"armor","grade":0,"stage":9,"value":2,"pierce":0},{"id":2,"slot":"weapon","grade":3,"stage":9,"value":38,"pierce":0},{"id":4,"slot":"acc","grade":0,"stage":10,"value":1,"pierce":0},{"id":5,"slot":"acc","grade":1,"stage":11,"value":11,"pierce":0}],"gear":{"weapon":2,"armor":1},"nextItem":6,"gearV2":true};
