@@ -197,7 +197,7 @@ const Scenery = (() => {
 
   // ── 가까운 언덕과 별빛 나무 (보통 속도) ──
   const TREE_X = 700;
-  const treeLights = [];
+  let cur = null;            // 지금 그리는 중인 테마 (빛·별조각 위치를 모은다)
   function drawNear() {
     return canvas(W, H, g => {
       const hy = x => 372 + wave(x, [[2, 14, 1.1], [5, 7, 0.3], [9, 3, 2.4]]);
@@ -261,13 +261,12 @@ const Scenery = (() => {
     // 별빛 열매 (반짝이는 위치는 매 프레임 그림)
     for (let i = 0; i < 16; i++) {
       const a = rnd() * TAU, d = Math.sqrt(rnd()) * 0.85;
-      treeLights.push([x + Math.cos(a) * 150 * d, cy + Math.sin(a) * 74 * d, rnd() * TAU]);
+      cur.lights.push({ x: x + Math.cos(a) * 150 * d, y: cy + Math.sin(a) * 74 * d, ph: rnd() * TAU, layer: 'near', rgb: '255,252,220', r: 5 });
     }
-    treeLights.forEach(([lx, ly]) => { glow(g, lx, ly, 12, 'rgba(255,250,210,0.8)'); blob(g, lx, ly, 2.6, '#fffbe0'); });
+    cur.lights.forEach(l => { glow(g, l.x, l.y, 12, 'rgba(255,250,210,0.8)'); blob(g, l.x, l.y, 2.6, '#fffbe0'); });
   }
 
   // ── 땅 (캐릭터와 같은 속도) ──
-  const shards = [];
   function drawGround() {
     return canvas(W, H, g => {
       const gy = x => GY - 4 + wave(x, [[6, 2, 0.5], [17, 1.2, 1.7]]);
@@ -300,34 +299,198 @@ const Scenery = (() => {
         blob(g, x, y, s * 0.6, '#ffb030');
       }
       // 땅에 박힌 별조각 (반짝임은 매 프레임)
-      [[150, GY + 58], [610, GY + 88], [860, GY + 40]].forEach(([x, y]) => {
-        shards.push([x, y]);
-        glow(g, x, y - 6, 30, 'rgba(190,235,255,0.55)');
-        g.fillStyle = '#d6f3ff';
-        g.beginPath(); g.moveTo(x - 7, y); g.lineTo(x - 3, y - 18); g.lineTo(x + 2, y - 24); g.lineTo(x + 7, y - 8); g.lineTo(x + 6, y); g.closePath(); g.fill();
-        g.fillStyle = '#ffffff';
-        g.beginPath(); g.moveTo(x - 2, y - 2); g.lineTo(x - 1, y - 16); g.lineTo(x + 2, y - 20); g.lineTo(x + 1, y - 2); g.closePath(); g.fill();
-        g.fillStyle = 'rgba(60,110,50,0.5)'; g.beginPath(); g.ellipse(x, y + 1, 10, 3, 0, 0, TAU); g.fill();
+      [[150, GY + 58], [610, GY + 88], [860, GY + 40]].forEach(([x, y]) => drawShard(g, x, y));
+    });
+  }
+
+  // 땅에 박힌 별조각 (반짝임은 매 프레임)
+  function drawShard(g, x, y) {
+    cur.shards.push([x, y]);
+    glow(g, x, y - 6, 30, 'rgba(190,235,255,0.55)');
+    g.fillStyle = '#d6f3ff';
+    g.beginPath(); g.moveTo(x - 7, y); g.lineTo(x - 3, y - 18); g.lineTo(x + 2, y - 24); g.lineTo(x + 7, y - 8); g.lineTo(x + 6, y); g.closePath(); g.fill();
+    g.fillStyle = '#ffffff';
+    g.beginPath(); g.moveTo(x - 2, y - 2); g.lineTo(x - 1, y - 16); g.lineTo(x + 2, y - 20); g.lineTo(x + 1, y - 2); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(40,80,40,0.5)'; g.beginPath(); g.ellipse(x, y + 1, 10, 3, 0, 0, TAU); g.fill();
+  }
+
+  // ════════ 챕터 2: 속삭이는 숲 ════════
+  function fSky() {
+    return canvas(W, H, g => {
+      g.fillStyle = vgrad(g, 0, GY, [[0, '#123430'], [0.4, '#2a5e4c'], [0.75, '#6fa888'], [1, '#c4e2c0']]);
+      g.fillRect(0, 0, W, H);
+      glow(g, 520, 70, 200, 'rgba(230,255,220,0.35)');
+      g.save(); g.translate(520, 70); g.scale(0.7, 0.7); drawCrackedStar(g, 0, 0); g.restore();
+    });
+  }
+
+  function fFar() {
+    return canvas(W, H, g => {
+      seed = 13;
+      for (let x = 0; x < W; x += 34) {
+        const w = rr(10, 18), xx = x + rr(-8, 8);
+        wrap(xx, 30, X => { g.fillStyle = 'rgba(70,120,100,0.55)'; g.fillRect(X - w / 2, 40, w, 340); });
+      }
+      ridge(g, x => 300 + wave(x, [[3, 10, 0.3], [8, 5, 1.1]]), vgrad(g, 280, 380, [[0, '#4f8a74'], [1, '#7fb498']]));
+      g.fillStyle = vgrad(g, 180, 380, [[0, 'rgba(200,235,210,0)'], [1, 'rgba(200,235,210,0.7)']]);
+      g.fillRect(0, 180, W, 200);
+    });
+  }
+
+  function fMid() {
+    return canvas(W, H, g => {
+      seed = 17;
+      for (let x = 20; x < W; x += 95) {
+        const w = rr(22, 34), xx = x + rr(-15, 15);
+        wrap(xx, 40, X => {
+          g.fillStyle = vgrad(g, 0, 360, [[0, '#24483e'], [1, '#3a6a56']]);
+          g.fillRect(X - w / 2, 0, w, 360);
+          g.fillStyle = 'rgba(140,200,140,0.22)';
+          g.fillRect(X - w / 2 + 3, 0, 4, 360);
+        });
+      }
+      // 위를 덮은 잎 천장 (가운데 틈으로 하늘이 보임)
+      for (let x = 0; x < W; x += 24) {
+        if (x > 440 && x < 600) continue;
+        const r = rr(40, 70), y = rr(-14, 46);
+        wrap(x, 80, X => { blob(g, X, y, r, '#1b3d32'); blob(g, X - 10, y + 16, r * 0.6, '#2a5a46'); });
+      }
+      ridge(g, x => 342 + wave(x, [[4, 8, 0.9], [11, 3, 0.2]]), vgrad(g, 320, 400, [[0, '#3f7254'], [1, '#56906a']]));
+      g.fillStyle = vgrad(g, 280, 370, [[0, 'rgba(210,240,220,0)'], [0.6, 'rgba(210,240,220,0.35)'], [1, 'rgba(210,240,220,0)']]);
+      g.fillRect(0, 280, W, 90);
+    });
+  }
+
+  function fern(g, x, y, h) {
+    g.strokeStyle = '#3f8a44'; g.lineWidth = 2.5; g.lineCap = 'round';
+    for (let k = -3; k <= 3; k++) {
+      g.beginPath(); g.moveTo(x, y);
+      g.quadraticCurveTo(x + k * h * 0.3, y - h * 0.9, x + k * h * 0.55, y - h * 0.45 + Math.abs(k) * 5);
+      g.stroke();
+    }
+  }
+
+  function drawAncientTree(g, x, baseY) {
+    const tr = g.createLinearGradient(x - 90, 0, x + 90, 0);
+    tr.addColorStop(0, '#3a2616'); tr.addColorStop(0.5, '#6b4a2e'); tr.addColorStop(1, '#2e1e10');
+    g.fillStyle = tr;
+    g.beginPath();
+    g.moveTo(x - 125, baseY); g.quadraticCurveTo(x - 72, baseY - 30, x - 72, baseY - 120); g.lineTo(x - 84, 0);
+    g.lineTo(x + 84, 0); g.lineTo(x + 72, baseY - 120); g.quadraticCurveTo(x + 72, baseY - 30, x + 128, baseY);
+    g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(20,12,6,0.35)'; g.lineWidth = 3;
+    for (let i = 0; i < 7; i++) { g.beginPath(); g.moveTo(x - 55 + i * 18, 0); g.quadraticCurveTo(x - 60 + i * 19, baseY * 0.5, x - 50 + i * 17, baseY - 20); g.stroke(); }
+    [[x - 60, baseY - 60, 26], [x + 42, baseY - 210, 22], [x - 34, baseY - 300, 18], [x + 56, baseY - 44, 20]].forEach(([mx, my, r]) => {
+      blob(g, mx, my, r, '#4f9a4a'); blob(g, mx - 4, my - 4, r * 0.6, '#6fbf5a');
+    });
+    // 별조각이 잠든 빛나는 구멍
+    glow(g, x, baseY - 150, 100, 'rgba(160,240,255,0.45)');
+    g.fillStyle = '#1a120a'; g.beginPath(); g.ellipse(x, baseY - 150, 30, 44, 0, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(140,230,255,0.9)'; g.beginPath(); g.ellipse(x, baseY - 142, 22, 34, 0, 0, TAU); g.fill();
+    g.fillStyle = '#e8fbff';
+    g.beginPath(); g.moveTo(x - 6, baseY - 128); g.lineTo(x - 2, baseY - 160); g.lineTo(x + 4, baseY - 168); g.lineTo(x + 8, baseY - 140); g.lineTo(x + 5, baseY - 126); g.closePath(); g.fill();
+    cur.lights.push({ x, y: baseY - 146, ph: 0, layer: 'near', rgb: '160,240,255', r: 28 });
+    g.strokeStyle = '#4a3220'; g.lineCap = 'round';
+    [[-115, 22, 14], [-62, 30, 11], [72, 28, 12], [122, 20, 14]].forEach(([dx, dy, w]) => {
+      g.lineWidth = w; g.beginPath(); g.moveTo(x + dx * 0.5, baseY - 10); g.quadraticCurveTo(x + dx * 0.85, baseY - 4, x + dx, baseY + dy); g.stroke();
+    });
+  }
+
+  function fNear() {
+    return canvas(W, H, g => {
+      const hy = x => 378 + wave(x, [[2, 10, 0.6], [6, 5, 1.9]]);
+      ridge(g, hy, vgrad(g, 350, 430, [[0, '#4f8a50'], [1, '#3a7442']]));
+      g.strokeStyle = 'rgba(150,210,130,0.6)'; g.lineWidth = 2;
+      g.beginPath(); for (let x = 0; x <= W; x += 3) x ? g.lineTo(x, hy(x)) : g.moveTo(x, hy(x)); g.stroke();
+      seed = 31;
+      [140, 330].forEach(x => {
+        const y = hy(x);
+        g.fillStyle = vgrad(g, 0, y, [[0, '#2e2216'], [1, '#5a4028']]);
+        g.fillRect(x - 15, 0, 30, y + 4);
+        blob(g, x - 15, y, 10, '#4a3420'); blob(g, x + 15, y, 10, '#4a3420');
+        blob(g, x - 8, y - 90, 10, '#5aa04a'); blob(g, x + 6, y - 170, 8, '#5aa04a');
       });
+      drawAncientTree(g, 700, hy(700) + 6);
+      for (let i = 0; i < 16; i++) {
+        const x = rr(0, W), len = rr(60, 190);
+        g.strokeStyle = 'rgba(80,150,80,0.85)'; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(x, 0); g.quadraticCurveTo(x + rr(-12, 12), len / 2, x + rr(-6, 6), len); g.stroke();
+        blob(g, x, len, 4, '#6fbf5a');
+      }
+      [60, 250, 420, 560, 900].forEach(x => fern(g, x, hy(x) + 4, rr(30, 44)));
+    });
+  }
+
+  function glowMush(g, x, y) {
+    glow(g, x, y - 6, 24, 'rgba(120,230,255,0.45)');
+    g.fillStyle = '#e8f0e0'; g.fillRect(x - 1.5, y - 6, 3, 7);
+    g.fillStyle = '#6fe0ff'; g.beginPath(); g.ellipse(x, y - 6, 7, 5, 0, Math.PI, TAU); g.fill();
+    g.fillStyle = '#d0f8ff'; g.fillRect(x - 3, y - 9, 2, 1);
+  }
+
+  function fGround() {
+    return canvas(W, H, g => {
+      const gy = x => GY - 4 + wave(x, [[5, 2, 0.4], [13, 1.5, 1.2]]);
+      ridge(g, gy, vgrad(g, GY - 8, H, [[0, '#5a9a4a'], [0.15, '#447f3e'], [0.6, '#356a34'], [1, '#26522a']]));
+      seed = 55;
+      for (let x = 0; x < W; x += 6) blob(g, x, gy(x) + 2, rr(3, 6), rnd() < 0.5 ? '#6fae58' : '#5a9a4a');
+      g.strokeStyle = 'rgba(70,48,30,0.9)'; g.lineCap = 'round';
+      for (let i = 0; i < 5; i++) {
+        const x = rr(0, W), y = rr(GY + 24, H - 30);
+        g.lineWidth = rr(5, 9); g.beginPath(); g.moveTo(x - 80, y + 10); g.quadraticCurveTo(x, y - 14, x + 90, y + 6); g.stroke();
+      }
+      for (let i = 0; i < 90; i++) {
+        const x = rr(0, W), y = rr(GY + 12, H - 4);
+        g.fillStyle = rnd() < 0.5 ? 'rgba(120,170,80,0.7)' : 'rgba(170,140,70,0.6)';
+        g.beginPath(); g.ellipse(x, y, rr(2, 4), rr(1, 2), rr(0, 3), 0, TAU); g.fill();
+      }
+      for (let i = 0; i < 9; i++) {
+        const x = rr(0, W), y = rr(GY + 24, H - 16);
+        glowMush(g, x, y);
+        cur.lights.push({ x, y: y - 7, ph: rr(0, TAU), layer: 'ground', rgb: '150,240,255', r: 8 });
+      }
+      [[200, GY + 64], [520, GY + 36], [820, GY + 90]].forEach(([x, y]) => drawShard(g, x, y));
     });
   }
 
   // ── 준비 ──
-  let L = null;
+  const BUILD = {
+    meadow: () => ({ sky: drawSky(), far: drawFar(), mid: drawMid(), near: drawNear(), ground: drawGround(),
+      fall: FALL_X, clouds: true, mote: 'petal', rayX: 760, rayDir: -1, rayRgb: '255,240,200', front: ['rgba(70,150,60,0.9)', 'rgba(95,175,75,0.9)'] }),
+    forest: () => ({ sky: fSky(), far: fFar(), mid: fMid(), near: fNear(), ground: fGround(),
+      fall: null, clouds: false, mote: 'firefly', rayX: 160, rayDir: 1, rayRgb: '220,255,190', front: ['rgba(40,100,50,0.92)', 'rgba(60,125,60,0.92)'] }),
+  };
+  const themes = {};
+  let T = null;                 // 지금 보이는 테마
   const clouds = [];
-  const petals = [];
+  const motes = [];             // 꽃잎 또는 반딧불이
 
   function build() {
-    L = { sky: drawSky(), far: drawFar(), mid: drawMid(), near: drawNear(), ground: drawGround() };
     seed = 99;
     const shapes = [drawCloud(260, 100, 'rgba(170,185,225,0.55)'), drawCloud(180, 80, 'rgba(170,185,225,0.5)'), drawCloud(320, 120, 'rgba(160,178,220,0.55)')];
     [[40, 40, 0, 0.7, 6], [380, 20, 1, 0.55, 4], [620, 150, 2, 0.8, 9], [860, 70, 1, 0.6, 5], [230, 170, 1, 0.75, 8]].forEach(([x, y, s, a, v]) => clouds.push({ x, y, img: shapes[s], a, v }));
-    for (let i = 0; i < 28; i++) petals.push(newPetal(true));
+    setTheme('meadow');
   }
 
-  function newPetal(anywhere) {
+  // 테마는 처음 쓸 때 한 번만 그려 둔다
+  function setTheme(name) {
+    if (!themes[name]) {
+      cur = { lights: [], shards: [] };
+      Object.assign(cur, BUILD[name]());
+      themes[name] = cur;
+    }
+    if (T === themes[name]) return;
+    T = themes[name];
+    motes.length = 0;
+    for (let i = 0; i < (T.mote === 'petal' ? 28 : 22); i++) motes.push(newMote(true));
+  }
+
+  function newMote(anywhere) {
+    if (T.mote === 'firefly') {
+      return { kind: 'firefly', x: rr(0, W), y: rr(180, H - 40), vx: rr(-10, 10), vy: rr(-8, 8), ph: rr(0, TAU), r: rr(2, 3.2), life: rr(6, 14) };
+    }
     return {
-      x: anywhere ? rr(0, W) : rr(W * 0.3, W + 60), y: anywhere ? rr(0, H) : rr(-40, H * 0.4),
+      kind: 'petal', x: anywhere ? rr(0, W) : rr(W * 0.3, W + 60), y: anywhere ? rr(0, H) : rr(-40, H * 0.4),
       vx: rr(-38, -16), vy: rr(18, 36), r: rr(2.5, 4.5), rot: rr(0, TAU), vr: rr(-3, 3),
       c: rnd() < 0.7 ? '#ffc4d6' : '#fff4f8', sway: rr(0, TAU),
     };
@@ -344,79 +507,82 @@ const Scenery = (() => {
   // 같은 겹 위에 덧그리는 움직임 (반복 위치 두 군데)
   function at(ox, x, fn) { fn(x + ox); fn(x + ox + W); }
 
+  function twinkle(ctx, ox, layer, t) {
+    for (const l of T.lights) {
+      if (l.layer !== layer) continue;
+      at(ox, l.x, x => {
+        if (x < -40 || x > W + 40) return;
+        const a = l.r > 10 ? 0.12 + 0.1 * Math.sin(t * 1.4) : 0.35 + 0.35 * Math.sin(t * 2.2 + l.ph);
+        ctx.fillStyle = `rgba(${l.rgb},${a})`;
+        ctx.beginPath(); ctx.arc(x, l.y, l.r, 0, TAU); ctx.fill();
+      });
+    }
+  }
+
   // 캐릭터 뒤쪽
   function drawBack(ctx, camX, t) {
-    ctx.drawImage(L.sky, 0, 0);
-    clouds.forEach(c => {
-      const span = W + c.img.width;
-      const x = ((c.x - t * c.v - camX * 0.04) % span + span) % span - c.img.width;
-      ctx.globalAlpha = c.a;
-      ctx.drawImage(c.img, x, c.y);
-    });
-    ctx.globalAlpha = 1;
-    tile(ctx, L.far, camX, 0.08);
-    const om = tile(ctx, L.mid, camX, 0.22);
-    // 폭포 물줄기 흐름
-    at(om, FALL_X, x => {
+    ctx.drawImage(T.sky, 0, 0);
+    if (T.clouds) {
+      clouds.forEach(c => {
+        const span = W + c.img.width;
+        const x = ((c.x - t * c.v - camX * 0.04) % span + span) % span - c.img.width;
+        ctx.globalAlpha = c.a;
+        ctx.drawImage(c.img, x, c.y);
+      });
+      ctx.globalAlpha = 1;
+    }
+    tile(ctx, T.far, camX, 0.08);
+    const om = tile(ctx, T.mid, camX, 0.22);
+    if (T.fall) at(om, T.fall, x => {                    // 폭포 물줄기
       if (x < -40 || x > W + 40) return;
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      for (let i = 0; i < 6; i++) {
-        const y = 200 + ((t * 120 + i * 26) % 140);
-        ctx.fillRect(x - 10 + (i * 7) % 20, y, 2, 14);
-      }
+      for (let i = 0; i < 6; i++) ctx.fillRect(x - 10 + (i * 7) % 20, 200 + ((t * 120 + i * 26) % 140), 2, 14);
     });
-    const on = tile(ctx, L.near, camX, 0.45);
-    // 별빛 열매 반짝임
-    at(on, 0, ox => {
-      treeLights.forEach(([lx, ly, ph]) => {
-        const x = lx + ox;
-        if (x < -20 || x > W + 20) return;
-        const a = 0.35 + 0.35 * Math.sin(t * 2.2 + ph);
-        ctx.fillStyle = `rgba(255,252,220,${a})`;
-        ctx.beginPath(); ctx.arc(x, ly, 5, 0, TAU); ctx.fill();
-      });
-    });
-    const og = tile(ctx, L.ground, camX, 1);
-    // 별조각 반짝임
-    at(og, 0, ox => {
-      shards.forEach(([sx, sy], i) => {
-        const x = sx + ox;
-        if (x < -20 || x > W + 20) return;
-        const a = Math.max(0, Math.sin(t * 1.6 + i * 2.1));
-        ctx.fillStyle = `rgba(255,255,255,${a})`;
-        ctx.fillRect(x - 1, sy - 30, 2, 9); ctx.fillRect(x - 4, sy - 26, 9, 2);
-      });
+    const on = tile(ctx, T.near, camX, 0.45);
+    twinkle(ctx, on, 'near', t);
+    const og = tile(ctx, T.ground, camX, 1);
+    twinkle(ctx, og, 'ground', t);
+    for (const [sx, sy] of T.shards) at(og, sx, x => {   // 별조각 반짝임
+      if (x < -20 || x > W + 20) return;
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0, Math.sin(t * 1.6 + sx))})`;
+      ctx.fillRect(x - 1, sy - 30, 2, 9); ctx.fillRect(x - 4, sy - 26, 9, 2);
     });
   }
 
-  // 캐릭터 앞쪽: 꽃잎, 햇살, 앞 풀
+  // 캐릭터 앞쪽: 빛줄기, 꽃잎·반딧불이, 앞 풀
   function drawFront(ctx, camX, t, dt) {
-    // 햇살 줄기
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 3; i++) {
       const a = 0.05 + 0.03 * Math.sin(t * 0.7 + i * 1.7);
-      const gr = ctx.createLinearGradient(820, 0, 520, H);
-      gr.addColorStop(0, `rgba(255,240,200,${a})`);
-      gr.addColorStop(1, 'rgba(255,240,200,0)');
+      const x0 = T.rayX + i * 70 * -T.rayDir;
+      const gr = ctx.createLinearGradient(x0, 0, x0 + T.rayDir * 300, H);
+      gr.addColorStop(0, `rgba(${T.rayRgb},${a})`);
+      gr.addColorStop(1, `rgba(${T.rayRgb},0)`);
       ctx.fillStyle = gr;
       ctx.beginPath();
-      const x0 = 760 + i * 70;
-      ctx.moveTo(x0, 0); ctx.lineTo(x0 + 40, 0); ctx.lineTo(x0 - 360 + i * 30, H); ctx.lineTo(x0 - 440 + i * 30, H);
+      ctx.moveTo(x0, 0); ctx.lineTo(x0 + 40, 0);
+      ctx.lineTo(x0 + T.rayDir * (400 - i * 30) + 40, H); ctx.lineTo(x0 + T.rayDir * (400 - i * 30) - 40, H);
       ctx.closePath(); ctx.fill();
     }
     ctx.restore();
-    // 꽃잎
-    petals.forEach((p, i) => {
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.rot += p.vr * dt;
-      p.sway += dt * 2;
+    motes.forEach((p, i) => {
+      if (p.kind === 'firefly') {
+        p.ph += dt * 1.5; p.life -= dt;
+        p.x += (p.vx + Math.sin(p.ph) * 12) * dt; p.y += (p.vy + Math.cos(p.ph * 0.8) * 8) * dt;
+        if (p.life <= 0 || p.x < -20 || p.x > W + 20 || p.y < 120 || p.y > H) motes[i] = newMote(true);
+        const a = 0.4 + 0.6 * Math.max(0, Math.sin(p.ph * 2));
+        ctx.fillStyle = `rgba(220,255,140,${a * 0.35})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 4, 0, TAU); ctx.fill();
+        ctx.fillStyle = `rgba(245,255,190,${a})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+        return;
+      }
+      p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.sway += dt * 2;
       const x = p.x + Math.sin(p.sway) * 10;
-      if (p.y > H + 10 || x < -20) petals[i] = newPetal(false);
+      if (p.y > H + 10 || x < -20) motes[i] = newMote(false);
       ctx.save();
-      ctx.translate(x, p.y);
-      ctx.rotate(p.rot);
+      ctx.translate(x, p.y); ctx.rotate(p.rot);
       ctx.fillStyle = p.c;
       ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r * 0.55, 0, 0, TAU); ctx.fill();
       ctx.restore();
@@ -426,13 +592,13 @@ const Scenery = (() => {
     seed = 61;
     for (let i = 0; i < 26; i++) {
       const bx = (rr(0, W) + off + W) % W, h = rr(26, 54), lean = Math.sin(t * 1.8 + i) * 6;
-      if (bx > 300 && bx < 860 && i % 3) continue;      // 가운데는 덜 가리게
-      ctx.fillStyle = i % 2 ? 'rgba(70,150,60,0.9)' : 'rgba(95,175,75,0.9)';
+      if (bx > 300 && bx < 860 && i % 3) continue;
+      ctx.fillStyle = T.front[i % 2];
       ctx.beginPath();
       ctx.moveTo(bx - 4, H); ctx.quadraticCurveTo(bx + lean * 0.4, H - h * 0.6, bx + lean, H - h); ctx.quadraticCurveTo(bx + 2 + lean * 0.4, H - h * 0.5, bx + 5, H);
       ctx.closePath(); ctx.fill();
     }
   }
 
-  return { build, drawBack, drawFront, GY };
+  return { build, setTheme, drawBack, drawFront, GY };
 })();

@@ -37,44 +37,120 @@ function ellipse(p, cx, cy, rx, ry, col, cut) {
   }
 }
 
-// ── 주인공 (오른쪽을 봄) ─────────────────────────
+// ── 픽셀 지도로 그리기: 글자 하나가 픽셀 하나, '.'은 빈칸 ──
+function fromMap(p, rows, pal) {
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const c = pal[row[x]];
+      if (c) p(x, y, 1, 1, c);
+    }
+  });
+}
+
+// 소년 (오른쪽을 봄). 소녀·동료는 이 몸을 바탕으로 머리와 옷만 바꾼다
+const BOY_MAP = [
+  '', '',
+  '..........hhhhh',
+  '........hhhhhhhhh',
+  '.......hhhhHHhhhhh',
+  '......hhhhHHHhhhhhh',
+  '......hhhhhhhhhhhhhh',
+  '......hhhhhhhhhhhhhhh',
+  '......dhhhhshhhshhhhh',
+  '......dhhhsssshsssssh',
+  '......dhhssssssssssss',
+  '......dhhsssewsssewss',
+  '......dhhssseessseess',
+  '......dhhssseessseess',
+  '......dhhsppssssksspp',
+  '.......dhSssssssssss',
+  '.............SS',
+  '..........ccccccc',
+  '.........cCccccccc',
+  '.........bbbbbbbbb',
+  '........Bbbbbbbbbb',
+  '........Bbbbbbbbbb',
+  '........Bllllglllb',
+  '........Bbbbbbbbbb',
+  '.........bbbbbbbbb',
+  '..........nnn.nnn',
+  '..........nnn.nnn',
+  '.........ffff.ffff',
+  '.........ffff.ffff',
+];
+
+// 긴 머리 (소녀와 여자 동료)
+const GIRL_MAP = (() => {
+  const m = BOY_MAP.slice();
+  m[6] = '.....hhhhhhhhhhhhhhh';
+  m[7] = '.....hhhhhhhhhhhhhhhh';
+  for (let y = 8; y <= 14; y++) m[y] = '.....dh' + BOY_MAP[y].slice(7);
+  m[15] = '.....dhhhSssssssssss';
+  m[16] = '.....dhhh....SS';
+  m[17] = '.....dhhh.ccccccc';
+  m[18] = '.....dhhhcCccccccc';
+  m[19] = '......dhhbbbbbbbbb';
+  m[20] = '......dhBbbbbbbbbb';
+  m[21] = '.......hBbbbbbbbbb';
+  m[22] = '........Bllllglllb';
+  m[23] = '.......BBbbbbbbbbbb';
+  m[24] = '......BBbbbbbbbbbbbb';
+  m[25] = '......BBBBBBBBBBBBBB';
+  m[26] = '..........ss...ss';
+  m[27] = '.........fff...fff';
+  m[28] = '.........fff...fff';
+  return m;
+})();
+
+const FACE = { s: '#ffdcbc', S: '#f2bc98', p: '#ff9aa8', e: '#2b2140', w: '#ffffff', k: '#c0606e' };
+
 function drawHero(gender) {
-  const f = gender === 'f';
-  const skin = '#f4cba3', skinD = '#d9a47c';
-  const hair = f ? '#e6a64a' : '#6b3e22', hairD = f ? '#b87a2a' : '#4a2916';
-  const cloth = f ? '#8b55c2' : '#3d70b8', clothD = f ? '#653a95' : '#2a5090';
+  const boy = gender !== 'f';
+  const pal = boy
+    ? { ...FACE, h: '#7a4a2a', H: '#b07040', d: '#4e2e1a', c: '#e0504a', C: '#b03a36', b: '#3f7fd0', B: '#2c5ea3', l: '#6b4a2b', g: '#f0c95a', n: '#4a3b5a', f: '#5a3a20' }
+    : { ...FACE, h: '#8a4a3a', H: '#c07a5a', d: '#5a2e22', c: '#ffffff', C: '#e0e0f0', b: '#e86a9a', B: '#c04c7a', l: '#ffd0e0', g: '#e0405a', f: '#7a3a4a' };
   return makeSprite(32, 32, p => {
-    // 뒤쪽 긴 머리 (여자)
-    if (f) { p(9, 9, 4, 12, hairD); p(10, 20, 3, 2, hairD); }
-    // 다리와 신발
-    p(12, 25, 3, 4, '#4a3b2a'); p(17, 25, 3, 4, '#4a3b2a');
-    p(11, 28, 4, 2, '#5a3a20'); p(17, 28, 4, 2, '#5a3a20');
-    // 망토 (뒤)
-    p(10, 16, 2, 9, '#a63a3a'); p(9, 20, 2, 5, '#8a2e2e');
-    // 몸통 (튜닉)
-    p(12, 16, 8, 8, cloth); p(12, 16, 2, 8, clothD);
-    if (f) { p(11, 22, 10, 3, cloth); p(11, 24, 10, 1, clothD); }
-    // 허리띠
-    p(12, 22, 8, 1, '#6b4a2b'); p(16, 22, 1, 1, '#f0c95a');
-    // 뒷팔
-    p(11, 17, 2, 5, clothD); p(11, 22, 2, 1, skinD);
-    // 머리
-    p(12, 7, 8, 9, skin); p(12, 14, 8, 2, skinD);
-    p(20, 10, 1, 3, skin); // 코
-    // 눈
-    p(18, 10, 1, 2, '#2a1d1a');
-    if (f) p(19, 9, 1, 1, '#2a1d1a');
-    p(17, 13, 2, 1, '#c0806a'); // 입
-    // 앞머리
-    p(11, 5, 10, 3, hair); p(11, 8, 3, 3, hair); p(14, 8, 2, 1, hair); p(19, 8, 2, 1, hair);
-    p(12, 4, 7, 1, hair); p(11, 5, 2, 1, hairD);
-    if (f) { p(11, 8, 2, 8, hair); p(20, 6, 1, 3, '#7ad0ff'); } // 머리핀
-    else { p(18, 4, 2, 1, hairD); }
-    // 앞팔과 손
-    p(19, 17, 2, 4, cloth); p(20, 20, 2, 2, skin);
-    // 검
-    p(21, 19, 3, 1, '#8b6b3a'); p(22, 20, 1, 2, '#6b4a2b');
-    p(22, 7, 2, 12, '#cfd8e6'); p(22, 7, 1, 12, '#ffffff'); p(23, 6, 1, 1, '#cfd8e6');
+    fromMap(p, boy ? BOY_MAP : GIRL_MAP, pal);
+    if (!boy) {
+      p(13, 10, 1, 1, FACE.e); p(18, 10, 1, 1, FACE.e);          // 속눈썹
+      p(5, 3, 2, 3, '#e0405a'); p(8, 3, 2, 3, '#e0405a'); p(7, 4, 1, 1, '#b02a3a');   // 리본
+    }
+    // 검을 든 팔
+    p(18, 19, 2, 2, pal.b);
+    p(20, 7, 2, 13, '#e6ecf6'); p(21, 7, 1, 13, '#a8b4c8'); p(20, 6, 1, 1, '#e6ecf6');
+    p(18, 20, 6, 1, '#d8a83a');
+    p(20, 21, 2, 3, '#6b4a2b');
+    p(19, 21, 2, 2, FACE.s);
+  });
+}
+
+// ── 동료: 미르 (치유형, 약초사) ──
+function drawMiru() {
+  const pal = { ...FACE, h: '#3fb4a8', H: '#86dcd2', d: '#2a8a80', c: '#f2e6c8', C: '#d8c8a8', b: '#4f9a5a', B: '#3d7a47', l: '#f2e6c8', g: '#e0405a', f: '#5a3a20' };
+  return makeSprite(32, 32, p => {
+    fromMap(p, GIRL_MAP, pal);
+    p(13, 10, 1, 1, FACE.e); p(18, 10, 1, 1, FACE.e);
+    p(6, 4, 3, 2, '#ff9ac0'); p(7, 3, 1, 1, '#ffd25e');           // 꽃핀
+    p(12, 19, 5, 5, '#f2e6c8'); p(14, 21, 1, 1, '#e0405a');       // 앞치마와 약초 주머니
+    // 지팡이와 잎
+    p(21, 5, 1, 24, '#8a5a34');
+    p(19, 3, 3, 2, '#6fd982'); p(22, 4, 2, 2, '#6fd982'); p(21, 2, 1, 2, '#9ef0a8');
+    p(19, 20, 2, 2, FACE.s);
+  });
+}
+
+// ── 동료: 세린 (마법형, 반요정 마법사) ──
+function drawSerin() {
+  const pal = { ...FACE, s: '#ffe6d6', h: '#cfc6f4', H: '#ffffff', d: '#9a90d0', c: '#f0c95a', C: '#c89a3a', b: '#5a3fa0', B: '#40288a', l: '#f0c95a', g: '#7ad0ff', f: '#3a2a5a' };
+  return makeSprite(32, 32, p => {
+    fromMap(p, GIRL_MAP, pal);
+    p(13, 10, 1, 1, FACE.e); p(18, 10, 1, 1, FACE.e);
+    p(6, 10, 2, 2, pal.s); p(5, 9, 1, 1, pal.s);                  // 뾰족한 귀
+    p(9, 2, 8, 1, '#40288a'); p(10, 1, 6, 1, '#5a3fa0');           // 작은 마법사 모자 챙
+    // 보주 지팡이
+    p(21, 8, 1, 21, '#8a6aa0');
+    p(20, 4, 3, 3, '#7ad0ff'); p(20, 4, 1, 1, '#ffffff'); p(19, 5, 1, 1, '#bfe8ff'); p(23, 5, 1, 1, '#bfe8ff');
+    p(19, 20, 2, 2, pal.s);
   });
 }
 
@@ -151,27 +227,58 @@ function drawSlimeKing() {
   });
 }
 
-// ── 동료: 미르 (견습 약초사, 오른쪽을 봄) ──
-function drawMiru() {
+// ── 챕터 2 몬스터 (왼쪽을 봄) ──
+function drawWisp() {
   return makeSprite(32, 32, p => {
-    p(12, 25, 3, 4, '#4a3b2a'); p(17, 25, 3, 4, '#4a3b2a');
-    p(11, 28, 4, 2, '#5a3a20'); p(17, 28, 4, 2, '#5a3a20');
-    // 초록 망토
-    p(10, 15, 12, 11, '#4f9a5a'); p(10, 15, 3, 11, '#3d7a47'); p(11, 24, 10, 2, '#3d7a47');
-    p(14, 17, 4, 7, '#f2e6c8');                                 // 앞치마
-    p(15, 19, 2, 2, '#e0405a');                                 // 약초 주머니 단추
-    // 머리
-    p(12, 7, 8, 9, '#f4cba3'); p(12, 14, 8, 2, '#d9a47c');
-    p(20, 10, 1, 3, '#f4cba3');
-    p(18, 10, 1, 2, '#2a1d1a'); p(19, 9, 1, 1, '#2a1d1a');
-    p(17, 13, 2, 1, '#c0806a');
-    // 청록 단발
-    p(11, 5, 10, 3, '#3fb4a8'); p(11, 8, 3, 6, '#3fb4a8'); p(14, 8, 2, 1, '#3fb4a8'); p(19, 8, 2, 2, '#3fb4a8');
-    p(12, 4, 7, 1, '#3fb4a8'); p(11, 5, 2, 1, '#2a8a80'); p(11, 12, 2, 3, '#2a8a80');
-    p(17, 4, 3, 2, '#ff9ac0');                                  // 꽃핀
-    // 지팡이와 잎
-    p(21, 8, 1, 21, '#8a5a34'); p(22, 6, 3, 3, '#6fd982'); p(20, 5, 2, 2, '#6fd982');
-    p(20, 18, 2, 2, '#f4cba3');
+    ellipse(p, 21, 13, 5, 7, '#c8f5ff'); ellipse(p, 25, 16, 4, 6, '#a8e6f5');
+    ellipse(p, 14, 18, 8, 8, '#8ee6a4'); ellipse(p, 14, 18, 6, 6, '#c8ffd2'); p(10, 13, 3, 2, '#ffffff');
+    p(10, 17, 2, 3, '#1d2a20'); p(15, 17, 2, 3, '#1d2a20'); p(10, 17, 1, 1, '#ffffff'); p(15, 17, 1, 1, '#ffffff');
+    p(11, 21, 1, 1, '#ff9aa8'); p(17, 21, 1, 1, '#ff9aa8'); p(13, 22, 3, 1, '#3a8a52');
+    p(9, 9, 10, 2, '#4f9a4a'); p(11, 7, 6, 2, '#6fbf5a'); p(14, 5, 1, 2, '#3d7a3a');
+    p(21, 25, 2, 2, '#e0fff0'); p(25, 28, 1, 1, '#e0fff0'); p(7, 27, 1, 1, '#e0fff0');
+  });
+}
+
+function drawToadstool() {
+  return makeSprite(32, 32, p => {
+    p(11, 17, 10, 11, '#e8dcc8'); p(18, 17, 3, 11, '#cbbca4');
+    p(10, 28, 5, 2, '#5a3a50'); p(17, 28, 5, 2, '#5a3a50');
+    p(12, 20, 2, 3, '#2a1d1a'); p(16, 20, 2, 3, '#2a1d1a');
+    p(11, 19, 3, 1, '#2a1d1a'); p(16, 18, 3, 1, '#2a1d1a');
+    p(13, 25, 4, 1, '#7a3a5a');
+    ellipse(p, 16, 12, 13, 7, '#8a3fb0', (x, y) => y <= 16); p(3, 16, 26, 2, '#62288a');
+    p(8, 8, 3, 3, '#d8ff70'); p(17, 6, 4, 3, '#d8ff70'); p(23, 11, 3, 2, '#d8ff70'); p(12, 12, 2, 2, '#d8ff70');
+    p(6, 18, 1, 3, '#b070e0'); p(25, 18, 1, 2, '#b070e0');
+  });
+}
+
+function drawSprout() {
+  return makeSprite(32, 32, p => {
+    p(9, 14, 14, 14, '#8a5a34'); p(9, 14, 3, 14, '#6b4428'); p(20, 14, 3, 14, '#a8703e');
+    p(9, 13, 14, 2, '#c89a5a'); p(11, 13, 10, 1, '#e0b878');
+    p(7, 26, 4, 3, '#6b4428'); p(21, 26, 4, 3, '#6b4428');
+    p(11, 18, 3, 3, '#ffe27a'); p(17, 18, 3, 3, '#ffe27a'); p(12, 19, 1, 1, '#fff8d0'); p(18, 19, 1, 1, '#fff8d0');
+    p(13, 23, 6, 1, '#4a2e18');
+    p(15, 7, 2, 6, '#4f9a4a'); ellipse(p, 12, 7, 3, 2, '#6fd982'); ellipse(p, 20, 6, 3, 2, '#6fd982');
+    p(10, 16, 2, 2, '#5aa04a'); p(20, 22, 2, 2, '#5aa04a');
+  });
+}
+
+// ── 챕터 2 보스: 고목 수호자 (64×64, 왼쪽을 봄) ──
+function drawTreant() {
+  return makeSprite(64, 64, p => {
+    p(18, 22, 28, 36, '#7a4e2e'); p(18, 22, 6, 36, '#5a3820'); p(40, 22, 6, 36, '#8f6038');
+    for (let y = 26; y < 56; y += 6) p(25, y, 1, 4, '#5a3820'), p(35, y + 2, 1, 4, '#5a3820');
+    p(12, 56, 12, 6, '#5a3820'); p(40, 56, 12, 6, '#5a3820'); p(26, 57, 12, 5, '#6b4428');
+    p(6, 30, 12, 5, '#6b4428'); p(3, 25, 5, 7, '#6b4428'); p(46, 32, 12, 5, '#6b4428'); p(56, 27, 4, 7, '#6b4428');
+    ellipse(p, 5, 23, 5, 4, '#4f9a4a'); ellipse(p, 58, 25, 5, 4, '#4f9a4a');
+    ellipse(p, 32, 14, 25, 12, '#3f8a44'); ellipse(p, 23, 10, 10, 7, '#5aaa52'); ellipse(p, 42, 12, 9, 6, '#5aaa52'); ellipse(p, 32, 6, 8, 5, '#6fc060');
+    p(14, 18, 3, 3, '#ff9ac0'); p(46, 8, 3, 3, '#ff9ac0');                      // 꽃
+    p(20, 33, 7, 5, '#2a1a10'); p(31, 33, 7, 5, '#2a1a10'); p(21, 34, 3, 3, '#ffe27a'); p(32, 34, 3, 3, '#ffe27a');
+    p(18, 30, 9, 2, '#4a2e18'); p(30, 30, 9, 2, '#4a2e18');
+    p(22, 44, 14, 4, '#2a1a10'); p(24, 45, 10, 2, '#3a2414');
+    p(19, 24, 7, 3, '#5aa04a'); p(38, 50, 6, 3, '#5aa04a'); p(20, 52, 4, 2, '#5aa04a');
+    p(40, 38, 3, 8, '#d6f3ff'); p(38, 40, 7, 4, '#d6f3ff'); p(41, 39, 1, 6, '#ffffff');   // 가슴의 별조각
   });
 }
 
@@ -251,6 +358,11 @@ function loadSprites() {
     potion: drawPotion(),
     slime_king: drawSlimeKing(),
     miru: drawMiru(),
+    serin: drawSerin(),
+    wisp: drawWisp(),
+    toadstool: drawToadstool(),
+    sprout: drawSprout(),
+    treant: drawTreant(),
     icon_weapon: drawSwordIcon(),
     icon_armor: drawArmorIcon(),
     icon_acc: drawRingIcon(),

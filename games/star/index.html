@@ -123,6 +123,17 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 .stg.boss img{width:44px;height:44px}
 .stg.boss b{font-size:14px;color:#ffd0d8}
 .stg.boss small{margin-left:auto}
+.chtabs{display:flex;gap:6px;margin-bottom:8px}
+.chtabs button{flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-weight:800;font-size:13px;color:var(--muted)}
+.chtabs button.on{background:var(--accent);color:#0d1020;border-color:var(--accent)}
+.chtabs button:disabled{opacity:.4;cursor:not-allowed}
+.ally .nm{display:flex;align-items:center;flex-wrap:wrap;gap:2px}
+.ally .gicon{width:34px;height:34px}
+.ally.inparty{outline:2px solid var(--good)}
+.ally .aq{display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;margin-right:6px;border-radius:8px;background:#0005;color:var(--muted);font-weight:900}
+.syn{margin-top:6px;padding:10px;border-radius:10px;background:#0003;font-size:12px;color:var(--muted)}
+.syn b{display:block;color:var(--text);margin-bottom:4px;font-size:13px}
+.syn .on{color:var(--good);font-weight:800}
 /* 팝업 */
 #modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:5}
 .mbox{width:min(520px,92vw);max-height:85vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
@@ -227,7 +238,7 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
         <button class="stone" data-open="up"><b>⚒</b>강화</button>
         <button class="stone" data-open="gear"><b>🛡</b>장비</button>
         <button class="stone lock" title="챕터 1 클리어 + Lv 20"><b>✦</b>특성<small>잠김</small></button>
-        <button class="stone lock" title="챕터 1 클리어"><b>♣</b>동료<small>잠김</small></button>
+        <button class="stone" data-open="allies"><b>♣</b>동료</button>
         <button class="stone" data-open="skill"><b>✧</b>스킬</button>
       </div>
     </div>
@@ -271,9 +282,9 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261010c"></script>
-<script src="scenery.js?v=20261010c"></script>
-<script src="game.js?v=20261010c"></script>
-<script type="module" src="cloud.js?v=20261010c"></script>
+<script src="sprites.js?v=20261011f"></script>
+<script src="scenery.js?v=20261011f"></script>
+<script src="game.js?v=20261011f"></script>
+<script type="module" src="cloud.js?v=20261011f"></script>
 </body>
 </html>

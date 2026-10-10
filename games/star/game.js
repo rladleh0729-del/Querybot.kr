@@ -5,7 +5,7 @@
 const TEST = new URLSearchParams(location.search).has('test');
 const SAVE_BASE = 'starTale.save.v1';
 let SAVE_KEY = SAVE_BASE + (TEST ? '.test' : '');   // 로그인하면 계정별 키로 바뀐다 (useAccountKey)
-const LAST_STAGE = 20;      // 챕터 1의 마지막 스테이지 (챕터 보스는 다음 단계에서)
+const STAGES_PER = 20;      // 챕터마다 스테이지 20개 (스테이지 번호는 전체 번호: 2-1 = 21)
 const SCALE = 3;            // 320×180 도트 화면을 960×540으로 키워 그림
 const GROUND = 140;
 const WAVES = [3, 3, 4];    // 웨이브별 몬스터 수. 마지막 웨이브의 마지막은 대장
@@ -15,14 +15,14 @@ const POTION_CD = 15;       // 물약 사용 텀(초)
 const POTION_MAX = 20;
 const IDLE_CAP_HOURS = 8;
 const BOSS_TIME = 60;       // 챕터 보스 제한 시간(초)
-const SLAM_EVERY = 7;       // 보스 몸통 박치기 간격
-const SLAM_WARN = 1.2;      // 박치기 전 경고 시간
+const MECH_WARN = 1.2;      // 보스 특수 공격 전 경고 시간
+const ROOT_TIME = 2;        // 뿌리 감옥에 묶여 있는 시간
 const REPLAY_BONUS = 0.3;   // 이미 깬 스테이지의 클리어 보상 비율
 const SHARD_BONUS = 0.1;    // 별조각 1개당 공격력·체력 +10%
 
 // 밸런스 숫자 (시뮬레이션으로 맞춤)
-// 물약 없이 챕터 1 끝까지 약 75분, 중간에 10번 남짓 막힘
-const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.3, clearBonus: 5, kingHp: 20, kingAtk: 0.6, kingGold: 30 };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
+// 물약·스킬·장비 없이 시뮬레이션: 챕터 1 약 70분, 챕터 2 약 110분 (챕터 2부터 성장률 완만)
+const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.3, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30 };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
 
 // ── 강화 항목 ─────────────────────────────────
 const UPGRADES = [
@@ -172,43 +172,117 @@ function fullStats(lv) {
   if (a) { s.maxHp = Math.floor(s.maxHp * (1 + a.value / 100)); s.regen *= 1 + a.value / 100; }
   if (c) s.critDmg += c.value / 100;
   s.pierce = c ? c.pierce : 0;
+  if (partyHas('magic')) s.atk = Math.floor(s.atk * 1.1);
+  if (partyHas('heal')) s.regen += s.maxHp * 0.02;
   return s;
 }
 
+// ── 동료 ─────────────────────────────────────
+const ALLIES = [
+  { id: 'miru',  name: '미르', role: '치유형', type: 'heal',  sprite: 'miru',  from: '챕터 1 보스 처치', every: 5,
+    desc: lv => `5초마다 주인공 체력 ${6 + lv}% 회복` },
+  { id: 'serin', name: '세린', role: '마법형', type: 'magic', sprite: 'serin', from: '챕터 2 보스 처치', every: 4,
+    desc: lv => `4초마다 앞의 적 3마리에게 공격력 ${50 + lv * 10}% 마법 피해` },
+  { id: 'luka', name: '루카', role: '전사형', soon: true },
+  { id: 'kai',  name: '카이', role: '사격형', soon: true },
+  { id: 'bron', name: '브론', role: '전사형', soon: true },
+  { id: 'pio',  name: '피오', role: '마법형', soon: true },
+];
+const PARTY_MAX = 3;
+const allyById = id => ALLIES.find(a => a.id === id);
+function allyCost(lv) { return Math.floor(400 * Math.pow(1.45, lv)); }
+// 시너지: 파티에 이 유형이 있으면 효과
+const SYNERGY = [
+  { type: 'heal',  text: '치유형 동료 · 초당 체력 회복 +최대 체력 2%' },
+  { type: 'magic', text: '마법형 동료 · 공격력 +10% (검사 영웅과 조합)' },
+];
+const partyHas = type => (save.party || []).some(id => allyById(id).type === type);
+
 // ── 대사 ─────────────────────────────────────
 const LINES = {
-  battle: ['풀잎 사이로 별빛이 새어 나와.', '이 근처에 별조각이 떨어진 게 분명해.', '슬라임들이 별조각을 삼킨 걸까?',
-    '하늘의 별… 언제부터 금이 가 있었지?', '저 큰 나무, 별빛을 머금고 있어.', '꽃버섯이 반짝이는 건 별조각 때문인가?', '들벌들이 별빛에 홀린 것 같아.'],
+  battle: {
+    1: ['풀잎 사이로 별빛이 새어 나와.', '이 근처에 별조각이 떨어진 게 분명해.', '슬라임들이 별조각을 삼킨 걸까?',
+      '하늘의 별… 언제부터 금이 가 있었지?', '저 큰 나무, 별빛을 머금고 있어.', '꽃버섯이 반짝이는 건 별조각 때문인가?', '들벌들이 별빛에 홀린 것 같아.'],
+    2: ['숲이 속삭이는 것 같아…', '저 고목 속에서 별빛이 새어 나와.', '숲 요정들, 별조각에 홀린 걸까?',
+      '버섯이 파랗게 빛나… 별빛 때문인가?', '나무 정령들이 깨어난 건 별조각 탓이야.', '길을 잃지 않게 조심하자.'],
+  },
   bossWave: ['저 녀석이 대장이구나.', '덩치가 크네… 조심하자.'],
   low: ['조금만 더 버티자…!', '아직 쓰러질 순 없어!'],
   lobby: ['오늘은 어디까지 가 볼까.', '모닥불이 따뜻하다.', '땅에 박힌 별조각이 또 빛나.', '저 별, 꼭 다시 이어 붙일 거야.', '장비를 좀 더 챙겨 갈까?'],
   miru: ['다치면 바로 말해요!', '이 풀, 상처에 잘 듣는 약초예요.', '별조각이 따뜻해요… 신기하죠?'],
+  serin: ['흥, 이 정도 마법은 기본이야.', '별이 왜 부서졌는지… 꼭 알아낼 거야.', '칭찬은 사양 안 해.'],
 };
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-// 대화: who = hero | king | miru | narr, {name}은 주인공 이름으로 바뀜
+// 대화: who = hero | boss | miru | serin | narr, {name}은 주인공 이름으로 바뀜
 const TALK = {
-  bossIntro: [
-    { who: 'king', text: '꾸르르… 반짝반짝한 별조각은 전부 이 몸 거다!' },
-    { who: 'hero', text: '그건 하늘에서 떨어진 별이야. 돌려줘!' },
-    { who: 'king', text: '가져갈 수 있으면 가져가 봐라, 꼬마!' },
-  ],
-  bossAgain: [{ who: 'king', text: '또 왔냐! 이번엔 안 진다, 꾸르르!' }],
-  bossOutro: [
-    { who: 'king', text: '꾸엑… 배 속의 별조각이… 빠져나간다…' },
-    { who: 'narr', text: '들꽃 평원의 별조각을 되찾았다. 손끝에서 따뜻한 빛이 번진다.' },
-    { who: 'miru', text: '괜찮아요? 다친 데는 없어요? 저는 마을 약초사 미르예요.' },
-    { who: 'miru', text: '{name} 님, 별조각을 찾는 여행이라면… 저도 같이 갈게요!' },
-    { who: 'narr', text: '미르가 동료가 되었다.' },
-  ],
+  1: {
+    intro: [
+      { who: 'boss', text: '꾸르르… 반짝반짝한 별조각은 전부 이 몸 거다!' },
+      { who: 'hero', text: '그건 하늘에서 떨어진 별이야. 돌려줘!' },
+      { who: 'boss', text: '가져갈 수 있으면 가져가 봐라, 꼬마!' },
+    ],
+    again: [{ who: 'boss', text: '또 왔냐! 이번엔 안 진다, 꾸르르!' }],
+    outro: [
+      { who: 'boss', text: '꾸엑… 배 속의 별조각이… 빠져나간다…' },
+      { who: 'narr', text: '들꽃 평원의 별조각을 되찾았다. 손끝에서 따뜻한 빛이 번진다.' },
+      { who: 'miru', text: '괜찮아요? 다친 데는 없어요? 저는 마을 약초사 미르예요.' },
+      { who: 'miru', text: '{name} 님, 별조각을 찾는 여행이라면… 저도 같이 갈게요!' },
+      { who: 'narr', text: '미르가 동료가 되었다.' },
+    ],
+  },
+  2: {
+    intro: [
+      { who: 'boss', text: '…누가 숲의 잠을 깨우느냐.' },
+      { who: 'hero', text: '별조각을 찾으러 왔어. 이 숲 어딘가에 떨어졌을 거야.' },
+      { who: 'boss', text: '별빛은 이제 이 숲의 것이다. 가져가려거든 뿌리를 넘어서라.' },
+    ],
+    again: [{ who: 'boss', text: '다시 왔구나, 작은 별지기여.' }],
+    outro: [
+      { who: 'boss', text: '…그래, 별빛은 하늘로 돌아가야겠지. 데려가거라.' },
+      { who: 'narr', text: '속삭이는 숲의 별조각을 되찾았다. 숲이 조용히 숨을 고른다.' },
+      { who: 'serin', text: '흥, 고목 할아버지를 이기다니 제법이네.' },
+      { who: 'serin', text: '나는 세린. 이 숲의 마법사야. …별이 왜 부서졌는지, 나도 궁금하거든.' },
+      { who: 'narr', text: '세린이 동료가 되었다.' },
+    ],
+  },
 };
 
-// ── 몬스터 ───────────────────────────────────
-const MONSTERS = [
-  { from: 1,  sprite: 'slime',    name: '풀잎 슬라임' },
-  { from: 8,  sprite: 'mushroom', name: '꽃버섯' },
-  { from: 15, sprite: 'bee',      name: '들벌' },
+// ── 챕터 ─────────────────────────────────────
+// mech: 보스 특수 공격 (slam = 7초마다 강한 박치기, root = 8초마다 2초 동안 묶음)
+const CHAPTERS = [
+  { name: '들꽃 평원', theme: 'meadow',
+    monsters: [{ from: 1, sprite: 'slime', name: '풀잎 슬라임' }, { from: 8, sprite: 'mushroom', name: '꽃버섯' }, { from: 15, sprite: 'bee', name: '들벌' }],
+    boss: { name: '거대 슬라임 왕', sprite: 'slime_king', mech: 'slam', every: 7, mechName: '몸통 박치기', ally: 'miru' } },
+  { name: '속삭이는 숲', theme: 'forest',
+    monsters: [{ from: 1, sprite: 'wisp', name: '숲 요정' }, { from: 8, sprite: 'toadstool', name: '독버섯' }, { from: 15, sprite: 'sprout', name: '나무 정령' }],
+    boss: { name: '고목 수호자', sprite: 'treant', mech: 'root', every: 8, mechName: '뿌리 감옥', ally: 'serin' } },
 ];
+const MAX_STAGE = CHAPTERS.length * STAGES_PER;
+const chOf = stage => Math.ceil(stage / STAGES_PER);                 // 1부터
+const localOf = stage => stage - (chOf(stage) - 1) * STAGES_PER;      // 챕터 안의 번호 1~20
+const stageLabel = stage => `${chOf(stage)}-${localOf(stage)}`;
+const chapter = c => CHAPTERS[c - 1];
+const bossBeaten = c => !!(save.bosses && save.bosses[c]);
+const bossOpen = c => save.stage > c * STAGES_PER;                   // 그 챕터의 20스테이지를 깼다
+
+// 지금 도전할 수 있는 가장 높은 스테이지 (다음 챕터는 앞 챕터 보스를 깨야 열림)
+function topStage() {
+  let top = Math.min(save.stage, MAX_STAGE);
+  const c = chOf(top);
+  if (c > 1 && !bossBeaten(c - 1)) top = (c - 1) * STAGES_PER;
+  return top;
+}
+// 캠프가 있는 챕터 = 지금 진행 중인 챕터
+const campChapter = () => chOf(topStage());
+
+function monsterType(stage) { return chapter(chOf(stage)).monsters.filter(m => localOf(stage) >= m.from).pop(); }
+
+// 몬스터 성장: 챕터 1은 빠르게(hpGrow), 챕터 2부터는 완만하게(hpGrow2)
+function growth(stage, g1, g2) {
+  const n = stage - 1, cap = STAGES_PER - 1;
+  return Math.pow(g1, Math.min(n, cap)) * Math.pow(g2, Math.max(0, n - cap));
+}
 
 function monGold(stage) { return Math.ceil(BAL.monGold * Math.pow(BAL.goldGrow, stage - 1)); }
 
@@ -216,14 +290,13 @@ function monGold(stage) { return Math.ceil(BAL.monGold * Math.pow(BAL.goldGrow, 
 function critRes(stage) { return Math.min(60, (stage - 1) * 1.5); }
 
 function makeMonster(stage, boss) {
-  const type = MONSTERS.filter(m => stage >= m.from).pop();
-  const n = stage - 1;
-  const hp = Math.floor(BAL.monHp * Math.pow(BAL.hpGrow, n) * (boss ? BAL.bossHp : 1));
+  const type = monsterType(stage);
+  const hp = Math.floor(BAL.monHp * growth(stage, BAL.hpGrow, BAL.hpGrow2) * (boss ? BAL.bossHp : 1));
   return {
     ...type,
     name: boss ? '대장 ' + type.name : type.name,
     boss, hp, maxHp: hp,
-    atk: Math.floor(BAL.monAtk * Math.pow(BAL.atkGrow, n) * (boss ? BAL.bossAtk : 1)),
+    atk: Math.floor(BAL.monAtk * growth(stage, BAL.atkGrow, BAL.atkGrow2) * (boss ? BAL.bossAtk : 1)),
     aspd: 0.8,
     gold: monGold(stage) * (boss ? BAL.bossGold : 1),
     critRes: critRes(stage),
@@ -244,7 +317,7 @@ let save = null;
 
 function newSave(name, gender) {
   return { name, gender, gold: 0, stage: 1, lv: { atk: 0, hp: 0, regen: 0, crit: 0, aspd: 0 },
-    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bossDone: false, savedAt: Date.now() };
+    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: {}, party: [], seenCh: 1, savedAt: Date.now() };
 }
 
 // 탭이 여러 개면 서로 저장을 덮어쓰므로, 가장 나중에 연 탭만 저장한다
@@ -295,7 +368,14 @@ function migrateSave(s) {
     delete s.kills; delete s.best;
     for (const u of UPGRADES) s.lv[u.id] = Math.min(s.lv[u.id] || 0, u.max);
     if (!s.items) { s.items = []; s.gear = {}; s.nextItem = 1; }
-    if (s.shards === undefined) { s.shards = 0; s.bossDone = false; }
+    if (s.shards === undefined) s.shards = 0;
+    if (!s.bosses) { s.bosses = s.bossDone ? { 1: true } : {}; delete s.bossDone; }
+    if (!s.allies) { s.allies = {}; s.party = []; }
+    for (const [c, ok] of Object.entries(s.bosses)) {            // 보스를 깼으면 그 챕터 동료가 있어야 한다
+      const id = CHAPTERS[c - 1] && CHAPTERS[c - 1].boss.ally;
+      if (ok && id && !s.allies[id]) { s.allies[id] = 1; if (s.party.length < PARTY_MAX) s.party.push(id); }
+    }
+    if (!s.seenCh) s.seenCh = 1;
     if (!s.gearV2) {
       s.items.forEach(it => it.value = rollValue(it.grade, it.stage));
       if (s.shop) s.shop.items.forEach(it => it.value = rollValue(it.grade, it.stage, 0.8));
@@ -349,40 +429,47 @@ function refreshStats() { stats = fullStats(save.lv); }
 // ── 전투 ────────────────────────────────────
 // stage: 도전할 스테이지 (깬 곳 또는 다음 곳)
 function startBattle(stage) {
-  stage = Math.max(1, Math.min(stage || save.stage, save.stage, LAST_STAGE));
+  stage = Math.max(1, Math.min(stage || save.stage, topStage()));
   refreshStats();
   hero.hp = stats.maxHp;
   hero.cd = 0;
   floats = [];
-  battle = { stage, wave: 0, queue: [], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [] };
+  battle = { stage, wave: 0, queue: [], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [], allyCd: {}, fx: [] };
   spawnWave();
+  if (chOf(stage) > (save.seenCh || 1)) {                          // 새 챕터에 처음 들어옴
+    save.seenCh = chOf(stage);
+    toast(`챕터 ${chOf(stage)} · ${chapter(chOf(stage)).name}`);
+  }
   $('result').hidden = true;
   showScreen('battle');
-  if (Math.random() < 0.6) say('hero', pick(LINES.battle));
+  if (Math.random() < 0.6) say('hero', pick(LINES.battle[chOf(stage)]));
 }
 
-// 챕터 보스: 거대 슬라임 왕
-function startBoss() {
-  if (save.stage <= LAST_STAGE) return;
+// 챕터 보스 (c = 챕터 번호)
+let talkCh = 1;                    // 대화창의 'boss'가 어느 챕터 보스인지
+function startBoss(c) {
+  c = c || campChapter();
+  if (!bossOpen(c)) return;
+  const B = chapter(c).boss, last = c * STAGES_PER;
   refreshStats();
   hero.hp = stats.maxHp;
   hero.cd = 0;
   floats = [];
-  const n = LAST_STAGE - 1;
-  const k = makeMonster(LAST_STAGE, true);
+  const k = makeMonster(last, true);
   Object.assign(k, {
-    name: '거대 슬라임 왕', sprite: 'slime_king', king: true, size: 64, x: 200,
-    hp: Math.floor(BAL.monHp * Math.pow(BAL.hpGrow, n) * BAL.kingHp),
-    atk: Math.floor(BAL.monAtk * Math.pow(BAL.atkGrow, n) * BAL.kingAtk),
-    gold: monGold(LAST_STAGE) * BAL.kingGold,
-    critRes: critRes(LAST_STAGE) + 5,
+    name: B.name, sprite: B.sprite, king: true, size: 64, x: 200,
+    hp: Math.floor(BAL.monHp * growth(last, BAL.hpGrow, BAL.hpGrow2) * BAL.kingHp),
+    atk: Math.floor(BAL.monAtk * growth(last, BAL.atkGrow, BAL.atkGrow2) * BAL.kingAtk),
+    gold: monGold(last) * BAL.kingGold,
+    critRes: critRes(last) + 5,
   });
   k.maxHp = k.hp;
-  battle = { stage: LAST_STAGE, king: true, wave: 0, queue: [k], earned: 0, state: 'talk', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [],
-    timeLeft: BOSS_TIME, slamCd: SLAM_EVERY, slamWarn: 0 };
+  battle = { stage: last, ch: c, king: true, mech: B.mech, every: B.every, wave: 0, queue: [k], earned: 0, state: 'talk', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [],
+    timeLeft: BOSS_TIME, mechCd: B.every, mechWarn: 0, bound: 0, allyCd: {}, fx: [] };
   $('result').hidden = true;
   showScreen('battle');
-  playDialog(save.bossDone ? TALK.bossAgain : TALK.bossIntro, () => { if (battle && battle.state === 'talk') battle.state = 'fight'; });
+  talkCh = c;
+  playDialog(bossBeaten(c) ? TALK[c].again : TALK[c].intro, () => { if (battle && battle.state === 'talk') battle.state = 'fight'; });
 }
 
 function spawnWave() {
@@ -427,26 +514,28 @@ function updateBattle(dt) {
     return;
   }
 
-  // 보스: 제한 시간과 몸통 박치기
+  // 보스: 제한 시간과 특수 공격
   if (battle.king) {
     battle.timeLeft -= dt;
+    battle.bound = Math.max(0, battle.bound - dt);
     if (battle.timeLeft <= 0) { battle.timeLeft = 0; return endBattle('timeout'); }
     const k = battle.queue[0];
     if (k && k.dead <= 0 && k.x <= hero.x + 40) {
-      battle.slamCd -= dt;
-      if (battle.slamCd <= SLAM_WARN && !battle.slamWarn) {
-        battle.slamWarn = 1;
+      battle.mechCd -= dt;
+      if (battle.mechCd <= MECH_WARN && !battle.mechWarn) {
+        battle.mechWarn = 1;
         addFloat('!', k.x + 32, GROUND - 74, '#ff5a6e', true);
-        say('hero', '온다…!', 1.4);
+        say('hero', battle.mech === 'root' ? '발밑이…!' : '온다…!', 1.4);
       }
-      if (battle.slamCd <= 0) {
-        const dmg = k.atk * 3;
+      if (battle.mechCd <= 0) {
+        const dmg = battle.mech === 'root' ? Math.floor(k.atk * 1.5) : k.atk * 3;
         hero.hp -= dmg;
         hero.hurt = 1;
-        shake = 0.45;
+        shake = battle.mech === 'root' ? 0.25 : 0.45;
+        if (battle.mech === 'root') { battle.bound = ROOT_TIME; addFloat('묶임!', hero.x + 16, GROUND - 60, '#c8a060', true); }
         addFloat('-' + fmt(dmg), hero.x + 16, GROUND - 46, '#ff3a4a', true);
-        battle.slamCd = SLAM_EVERY;
-        battle.slamWarn = 0;
+        battle.mechCd = battle.every;
+        battle.mechWarn = 0;
         if (hero.hp <= 0) { hero.hp = 0; return endBattle('lost'); }
       }
     }
@@ -468,9 +557,11 @@ function updateBattle(dt) {
   const mon = q[0];
   if (mon.dead > 0 || mon.x > meet) return;
 
-  // 주인공 공격
+  updateAllies(dt, q);
+
+  // 주인공 공격 (뿌리에 묶여 있으면 못 함)
   hero.cd -= dt;
-  if (hero.cd <= 0) {
+  if (hero.cd <= 0 && !battle.bound) {
     hero.cd += 1 / (stats.aspd * (battle.cryT > 0 ? 1 + battle.cryPower : 1));
     hero.lunge = 1;
     if (hit(mon, 1)) return;
@@ -518,6 +609,30 @@ function dropItem(mon) {
   battle.loot.push(it);
   addFloat(GRADES[it.grade].name + ' ' + itemName(it) + '!', mon.x + 16, GROUND - 66, GRADES[it.grade].color, true);
 }
+
+// ── 전투 중 동료 ──
+function updateAllies(dt, q) {
+  battle.fx = battle.fx.filter(f => (f.t += dt) < 0.3);
+  (save.party || []).forEach((id, i) => {
+    const A = allyById(id), lv = save.allies[id] || 1;
+    battle.allyCd[id] = (battle.allyCd[id] ?? A.every * 0.5) - dt;
+    if (battle.allyCd[id] > 0) return;
+    if (A.type === 'heal') {
+      if (hero.hp >= stats.maxHp * 0.95) return;
+      const heal = Math.floor(stats.maxHp * (6 + lv) / 100);
+      hero.hp = Math.min(stats.maxHp, hero.hp + heal);
+      addFloat('+' + fmt(heal), hero.x + 16, GROUND - 50, '#6fe39a');
+      battle.fx.push({ kind: 'heal', i, t: 0 });
+    } else if (A.type === 'magic') {
+      const targets = q.filter(m => m.dead <= 0 && m.x <= hero.x + 120).slice(0, 3);
+      if (!targets.length) return;
+      targets.forEach(m => { hit(m, (50 + lv * 10) / 100, '#d6b0ff'); battle.fx.push({ kind: 'bolt', i, x: m.x + (m.size || 32) / 2, t: 0 }); });
+    }
+    battle.allyCd[id] = A.every;
+  });
+}
+
+function allyX(i) { return hero.x - 26 - i * 22; }
 
 // ── 전투 중 스킬 ──
 function castSkill(slot, auto) {
@@ -596,39 +711,48 @@ function endBattle(result) {
   if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
   writeSave();
   cloudUpload();
-  const top = Math.min(save.stage, LAST_STAGE);
+  const top = topStage(), c = chOf(r.stage);
   const btns = [];
-  if (won && r.stage < top) btns.push(['다음 스테이지 ▶', () => startBattle(r.stage + 1), true]);
-  if (won && r.stage === LAST_STAGE && !save.bossDone) btns.push(['👑 챕터 보스 도전', startBoss, true]);
+  if (won && r.stage < top && localOf(r.stage) < STAGES_PER) btns.push(['다음 스테이지 ▶', () => startBattle(r.stage + 1), true]);
+  if (won && localOf(r.stage) === STAGES_PER && !bossBeaten(c)) btns.push(['👑 챕터 보스 도전', () => startBoss(c), true]);
+  if (won && localOf(r.stage) === STAGES_PER && bossBeaten(c) && r.stage < top) btns.push([`챕터 ${c + 1} 시작 ▶`, () => startBattle(r.stage + 1), true]);
   if (!won) btns.push(['다시 도전', () => startBattle(r.stage), true]);
   btns.push(['스테이지 선택', () => { showScreen('lobby'); openStages(); }, false]);
   btns.push(['캠프로', () => showScreen('lobby'), false]);
-  showResult({ won: `스테이지 1-${r.stage} 클리어!`, lost: '패배…', retreat: '후퇴' }[result],
+  showResult({ won: `스테이지 ${stageLabel(r.stage)} 클리어!`, lost: '패배…', retreat: '후퇴' }[result],
     { won: '#ffd25e', lost: '#ff9aa6', retreat: '#c8d6ff' }[result], text, btns);
 }
 
 function endBoss(result) {
-  const r = battle;
+  const r = battle, c = r.ch, B = chapter(c).boss;
   if (result !== 'won') {
     writeSave();
     cloudUpload();
     showResult({ lost: '패배…', timeout: '시간 초과', retreat: '후퇴' }[result], result === 'retreat' ? '#c8d6ff' : '#ff9aa6',
-      `획득 골드 ${fmt(r.earned)} G · 저장 완료<br>강화 후 재도전 · 몸통 박치기 직전에 물약 사용`,
-      [['다시 도전', startBoss, true], ['캠프로', () => showScreen('lobby'), false]]);
+      `획득 골드 ${fmt(r.earned)} G · 저장 완료<br>강화 후 재도전 · ${B.mechName} 직전에 물약 사용`,
+      [['다시 도전', () => startBoss(c), true], ['캠프로', () => showScreen('lobby'), false]]);
     return;
   }
-  const first = !save.bossDone;
-  const bonus = Math.floor(monGold(LAST_STAGE) * BAL.kingGold * (first ? 1 : REPLAY_BONUS));
+  const first = !bossBeaten(c);
+  const bonus = Math.floor(monGold(c * STAGES_PER) * BAL.kingGold * (first ? 1 : REPLAY_BONUS));
   save.gold += bonus;
   r.earned += bonus;
-  if (first) { save.bossDone = true; save.shards = (save.shards || 0) + 1; }
+  const ally = allyById(B.ally);
+  if (first) {
+    save.bosses[c] = true;
+    save.shards = (save.shards || 0) + 1;
+    if (!save.allies[ally.id]) { save.allies[ally.id] = 1; if (save.party.length < PARTY_MAX) save.party.push(ally.id); }
+  }
   writeSave();
   cloudUpload();
   let text = `획득 골드 ${fmt(r.earned)} G`
-    + (first ? '<br>✦ 별조각 +1 · 공격력·체력 영구 +10%<br>미르 합류 · 동료 기능은 다음 업데이트' : ' (재도전 보상 30%)');
+    + (first ? `<br>✦ 별조각 +1 · 공격력·체력 영구 +10%<br>${ally.name} 합류 · 동료 탭에서 확인`
+      + (c < CHAPTERS.length ? `<br>챕터 ${c + 1} · ${chapter(c + 1).name} 해금` : '<br>다음 챕터는 업데이트 예정') : ' (재도전 보상 30%)');
   if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
-  const finish = () => showResult(first ? '챕터 1 클리어!' : '거대 슬라임 왕 처치!', '#ffd25e', text, [['캠프로', () => showScreen('lobby'), true]]);
-  if (first) playDialog(TALK.bossOutro, finish); else finish();
+  const btns = [['캠프로', () => showScreen('lobby'), !(first && c < CHAPTERS.length)]];
+  if (first && c < CHAPTERS.length) btns.unshift([`챕터 ${c + 1} 시작 ▶`, () => startBattle(c * STAGES_PER + 1), true]);
+  const finish = () => showResult(first ? `챕터 ${c} 클리어!` : `${B.name} 처치!`, '#ffd25e', text, btns);
+  if (first) playDialog(TALK[c].outro, finish); else finish();
   updateHud();
 }
 
@@ -651,8 +775,9 @@ function showResult(title, color, text, btns) {
 // ── 대화창 ───────────────────────────────────
 const SPEAKERS = {
   hero: () => ({ name: save.name, img: SPR['hero_' + save.gender] }),
-  king: () => ({ name: '거대 슬라임 왕', img: SPR.slime_king }),
+  boss: () => ({ name: chapter(talkCh).boss.name, img: SPR[chapter(talkCh).boss.sprite] }),
   miru: () => ({ name: '미르', img: SPR.miru }),
+  serin: () => ({ name: '세린', img: SPR.serin }),
   narr: () => ({ name: '', img: null }),
 };
 let dlg = null;   // { lines, i, chars, onDone }
@@ -746,33 +871,91 @@ function updateBubbles(dt) {
   lobbyTalk -= dt;
   if (lobbyTalk <= 0) {
     lobbyTalk = 18 + Math.random() * 14;
-    if (save.bossDone && Math.random() < 0.45) say('miru', pick(LINES.miru));
+    const party = (save.party || []).filter(id => LINES[id]);
+    if (party.length && Math.random() < 0.5) { const id = pick(party); say(id, pick(LINES[id])); }
     else say('hero', pick(LINES.lobby));
   }
 }
 
 // ── 스테이지 선택 ────────────────────────────
-function openStages() {
+let stagesCh = null;                // 스테이지 선택 창에서 보고 있는 챕터
+function openStages(c) {
   modalKind = 'stages';
-  $('mTitle').textContent = '스테이지 선택 · 들꽃 평원';
-  const top = Math.min(save.stage, LAST_STAGE);
-  let html = '<div class="mgold" id="mGold"></div><div class="stagegrid">';
-  for (let n = 1; n <= LAST_STAGE; n++) {
-    const cleared = n < save.stage, open = n <= top;
-    const type = MONSTERS.filter(m => n >= m.from).pop();
-    html += `<button class="stg${cleared ? ' clear' : ''}${n === save.stage ? ' next' : ''}" data-stg="${n}" ${open ? '' : 'disabled'}>
-      <img src="${ICON_URL[type.sprite]}"><b>1-${n}</b><small>${cleared ? '✓ 클리어' : open ? '도전' : '잠김'}</small></button>`;
+  const top = topStage();
+  c = c || stagesCh || campChapter();
+  stagesCh = c;
+  $('mTitle').textContent = '스테이지 선택';
+  let html = '<div class="mgold" id="mGold"></div><div class="chtabs">';
+  CHAPTERS.forEach((C, i) => {
+    const open = (i + 1) === 1 || bossBeaten(i);
+    html += `<button data-ch="${i + 1}" class="${i + 1 === c ? 'on' : ''}" ${open ? '' : 'disabled'}>${i + 1}. ${C.name}${open ? '' : ' 🔒'}</button>`;
+  });
+  html += '</div><div class="stagegrid">';
+  for (let n = 1; n <= STAGES_PER; n++) {
+    const st = (c - 1) * STAGES_PER + n;
+    const cleared = st < save.stage, open = st <= top;
+    const type = monsterType(st);
+    html += `<button class="stg${cleared ? ' clear' : ''}${st === save.stage && open ? ' next' : ''}" data-stg="${st}" ${open ? '' : 'disabled'}>
+      <img src="${ICON_URL[type.sprite]}"><b>${c}-${n}</b><small>${cleared ? '✓ 클리어' : open ? '도전' : '잠김'}</small></button>`;
   }
-  const bossOpen = save.stage > LAST_STAGE;
-  html += `</div><button class="stg boss${save.bossDone ? ' clear' : ''}${bossOpen && !save.bossDone ? ' next' : ''}" id="bossStg" ${bossOpen ? '' : 'disabled'}>
-    <img src="${ICON_URL.slime_king}"><b>👑 챕터 보스 · 거대 슬라임 왕</b>
-    <small>${save.bossDone ? '✓ 처치 · 재도전 가능' : bossOpen ? '도전 가능 · 제한 시간 60초' : '1-20 클리어 시 해금'}</small></button>
+  const B = chapter(c).boss, bo = bossOpen(c), done = bossBeaten(c);
+  html += `</div><button class="stg boss${done ? ' clear' : ''}${bo && !done ? ' next' : ''}" id="bossStg" ${bo ? '' : 'disabled'}>
+    <img src="${ICON_URL[B.sprite]}"><b>👑 챕터 보스 · ${B.name}</b>
+    <small>${done ? '✓ 처치 · 재도전 가능' : bo ? '도전 가능 · 제한 시간 60초' : `${c}-20 클리어 시 해금`}</small></button>
     <p class="note">클리어한 스테이지 재도전 가능 · 클리어 보상은 첫 클리어 100%, 이후 30%</p>`;
   $('mBody').innerHTML = html;
+  $('mBody').querySelectorAll('[data-ch]').forEach(b => b.onclick = () => openStages(+b.dataset.ch));
   $('mBody').querySelectorAll('[data-stg]').forEach(b => b.onclick = () => { closeModal(); startBattle(+b.dataset.stg); });
-  $('bossStg').onclick = () => { closeModal(); startBoss(); };
+  $('bossStg').onclick = () => { closeModal(); startBoss(c); };
   $('modal').hidden = false;
   refreshModal();
+}
+
+// ── 동료 탭 ──────────────────────────────────
+function openAllies() {
+  modalKind = 'allies';
+  $('mTitle').textContent = '동료';
+  $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div id="allyList"></div>';
+  $('modal').hidden = false;
+  refreshModal();
+}
+
+function refreshAllies() {
+  const party = save.party || [];
+  let html = `<p class="note" style="margin:0 0 8px">배치 ${party.length} / ${PARTY_MAX} · 배치한 동료는 전투에서 함께 싸우고 캠프에 머문다</p>`;
+  for (const A of ALLIES) {
+    const lv = save.allies[A.id] || 0;
+    if (A.soon) {
+      html += `<div class="up ally locked"><div class="nm"><span class="aq">?</span>${A.name}<small>${A.role}</small></div><div class="val">준비 중 · 다음 업데이트에서 합류</div></div>`;
+      continue;
+    }
+    if (!lv) {
+      html += `<div class="up ally locked"><div class="nm"><img class="gicon" src="${ICON_URL[A.sprite]}">${A.name}<small>${A.role}</small></div><div class="val">획득: ${A.from}</div></div>`;
+      continue;
+    }
+    const inParty = party.includes(A.id), cost = allyCost(lv);
+    html += `<div class="up ally${inParty ? ' inparty' : ''}">
+      <div class="nm"><img class="gicon" src="${ICON_URL[A.sprite]}">${A.name}<small>${A.role} · Lv ${lv}${inParty ? ' · 배치 중' : ''}</small></div>
+      <div class="val">${A.desc(lv)} → <em>${A.desc(lv + 1).match(/\d+%/)[0]}</em></div>
+      <div class="skbtns"><button class="equip${inParty ? ' on' : ''}" data-party="${A.id}">${inParty ? '해제' : '배치'}</button>
+      <button data-ally="${A.id}" ${save.gold < cost ? 'disabled' : ''}>강화 ${fmt(cost)} G</button></div></div>`;
+  }
+  html += '<div class="syn"><b>시너지</b>' + SYNERGY.map(s => `<div class="${partyHas(s.type) ? 'on' : ''}">${partyHas(s.type) ? '✓' : '·'} ${s.text}</div>`).join('') + '</div>';
+  $('allyList').innerHTML = html;
+  $('allyList').querySelectorAll('[data-ally]').forEach(b => b.onclick = () => {
+    const id = b.dataset.ally, cost = allyCost(save.allies[id]);
+    if (save.gold < cost) return;
+    save.gold -= cost;
+    save.allies[id]++;
+    updateHud();
+  });
+  $('allyList').querySelectorAll('[data-party]').forEach(b => b.onclick = () => {
+    const id = b.dataset.party, at = save.party.indexOf(id);
+    if (at >= 0) save.party.splice(at, 1);
+    else if (save.party.length < PARTY_MAX) save.party.push(id);
+    refreshStats();
+    updateHud();
+  });
 }
 
 function usePotion() {
@@ -860,13 +1043,17 @@ function renderLobby() {
   drawImg(SPR.tent, 50, GROUND - 38, 48);
   drawCampfire(104);
   const bob = Math.round(Math.sin(time * 3) * 0.8);
-  if (save.bossDone) {                       // 동료가 된 미르가 캠프에 있다
-    shadow(34);
-    drawImg(SPR.miru, 18, GROUND - 31 + Math.round(Math.sin(time * 3 + 1) * 0.8));
-  }
+  const spots = [18, 186, 214];             // 배치한 동료가 캠프에 머무는 자리
+  const pos = { hero: [138, GROUND - 32] };
+  (save.party || []).forEach((id, i) => {
+    const x = spots[i];
+    shadow(x + 16);
+    drawImg(SPR[allyById(id).sprite], x, GROUND - 31 + Math.round(Math.sin(time * 3 + 1 + i) * 0.8));
+    pos[id] = [x + 16, GROUND - 32];
+  });
   shadow(138);
   drawImg(SPR['hero_' + save.gender], 122, GROUND - 31 + bob);
-  drawBubbles({ hero: [138, GROUND - 32], miru: [34, GROUND - 32] });
+  drawBubbles(pos);
   floatsLobby.forEach(f => f.t += 1 / 60);
   floatsLobby = floatsLobby.filter(f => f.t < 1);
   drawFloats(floatsLobby, 166, 100);
@@ -881,13 +1068,48 @@ function renderBattle() {
   if (battle.state === 'lost') ctx.globalAlpha = 0.35;
   drawImg(SPR['hero_' + save.gender], hx, GROUND - 31 + bob, 32, hero.hurt);
   ctx.restore();
+  // 뿌리 감옥 경고(발밑 빛)와 묶임
+  if (battle.mech === 'root' && battle.mechWarn) {
+    ctx.fillStyle = `rgba(200,160,90,${0.35 + 0.25 * Math.sin(time * 20)})`;
+    ctx.beginPath(); ctx.ellipse((hx + 16) * SCALE, (GROUND + 1) * SCALE, 18 * SCALE, 4 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  if (battle.bound > 0) {
+    ctx.strokeStyle = '#6b4428'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+    for (let k = 0; k < 4; k++) {
+      const bx = (hx + 6 + k * 7) * SCALE;
+      ctx.beginPath(); ctx.moveTo(bx, (GROUND + 2) * SCALE);
+      ctx.quadraticCurveTo(bx + (k % 2 ? 14 : -14), (GROUND - 10) * SCALE, bx + (k % 2 ? -6 : 6), (GROUND - 18 - k * 2) * SCALE);
+      ctx.stroke();
+    }
+  }
+  // 동료 (주인공 뒤)
+  (save.party || []).forEach((id, i) => {
+    const x = allyX(i);
+    const act = battle.fx.find(f => f.i === i);
+    shadow(x + 16);
+    drawImg(SPR[allyById(id).sprite], x + (act ? 3 : 0), GROUND - 31 + (walking ? bob : Math.round(Math.sin(time * 4 + i + 1) * 0.8)));
+  });
+  for (const f of battle.fx) {
+    const ax = (allyX(f.i) + 22) * SCALE, ay = (GROUND - 20) * SCALE;
+    ctx.save();
+    ctx.globalAlpha = 1 - f.t / 0.3;
+    if (f.kind === 'bolt') {
+      ctx.strokeStyle = '#d6b0ff'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(f.x * SCALE, (GROUND - 16) * SCALE); ctx.stroke();
+      ctx.fillStyle = '#f4e8ff'; ctx.beginPath(); ctx.arc(f.x * SCALE, (GROUND - 16) * SCALE, 14, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = '#9ef0b0';
+      for (let k = 0; k < 5; k++) ctx.fillRect((hero.x + 6 + k * 5) * SCALE, (GROUND - 20 - f.t * 60 - (k % 2) * 10) * SCALE, 6, 6);
+    }
+    ctx.restore();
+  }
 
   // 뒤에서부터 그려서 앞 몬스터가 위에 오게
   for (let i = battle.queue.length - 1; i >= 0; i--) {
     const m = battle.queue[i];
     const size = m.size || (m.boss ? 44 : 32);
     const wob = Math.round(Math.sin(time * (m.king ? 3 : 6) + i) * (m.king ? 2 : 1));
-    const warn = m.king && battle.slamWarn ? 0.5 + 0.5 * Math.sin(time * 24) : 0;
+    const warn = m.king && battle.mechWarn ? 0.5 + 0.5 * Math.sin(time * 24) : 0;
     ctx.save();
     if (m.dead > 0) ctx.globalAlpha = m.dead * 2;
     shadow(m.x + size / 2, m.king ? 26 : m.boss ? 15 : 11);
@@ -899,7 +1121,9 @@ function renderBattle() {
     }
   }
   drawFloats(floats);
-  drawBubbles({ hero: [hx + 16, GROUND - 36] });
+  const pos = { hero: [hx + 16, GROUND - 36] };
+  (save.party || []).forEach((id, i) => { pos[id] = [allyX(i) + 16, GROUND - 32]; });
+  drawBubbles(pos);
 }
 
 let camX = 0;            // 배경 카메라 위치 (웨이브 사이에 앞으로 걸어가면 커진다)
@@ -909,6 +1133,7 @@ function render() {
   ctx.imageSmoothingEnabled = false;
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - 0.5) * 18 * shake, (Math.random() - 0.5) * 12 * shake);
+  Scenery.setTheme(chapter(screen === 'battle' && battle ? chOf(battle.stage) : campChapter()).theme);
   Scenery.drawBack(ctx, camX, time);
   if (screen === 'battle' && battle) renderBattle(); else renderLobby();
   Scenery.drawFront(ctx, camX, time, lastDt);
@@ -918,11 +1143,13 @@ function render() {
 // ── 화면 글자 ───────────────────────────────
 function updateHud() {
   const s = stats;
-  const done = save.stage > LAST_STAGE;
-  $('lStage').textContent = save.bossDone ? '챕터 1 · 완료' : done ? '챕터 1 · 보스' : `챕터 1 · ${save.stage} / ${LAST_STAGE}`;
+  const c = campChapter(), top = topStage();
+  const allDone = bossBeaten(CHAPTERS.length);
+  const atBoss = bossOpen(c) && !bossBeaten(c);
+  $('lStage').textContent = allDone ? `챕터 ${c} · 완료` : atBoss ? `챕터 ${c} · 보스` : `챕터 ${c} · ${localOf(top)} / ${STAGES_PER}`;
   $('lGold').textContent = Math.floor(save.gold).toLocaleString('ko-KR');
   $('lShards').textContent = save.shards || 0;
-  $('lBattleSub').textContent = save.bossDone ? '스테이지 선택' : done ? '👑 챕터 보스 도전' : '들꽃 평원 1-' + save.stage;
+  $('lBattleSub').textContent = allDone ? '스테이지 선택' : atBoss ? '👑 챕터 보스 도전' : `${chapter(c).name} ${stageLabel(top)}`;
   $('lName').textContent = save.name;
   refreshSettings();
   $('chestRate').textContent = `초당 ${idleRate().toFixed(1)} G`;
@@ -946,7 +1173,7 @@ function updateChest() {
 function updateBattleHud() {
   if (!battle) return;
   $('waves').hidden = !!battle.king;
-  $('bStage').textContent = battle.king ? '👑 챕터 보스 · 거대 슬라임 왕' : `들꽃 평원 1-${battle.stage}`;
+  $('bStage').textContent = battle.king ? `👑 챕터 보스 · ${chapter(battle.ch).boss.name}` : `${chapter(chOf(battle.stage)).name} ${stageLabel(battle.stage)}`;
   if (!battle.king) $('bWave').textContent = `웨이브 ${battle.wave + 1} / ${WAVES.length}` + (battle.wave === WAVES.length - 1 ? ' · 대장 등장!' : '') + ` · 몬스터 치명타 저항 ${critRes(battle.stage).toFixed(1)}%`;
   $('skillBar').innerHTML = save.slots.map((id, i) => {
     const sk = id && skillById(id);
@@ -971,7 +1198,7 @@ function updateBattleBars() {
   $('potionCdn').textContent = cd > 0 ? Math.ceil(cd) : '';
   if (battle && battle.king) {
     const s = Math.ceil(battle.timeLeft);
-    $('bWave').textContent = `제한 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · 몸통 박치기 ${Math.max(0, battle.slamCd).toFixed(1)}초 후`;
+    $('bWave').textContent = `제한 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · ${chapter(battle.ch).boss.mechName} ${Math.max(0, battle.mechCd).toFixed(1)}초 후`;
   }
   $('skillBar').querySelectorAll('.skbtn').forEach(b => {
     const id = save.slots[b.dataset.slot];
@@ -997,6 +1224,7 @@ function showScreen(name) {
 let modalKind = null;
 
 function openModal(kind) {
+  if (kind === 'allies') return openAllies();
   modalKind = kind;
   $('mTitle').textContent = { up: '강화', shop: '상점', skill: '스킬', gear: '장비' }[kind];
   if (kind === 'gear') {
@@ -1057,6 +1285,8 @@ function refreshModal() {
         btn.disabled = save.gold < cost;
       }
     });
+  } else if (modalKind === 'allies') {
+    refreshAllies();
   } else if (modalKind === 'gear') {
     const icon = id => `<img class="gicon" src="${ICON_URL[id]}">`;
     $('gearSlots').innerHTML = GEAR_SLOTS.map(sl => {
@@ -1069,7 +1299,7 @@ function refreshModal() {
     $('bag').innerHTML = list.length ? list.map(it => {
       const better = itemScore(it) > itemScore(equipped(it.slot));
       return `<div class="up gitem" style="border-left:4px solid ${GRADES[it.grade].color}">
-        <div class="nm">${icon(it.slot)}<span style="color:${GRADES[it.grade].color}">${GRADES[it.grade].name} ${itemName(it)}</span>${better ? '<em class="better">▲</em>' : ''}<small>1-${it.stage}</small></div>
+        <div class="nm">${icon(it.slot)}<span style="color:${GRADES[it.grade].color}">${GRADES[it.grade].name} ${itemName(it)}</span>${better ? '<em class="better">▲</em>' : ''}<small>${stageLabel(it.stage)}</small></div>
         <div class="val">${itemText(it)}</div>
         <div class="skbtns"><button class="equip" data-eq="${it.id}">장착</button><button data-sell="${it.id}">판매 ${fmt(sellPrice(it))} G</button></div>
       </div>`;
@@ -1242,7 +1472,7 @@ async function cloudSyncOnLogin() {
 }
 
 function saveSummary(s) {
-  return `스테이지 1-${Math.min(s.stage, LAST_STAGE)} · 골드 ${fmt(s.gold)} · 공격력 Lv ${s.lv.atk}<br>마지막 저장 ${s.savedAt ? hhmm(s.savedAt) : '-'}`;
+  return `스테이지 ${stageLabel(Math.min(s.stage, MAX_STAGE))} · 골드 ${fmt(s.gold)} · 공격력 Lv ${s.lv.atk}<br>마지막 저장 ${s.savedAt ? hhmm(s.savedAt) : '-'}`;
 }
 
 function showSyncChoice(remote) {
@@ -1394,7 +1624,7 @@ function showStart() {
 const ICON_URL = {};
 
 function begin() {
-  for (const id of ['slime', 'mushroom', 'bee', 'slime_king']) ICON_URL[id] = SPR[id].toDataURL ? SPR[id].toDataURL() : SPR[id].src;
+  for (const id of ['slime', 'mushroom', 'bee', 'slime_king', 'wisp', 'toadstool', 'sprout', 'treant', 'miru', 'serin']) ICON_URL[id] = SPR[id].toDataURL ? SPR[id].toDataURL() : SPR[id].src;
   for (const sl of GEAR_SLOTS) {
     const img = SPR['icon_' + sl.id];
     ICON_URL[sl.id] = img.toDataURL ? img.toDataURL() : img.src;
@@ -1407,7 +1637,7 @@ function begin() {
   ic.drawImage(SPR['hero_' + save.gender], 0, 0);
   document.querySelectorAll('.picon').forEach(c => { const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(SPR.potion, 0, 0); });
 
-  $('toBattle').onclick = openStages;
+  $('toBattle').onclick = () => openStages();
   $('retreat').onclick = () => {
     if (battle && battle.state === 'fight') endBattle('retreat');
     else showScreen('lobby');
