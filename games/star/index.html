@@ -131,6 +131,11 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 .ally .gicon{width:34px;height:34px}
 .ally.inparty{outline:2px solid var(--good)}
 .ally .aq{display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;margin-right:6px;border-radius:8px;background:#0005;color:var(--muted);font-weight:900}
+.charset .val{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.charset input{width:120px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:#0d1020;color:var(--text);font:inherit;font-size:13px}
+.gpick{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.up .gpick button{grid-row:auto;grid-column:auto;min-width:0;padding:5px 12px;border:0;border-radius:0;background:var(--panel2);font-weight:800;font-size:12px;color:var(--muted)}
+.up .gpick button.on{background:var(--accent);color:#0d1020}
 .syn{margin-top:6px;padding:10px;border-radius:10px;background:#0003;font-size:12px;color:var(--muted)}
 .syn b{display:block;color:var(--text);margin-bottom:4px;font-size:13px}
 .syn .on{color:var(--good);font-weight:800}
@@ -205,8 +210,8 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
     </div>
     <div id="createBox" hidden>
     <div class="pick">
-      <button data-g="m"><canvas width="32" height="32" id="pm"></canvas>남자</button>
-      <button data-g="f"><canvas width="32" height="32" id="pf"></canvas>여자</button>
+      <button data-g="m"><canvas width="32" height="32" id="pm"></canvas>소년</button>
+      <button data-g="f"><canvas width="32" height="32" id="pf"></canvas>소녀</button>
     </div>
     <input id="nameIn" maxlength="8" placeholder="이름 입력 (최대 8자)">
     <button id="go">모험 시작</button>
@@ -282,9 +287,9 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261011f"></script>
-<script src="scenery.js?v=20261011f"></script>
-<script src="game.js?v=20261011f"></script>
-<script type="module" src="cloud.js?v=20261011f"></script>
+<script src="sprites.js?v=20261011h"></script>
+<script src="scenery.js?v=20261011h"></script>
+<script src="game.js?v=20261011h"></script>
+<script type="module" src="cloud.js?v=20261011h"></script>
 </body>
 </html>

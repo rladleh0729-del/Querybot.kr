@@ -139,14 +139,16 @@ function drawMiru() {
   });
 }
 
-// ── 동료: 세린 (마법형, 반요정 마법사) ──
+// ── 동료: 세린 (마법형, 반요정 소년 마법사) ──
 function drawSerin() {
-  const pal = { ...FACE, s: '#ffe6d6', h: '#cfc6f4', H: '#ffffff', d: '#9a90d0', c: '#f0c95a', C: '#c89a3a', b: '#5a3fa0', B: '#40288a', l: '#f0c95a', g: '#7ad0ff', f: '#3a2a5a' };
+  const pal = { ...FACE, s: '#ffe6d6', h: '#d8d0f6', H: '#ffffff', d: '#9a90d0', c: '#f0c95a', C: '#c89a3a', b: '#5a3fa0', B: '#40288a', l: '#f0c95a', g: '#7ad0ff', n: '#40288a', f: '#3a2a5a' };
+  const map = BOY_MAP.slice();
+  map[23] = '........BBbbbbbbbbb';          // 무릎까지 오는 로브
+  map[24] = '........BBBBBBBBBBB';
   return makeSprite(32, 32, p => {
-    fromMap(p, GIRL_MAP, pal);
-    p(13, 10, 1, 1, FACE.e); p(18, 10, 1, 1, FACE.e);
-    p(6, 10, 2, 2, pal.s); p(5, 9, 1, 1, pal.s);                  // 뾰족한 귀
-    p(9, 2, 8, 1, '#40288a'); p(10, 1, 6, 1, '#5a3fa0');           // 작은 마법사 모자 챙
+    fromMap(p, map, pal);
+    p(7, 10, 2, 2, pal.s); p(6, 9, 1, 1, pal.s);                  // 뾰족한 귀
+    p(8, 1, 10, 1, '#40288a'); p(10, 0, 6, 1, '#5a3fa0');          // 마법사 모자 챙
     // 보주 지팡이
     p(21, 8, 1, 21, '#8a6aa0');
     p(20, 4, 3, 3, '#7ad0ff'); p(20, 4, 1, 1, '#ffffff'); p(19, 5, 1, 1, '#bfe8ff'); p(23, 5, 1, 1, '#bfe8ff');

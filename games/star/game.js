@@ -1496,9 +1496,38 @@ function showSyncChoice(remote) {
 function openSettings() {
   modalKind = 'settings';
   $('mTitle').textContent = '설정';
-  $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div id="setBody"></div>';
+  $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
+    <div class="up charset"><div class="nm">캐릭터</div>
+      <div class="val"><input id="setName" maxlength="8" value="${esc(save.name)}">
+        <span class="gpick"><button data-sg="m" class="${save.gender === 'm' ? 'on' : ''}">소년</button><button data-sg="f" class="${save.gender === 'f' ? 'on' : ''}">소녀</button></span></div>
+      <button id="saveChar">변경</button></div>
+    <div id="setBody"></div>`;
+  let gender = save.gender;
+  $('mBody').querySelectorAll('[data-sg]').forEach(b => b.onclick = () => {
+    gender = b.dataset.sg;
+    $('mBody').querySelectorAll('[data-sg]').forEach(x => x.classList.toggle('on', x === b));
+  });
+  $('saveChar').onclick = () => {
+    const name = $('setName').value.trim();
+    if (!name) return alert('이름 입력 필요');
+    save.name = name;
+    save.gender = gender;
+    drawBattleIcon();
+    writeSave();
+    cloudUpload();
+    updateHud();
+    floatsLobby.push({ text: '변경 완료!', t: 0, x: 160, y: 60, color: '#ffffff', big: true });
+  };
+  $('setName').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) $('saveChar').click(); };
   $('modal').hidden = false;
   refreshSettings();
+}
+
+function drawBattleIcon() {
+  const ic = $('battleIcon').getContext('2d');
+  ic.imageSmoothingEnabled = false;
+  ic.clearRect(0, 0, 32, 32);
+  ic.drawImage(SPR['hero_' + save.gender], 0, 0);
 }
 
 function refreshSettings() {
@@ -1632,9 +1661,7 @@ function begin() {
   accrue();
   refreshStats();
   $('game').hidden = false;
-  const ic = $('battleIcon').getContext('2d');
-  ic.imageSmoothingEnabled = false;
-  ic.drawImage(SPR['hero_' + save.gender], 0, 0);
+  drawBattleIcon();
   document.querySelectorAll('.picon').forEach(c => { const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(SPR.potion, 0, 0); });
 
   $('toBattle').onclick = () => openStages();
