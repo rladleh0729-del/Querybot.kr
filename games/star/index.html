@@ -96,9 +96,36 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 .skillbar .cooling>span:first-of-type,.skillbar .cooling>small{opacity:.25}
 .skillbar .cdn{text-shadow:0 2px 0 #000,0 0 8px #000}
 .skillbar .skauto.on{background:linear-gradient(180deg,#5bbf7a,#2f7a48)}
+/* 대화창 */
+#dialog{position:absolute;inset:0;z-index:4;background:linear-gradient(180deg,transparent 55%,#0007)}
+.dbox{position:absolute;left:4%;right:4%;bottom:4%;min-height:21%;display:flex;gap:2cqw;align-items:center;padding:1.6cqw 2.4cqw;cursor:pointer;background:linear-gradient(180deg,#2b3150f2,#1b2038f2)}
+.dbox canvas{width:9cqw;height:9cqw;image-rendering:pixelated;background:#0005;border-radius:1cqw;flex:none}
+.dtext{flex:1}
+.dtext b{font-size:1.9cqw;color:var(--gold)}
+.dtext p{margin:.5cqw 0 0;font-size:2.1cqw;line-height:1.5;color:#fff;text-shadow:none;font-weight:700;min-height:3.2cqw}
+.dbox.narr canvas,.dbox.narr b{display:none}
+.dbox.narr .dtext p{text-align:center;font-style:italic;color:#e6dcff}
+.dnext{position:absolute;right:2cqw;bottom:1.2cqw;font-size:1.4cqw;color:var(--gold);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+#dSkip{position:absolute;right:2%;top:16%;padding:.8cqw 1.6cqw;font-size:1.5cqw}
+/* 스테이지 선택 */
+.stagegrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px}
+.stg{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font-weight:800}
+.stg img{width:28px;height:28px;image-rendering:pixelated}
+.stg b{font-size:13px}
+.stg small{font-size:11px;color:var(--muted);font-weight:700}
+.stg.clear small{color:var(--good)}
+.stg.next{border-color:var(--gold);box-shadow:0 0 10px #ffd25e55}
+.stg.next small{color:var(--gold)}
+.stg:disabled{opacity:.35;cursor:not-allowed}
+.stg:not(:disabled):hover{filter:brightness(1.2)}
+.stg.boss{width:100%;flex-direction:row;justify-content:flex-start;gap:12px;padding:10px 14px;background:linear-gradient(90deg,#3a1d2c,#2a2340)}
+.stg.boss img{width:44px;height:44px}
+.stg.boss b{font-size:14px;color:#ffd0d8}
+.stg.boss small{margin-left:auto}
 /* 팝업 */
 #modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:5}
-.mbox{width:min(440px,92vw);max-height:85vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.mbox{width:min(520px,92vw);max-height:85vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
 .mbox header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:900;font-size:18px}
 .mbox header button{background:none;border:0;font-size:22px;color:var(--muted)}
 .mbody{overflow:auto}
@@ -186,7 +213,7 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
       <div class="lbar">
         <div class="stone"><span id="lStage"></span></div>
         <div class="stone"><span class="coin"></span><span id="lGold"></span></div>
-        <div class="stone"><span class="gem"></span><span>0<small>별조각</small></span></div>
+        <div class="stone"><span class="gem"></span><span><span id="lShards">0</span><small>별조각</small></span></div>
       </div>
       <div class="icons">
         <button class="stone" id="lSave"><b>💾</b><span>저장</span></button>
@@ -220,6 +247,10 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
       <button class="stone" id="potionBtn"><kbd>Q</kbd><canvas class="picon" width="16" height="16"></canvas><span id="potionCnt"></span><i class="cd" id="potionCd"></i><span class="cdn" id="potionCdn"></span></button>
       <div class="skillbar" id="skillBar"></div>
       <div class="toast" id="toast" style="opacity:0"></div>
+      <div id="dialog" hidden>
+        <div class="stone dbox" id="dBox"><canvas id="dPortrait" width="64" height="64"></canvas><div class="dtext"><b id="dName"></b><p id="dText"></p></div><span class="dnext">▼</span></div>
+        <button class="stone" id="dSkip">스킵 ▶▶</button>
+      </div>
       <div class="stone result" id="result" hidden>
         <h2 id="rTitle"></h2>
         <p id="rText"></p>
@@ -240,8 +271,9 @@ button.stone:not(.lock):hover{filter:brightness(1.15)}
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js"></script>
-<script src="game.js"></script>
-<script type="module" src="cloud.js"></script>
+<script src="sprites.js?v=20261010c"></script>
+<script src="scenery.js?v=20261010c"></script>
+<script src="game.js?v=20261010c"></script>
+<script type="module" src="cloud.js?v=20261010c"></script>
 </body>
 </html>

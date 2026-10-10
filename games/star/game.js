@@ -14,10 +14,15 @@ const POTION_HEAL = 0.4;
 const POTION_CD = 15;       // 물약 사용 텀(초)
 const POTION_MAX = 20;
 const IDLE_CAP_HOURS = 8;
+const BOSS_TIME = 60;       // 챕터 보스 제한 시간(초)
+const SLAM_EVERY = 7;       // 보스 몸통 박치기 간격
+const SLAM_WARN = 1.2;      // 박치기 전 경고 시간
+const REPLAY_BONUS = 0.3;   // 이미 깬 스테이지의 클리어 보상 비율
+const SHARD_BONUS = 0.1;    // 별조각 1개당 공격력·체력 +10%
 
 // 밸런스 숫자 (시뮬레이션으로 맞춤)
 // 물약 없이 챕터 1 끝까지 약 75분, 중간에 10번 남짓 막힘
-const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.3, clearBonus: 5 };
+const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.3, clearBonus: 5, kingHp: 20, kingAtk: 0.6, kingGold: 30 };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
 
 // ── 강화 항목 ─────────────────────────────────
 const UPGRADES = [
@@ -158,6 +163,10 @@ function sellPrice(it) { return Math.ceil(monGold(it.stage) * 2 * GRADES[it.grad
 // 강화 수치 + 장비 효과
 function fullStats(lv) {
   const s = heroStats(lv);
+  const sh = 1 + (save.shards || 0) * SHARD_BONUS;
+  s.atk = Math.floor(s.atk * sh);
+  s.maxHp = Math.floor(s.maxHp * sh);
+  s.regen *= sh;
   const w = equipped('weapon'), a = equipped('armor'), c = equipped('acc');
   if (w) s.atk = Math.floor(s.atk * (1 + w.value / 100));
   if (a) { s.maxHp = Math.floor(s.maxHp * (1 + a.value / 100)); s.regen *= 1 + a.value / 100; }
@@ -165,6 +174,34 @@ function fullStats(lv) {
   s.pierce = c ? c.pierce : 0;
   return s;
 }
+
+// ── 대사 ─────────────────────────────────────
+const LINES = {
+  battle: ['풀잎 사이로 별빛이 새어 나와.', '이 근처에 별조각이 떨어진 게 분명해.', '슬라임들이 별조각을 삼킨 걸까?',
+    '하늘의 별… 언제부터 금이 가 있었지?', '저 큰 나무, 별빛을 머금고 있어.', '꽃버섯이 반짝이는 건 별조각 때문인가?', '들벌들이 별빛에 홀린 것 같아.'],
+  bossWave: ['저 녀석이 대장이구나.', '덩치가 크네… 조심하자.'],
+  low: ['조금만 더 버티자…!', '아직 쓰러질 순 없어!'],
+  lobby: ['오늘은 어디까지 가 볼까.', '모닥불이 따뜻하다.', '땅에 박힌 별조각이 또 빛나.', '저 별, 꼭 다시 이어 붙일 거야.', '장비를 좀 더 챙겨 갈까?'],
+  miru: ['다치면 바로 말해요!', '이 풀, 상처에 잘 듣는 약초예요.', '별조각이 따뜻해요… 신기하죠?'],
+};
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+// 대화: who = hero | king | miru | narr, {name}은 주인공 이름으로 바뀜
+const TALK = {
+  bossIntro: [
+    { who: 'king', text: '꾸르르… 반짝반짝한 별조각은 전부 이 몸 거다!' },
+    { who: 'hero', text: '그건 하늘에서 떨어진 별이야. 돌려줘!' },
+    { who: 'king', text: '가져갈 수 있으면 가져가 봐라, 꼬마!' },
+  ],
+  bossAgain: [{ who: 'king', text: '또 왔냐! 이번엔 안 진다, 꾸르르!' }],
+  bossOutro: [
+    { who: 'king', text: '꾸엑… 배 속의 별조각이… 빠져나간다…' },
+    { who: 'narr', text: '들꽃 평원의 별조각을 되찾았다. 손끝에서 따뜻한 빛이 번진다.' },
+    { who: 'miru', text: '괜찮아요? 다친 데는 없어요? 저는 마을 약초사 미르예요.' },
+    { who: 'miru', text: '{name} 님, 별조각을 찾는 여행이라면… 저도 같이 갈게요!' },
+    { who: 'narr', text: '미르가 동료가 되었다.' },
+  ],
+};
 
 // ── 몬스터 ───────────────────────────────────
 const MONSTERS = [
@@ -207,7 +244,7 @@ let save = null;
 
 function newSave(name, gender) {
   return { name, gender, gold: 0, stage: 1, lv: { atk: 0, hp: 0, regen: 0, crit: 0, aspd: 0 },
-    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, savedAt: Date.now() };
+    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bossDone: false, savedAt: Date.now() };
 }
 
 // 탭이 여러 개면 서로 저장을 덮어쓰므로, 가장 나중에 연 탭만 저장한다
@@ -258,6 +295,7 @@ function migrateSave(s) {
     delete s.kills; delete s.best;
     for (const u of UPGRADES) s.lv[u.id] = Math.min(s.lv[u.id] || 0, u.max);
     if (!s.items) { s.items = []; s.gear = {}; s.nextItem = 1; }
+    if (s.shards === undefined) { s.shards = 0; s.bossDone = false; }
     if (!s.gearV2) {
       s.items.forEach(it => it.value = rollValue(it.grade, it.stage));
       if (s.shop) s.shop.items.forEach(it => it.value = rollValue(it.grade, it.stage, 0.8));
@@ -309,15 +347,42 @@ let battle = null;      // { stage, wave, queue, earned, state, delay, potionCd 
 function refreshStats() { stats = fullStats(save.lv); }
 
 // ── 전투 ────────────────────────────────────
-function startBattle() {
+// stage: 도전할 스테이지 (깬 곳 또는 다음 곳)
+function startBattle(stage) {
+  stage = Math.max(1, Math.min(stage || save.stage, save.stage, LAST_STAGE));
   refreshStats();
   hero.hp = stats.maxHp;
   hero.cd = 0;
   floats = [];
-  battle = { stage: save.stage, wave: 0, queue: [], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [] };
+  battle = { stage, wave: 0, queue: [], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [] };
   spawnWave();
   $('result').hidden = true;
   showScreen('battle');
+  if (Math.random() < 0.6) say('hero', pick(LINES.battle));
+}
+
+// 챕터 보스: 거대 슬라임 왕
+function startBoss() {
+  if (save.stage <= LAST_STAGE) return;
+  refreshStats();
+  hero.hp = stats.maxHp;
+  hero.cd = 0;
+  floats = [];
+  const n = LAST_STAGE - 1;
+  const k = makeMonster(LAST_STAGE, true);
+  Object.assign(k, {
+    name: '거대 슬라임 왕', sprite: 'slime_king', king: true, size: 64, x: 200,
+    hp: Math.floor(BAL.monHp * Math.pow(BAL.hpGrow, n) * BAL.kingHp),
+    atk: Math.floor(BAL.monAtk * Math.pow(BAL.atkGrow, n) * BAL.kingAtk),
+    gold: monGold(LAST_STAGE) * BAL.kingGold,
+    critRes: critRes(LAST_STAGE) + 5,
+  });
+  k.maxHp = k.hp;
+  battle = { stage: LAST_STAGE, king: true, wave: 0, queue: [k], earned: 0, state: 'talk', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [],
+    timeLeft: BOSS_TIME, slamCd: SLAM_EVERY, slamWarn: 0 };
+  $('result').hidden = true;
+  showScreen('battle');
+  playDialog(save.bossDone ? TALK.bossAgain : TALK.bossIntro, () => { if (battle && battle.state === 'talk') battle.state = 'fight'; });
 }
 
 function spawnWave() {
@@ -329,6 +394,7 @@ function spawnWave() {
     m.x = 220 + i * 30;
     battle.queue.push(m);
   }
+  if (battle.wave === WAVES.length - 1 && Math.random() < 0.5) say('hero', pick(LINES.bossWave));
   updateBattleHud();
 }
 
@@ -356,8 +422,34 @@ function updateBattle(dt) {
   // 웨이브 사이 쉬는 시간
   if (battle.delay > 0) {
     battle.delay -= dt;
+    camX += 170 * dt;                       // 다음 웨이브를 향해 걸어간다 (배경이 겹마다 다른 속도로 흐름)
     if (battle.delay <= 0) spawnWave();
     return;
+  }
+
+  // 보스: 제한 시간과 몸통 박치기
+  if (battle.king) {
+    battle.timeLeft -= dt;
+    if (battle.timeLeft <= 0) { battle.timeLeft = 0; return endBattle('timeout'); }
+    const k = battle.queue[0];
+    if (k && k.dead <= 0 && k.x <= hero.x + 40) {
+      battle.slamCd -= dt;
+      if (battle.slamCd <= SLAM_WARN && !battle.slamWarn) {
+        battle.slamWarn = 1;
+        addFloat('!', k.x + 32, GROUND - 74, '#ff5a6e', true);
+        say('hero', '온다…!', 1.4);
+      }
+      if (battle.slamCd <= 0) {
+        const dmg = k.atk * 3;
+        hero.hp -= dmg;
+        hero.hurt = 1;
+        shake = 0.45;
+        addFloat('-' + fmt(dmg), hero.x + 16, GROUND - 46, '#ff3a4a', true);
+        battle.slamCd = SLAM_EVERY;
+        battle.slamWarn = 0;
+        if (hero.hp <= 0) { hero.hp = 0; return endBattle('lost'); }
+      }
+    }
   }
 
   const q = battle.queue;
@@ -391,6 +483,7 @@ function updateBattle(dt) {
     hero.hp -= mon.atk;
     hero.hurt = 1;
     addFloat('-' + fmt(mon.atk), hero.x + 16, GROUND - 38, '#ff6b7a');
+    if (!battle.lowSaid && hero.hp > 0 && hero.hp < stats.maxHp * 0.3) { battle.lowSaid = true; say('hero', pick(LINES.low)); }
     if (hero.hp <= 0) {
       hero.hp = 0;
       endBattle('lost');
@@ -405,7 +498,8 @@ function hit(mon, mult, color) {
   const dmg = Math.floor(stats.atk * mult * (crit ? stats.critDmg : 1) * (0.9 + Math.random() * 0.2));
   mon.hp -= dmg;
   mon.hurt = 1;
-  addFloat(fmt(dmg) + (crit ? '!' : ''), mon.x + 16, GROUND - 36 - (mult > 1 ? 8 : 0), crit ? '#ffd25e' : color || '#ffffff', crit || mult > 1);
+  const mid = (mon.size || 32) / 2;
+  addFloat(fmt(dmg) + (crit ? '!' : ''), mon.x + mid, GROUND - 36 - (mult > 1 ? 8 : 0) - (mon.size ? 24 : 0), crit ? '#ffd25e' : color || '#ffffff', crit || mult > 1);
   if (mon.hp > 0) return false;
   mon.hp = 0;
   mon.dead = 0.5;
@@ -465,31 +559,35 @@ function updateSkills(dt) {
 }
 
 function waveCleared() {
+  if (battle.king) return endBattle('won');
   if (battle.wave < WAVES.length - 1) {
     const heal = Math.floor(stats.maxHp * WAVE_HEAL);
     hero.hp = Math.min(stats.maxHp, hero.hp + heal);
     addFloat('+' + fmt(heal), hero.x + 16, GROUND - 46, '#6fe39a', true);
     toast(`웨이브 ${battle.wave + 1} 클리어! 체력 회복`);
     battle.wave++;
-    battle.delay = 1.2;
+    battle.delay = 1.6;
     updateBattleHud();
   } else {
     endBattle('won');
   }
 }
 
-// result: 'won'(승리) | 'lost'(쓰러짐) | 'retreat'(후퇴)
+// result: 'won'(승리) | 'lost'(쓰러짐) | 'retreat'(후퇴) | 'timeout'(보스 시간 초과)
 function endBattle(result) {
   const won = result === 'won';
   battle.state = result;
   const r = battle;
+  if (r.king) return endBoss(result);
   let text;
   if (won) {
-    const bonus = monGold(r.stage) * BAL.clearBonus;
+    const first = save.stage === r.stage;
+    const bonus = Math.floor(monGold(r.stage) * BAL.clearBonus * (first ? 1 : REPLAY_BONUS));
     save.gold += bonus;
     r.earned += bonus;
-    if (save.stage === r.stage) { accrue(); save.stage++; }   // 방치 수입은 지금까지 쌓인 것까지 옛 속도로 계산 후 올림
-    text = `획득 골드 ${fmt(r.earned)} G (클리어 보상 ${fmt(bonus)} 포함)<br>방치 수입 증가: 초당 ${idleRate().toFixed(1)} G`;
+    if (first) { accrue(); save.stage++; }   // 방치 수입은 지금까지 쌓인 것까지 옛 속도로 계산 후 올림
+    text = `획득 골드 ${fmt(r.earned)} G (클리어 보상 ${fmt(bonus)} G${first ? '' : ' · 재도전 30%'})`
+      + (first ? `<br>방치 수입 증가: 초당 ${idleRate().toFixed(1)} G` : '');
   } else if (result === 'retreat') {
     text = `획득 골드 ${fmt(r.earned)} G · 저장 완료<br>스테이지 미클리어`;
   } else {
@@ -498,23 +596,183 @@ function endBattle(result) {
   if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
   writeSave();
   cloudUpload();
-  $('rTitle').textContent = { won: `스테이지 1-${r.stage} 클리어!`, lost: '패배…', retreat: '후퇴' }[result];
-  $('rTitle').style.color = { won: '#ffd25e', lost: '#ff9aa6', retreat: '#c8d6ff' }[result];
-  $('rText').innerHTML = text;
+  const top = Math.min(save.stage, LAST_STAGE);
   const btns = [];
-  if (won && save.stage <= LAST_STAGE) btns.push(['다음 스테이지 ▶', startBattle, true]);
-  if (!won) btns.push(['다시 도전', startBattle, true]);
+  if (won && r.stage < top) btns.push(['다음 스테이지 ▶', () => startBattle(r.stage + 1), true]);
+  if (won && r.stage === LAST_STAGE && !save.bossDone) btns.push(['👑 챕터 보스 도전', startBoss, true]);
+  if (!won) btns.push(['다시 도전', () => startBattle(r.stage), true]);
+  btns.push(['스테이지 선택', () => { showScreen('lobby'); openStages(); }, false]);
   btns.push(['캠프로', () => showScreen('lobby'), false]);
+  showResult({ won: `스테이지 1-${r.stage} 클리어!`, lost: '패배…', retreat: '후퇴' }[result],
+    { won: '#ffd25e', lost: '#ff9aa6', retreat: '#c8d6ff' }[result], text, btns);
+}
+
+function endBoss(result) {
+  const r = battle;
+  if (result !== 'won') {
+    writeSave();
+    cloudUpload();
+    showResult({ lost: '패배…', timeout: '시간 초과', retreat: '후퇴' }[result], result === 'retreat' ? '#c8d6ff' : '#ff9aa6',
+      `획득 골드 ${fmt(r.earned)} G · 저장 완료<br>강화 후 재도전 · 몸통 박치기 직전에 물약 사용`,
+      [['다시 도전', startBoss, true], ['캠프로', () => showScreen('lobby'), false]]);
+    return;
+  }
+  const first = !save.bossDone;
+  const bonus = Math.floor(monGold(LAST_STAGE) * BAL.kingGold * (first ? 1 : REPLAY_BONUS));
+  save.gold += bonus;
+  r.earned += bonus;
+  if (first) { save.bossDone = true; save.shards = (save.shards || 0) + 1; }
+  writeSave();
+  cloudUpload();
+  let text = `획득 골드 ${fmt(r.earned)} G`
+    + (first ? '<br>✦ 별조각 +1 · 공격력·체력 영구 +10%<br>미르 합류 · 동료 기능은 다음 업데이트' : ' (재도전 보상 30%)');
+  if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
+  const finish = () => showResult(first ? '챕터 1 클리어!' : '거대 슬라임 왕 처치!', '#ffd25e', text, [['캠프로', () => showScreen('lobby'), true]]);
+  if (first) playDialog(TALK.bossOutro, finish); else finish();
+  updateHud();
+}
+
+function showResult(title, color, text, btns) {
+  $('rTitle').textContent = title;
+  $('rTitle').style.color = color;
+  $('rText').innerHTML = text;
   $('rBtns').innerHTML = '';
   for (const [label, fn, main] of btns) {
     const b = document.createElement('button');
     b.className = 'stone' + (main ? ' main' : '');
     b.textContent = label;
-    b.onclick = fn;
+    b.onclick = () => fn();
     $('rBtns').appendChild(b);
   }
   $('result').hidden = false;
   updateHud();
+}
+
+// ── 대화창 ───────────────────────────────────
+const SPEAKERS = {
+  hero: () => ({ name: save.name, img: SPR['hero_' + save.gender] }),
+  king: () => ({ name: '거대 슬라임 왕', img: SPR.slime_king }),
+  miru: () => ({ name: '미르', img: SPR.miru }),
+  narr: () => ({ name: '', img: null }),
+};
+let dlg = null;   // { lines, i, chars, onDone }
+
+function lineText(L) { return L.text.replace('{name}', save.name); }
+
+function playDialog(lines, onDone) {
+  dlg = { lines, i: 0, chars: 0, onDone };
+  $('dialog').hidden = false;
+  showLine();
+}
+
+function showLine() {
+  const L = dlg.lines[dlg.i];
+  const sp = SPEAKERS[L.who]();
+  $('dBox').classList.toggle('narr', L.who === 'narr');
+  $('dName').textContent = sp.name;
+  const c = $('dPortrait').getContext('2d');
+  c.imageSmoothingEnabled = false;
+  c.clearRect(0, 0, 64, 64);
+  if (sp.img) c.drawImage(sp.img, 0, 0, 64, 64);
+  dlg.chars = 0;
+  $('dText').textContent = '';
+}
+
+function dialogTick(dt) {
+  if (!dlg) return;
+  const text = lineText(dlg.lines[dlg.i]);
+  if (dlg.chars >= text.length) return;
+  dlg.chars = Math.min(text.length, dlg.chars + dt * 36);
+  $('dText').textContent = text.slice(0, Math.floor(dlg.chars));
+}
+
+function dialogNext() {
+  if (!dlg) return;
+  const text = lineText(dlg.lines[dlg.i]);
+  if (dlg.chars < text.length) { dlg.chars = text.length; $('dText').textContent = text; return; }
+  dlg.i++;
+  if (dlg.i >= dlg.lines.length) endDialog(); else showLine();
+}
+
+function endDialog(silent) {
+  if (!dlg) return;
+  const f = dlg.onDone;
+  dlg = null;
+  $('dialog').hidden = true;
+  if (!silent && f) f();
+}
+
+// ── 말풍선 ───────────────────────────────────
+let bubbles = [];          // { who, text, t, dur }
+let lobbyTalk = 8;         // 로비 혼잣말까지 남은 시간
+let shake = 0;
+
+function say(who, text, dur) {
+  bubbles = bubbles.filter(b => b.who !== who);
+  bubbles.push({ who, text, t: 0, dur: dur || 3.2 });
+}
+
+function drawBubble(b, cx, topY) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, b.t * 6, (b.dur - b.t) * 3));
+  ctx.font = 'bold 19px "Malgun Gothic", sans-serif';
+  const w = ctx.measureText(b.text).width + 28, h = 38;
+  const tipX = cx * SCALE;
+  const x = Math.max(8, Math.min(cv.width - w - 8, tipX - w / 2));
+  const y = topY * SCALE - h - 14;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 12);
+  ctx.moveTo(tipX - 8, y + h); ctx.lineTo(tipX, y + h + 12); ctx.lineTo(tipX + 8, y + h);
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#2a2f55';
+  ctx.stroke();
+  ctx.fillStyle = '#22263f';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(b.text, x + w / 2, y + h / 2 + 1);
+  ctx.restore();
+}
+
+function drawBubbles(pos) {
+  for (const b of bubbles) { const p = pos[b.who]; if (p) drawBubble(b, p[0], p[1]); }
+}
+
+function updateBubbles(dt) {
+  bubbles.forEach(b => b.t += dt);
+  bubbles = bubbles.filter(b => b.t < b.dur);
+  if (screen !== 'lobby' || dlg) return;
+  lobbyTalk -= dt;
+  if (lobbyTalk <= 0) {
+    lobbyTalk = 18 + Math.random() * 14;
+    if (save.bossDone && Math.random() < 0.45) say('miru', pick(LINES.miru));
+    else say('hero', pick(LINES.lobby));
+  }
+}
+
+// ── 스테이지 선택 ────────────────────────────
+function openStages() {
+  modalKind = 'stages';
+  $('mTitle').textContent = '스테이지 선택 · 들꽃 평원';
+  const top = Math.min(save.stage, LAST_STAGE);
+  let html = '<div class="mgold" id="mGold"></div><div class="stagegrid">';
+  for (let n = 1; n <= LAST_STAGE; n++) {
+    const cleared = n < save.stage, open = n <= top;
+    const type = MONSTERS.filter(m => n >= m.from).pop();
+    html += `<button class="stg${cleared ? ' clear' : ''}${n === save.stage ? ' next' : ''}" data-stg="${n}" ${open ? '' : 'disabled'}>
+      <img src="${ICON_URL[type.sprite]}"><b>1-${n}</b><small>${cleared ? '✓ 클리어' : open ? '도전' : '잠김'}</small></button>`;
+  }
+  const bossOpen = save.stage > LAST_STAGE;
+  html += `</div><button class="stg boss${save.bossDone ? ' clear' : ''}${bossOpen && !save.bossDone ? ' next' : ''}" id="bossStg" ${bossOpen ? '' : 'disabled'}>
+    <img src="${ICON_URL.slime_king}"><b>👑 챕터 보스 · 거대 슬라임 왕</b>
+    <small>${save.bossDone ? '✓ 처치 · 재도전 가능' : bossOpen ? '도전 가능 · 제한 시간 60초' : '1-20 클리어 시 해금'}</small></button>
+    <p class="note">클리어한 스테이지 재도전 가능 · 클리어 보상은 첫 클리어 100%, 이후 30%</p>`;
+  $('mBody').innerHTML = html;
+  $('mBody').querySelectorAll('[data-stg]').forEach(b => b.onclick = () => { closeModal(); startBattle(+b.dataset.stg); });
+  $('bossStg').onclick = () => { closeModal(); startBoss(); };
+  $('modal').hidden = false;
+  refreshModal();
 }
 
 function usePotion() {
@@ -602,15 +860,21 @@ function renderLobby() {
   drawImg(SPR.tent, 50, GROUND - 38, 48);
   drawCampfire(104);
   const bob = Math.round(Math.sin(time * 3) * 0.8);
+  if (save.bossDone) {                       // 동료가 된 미르가 캠프에 있다
+    shadow(34);
+    drawImg(SPR.miru, 18, GROUND - 31 + Math.round(Math.sin(time * 3 + 1) * 0.8));
+  }
   shadow(138);
   drawImg(SPR['hero_' + save.gender], 122, GROUND - 31 + bob);
+  drawBubbles({ hero: [138, GROUND - 32], miru: [34, GROUND - 32] });
   floatsLobby.forEach(f => f.t += 1 / 60);
   floatsLobby = floatsLobby.filter(f => f.t < 1);
   drawFloats(floatsLobby, 166, 100);
 }
 
 function renderBattle() {
-  const bob = Math.round(Math.sin(time * 4) * 0.8);
+  const walking = battle.delay > 0;
+  const bob = walking ? Math.round(Math.abs(Math.sin(time * 12)) * -2) : Math.round(Math.sin(time * 4) * 0.8);
   const hx = hero.x + hero.lunge * 6;
   shadow(hx + 16);
   ctx.save();
@@ -621,12 +885,13 @@ function renderBattle() {
   // 뒤에서부터 그려서 앞 몬스터가 위에 오게
   for (let i = battle.queue.length - 1; i >= 0; i--) {
     const m = battle.queue[i];
-    const size = m.boss ? 44 : 32;
-    const wob = Math.round(Math.sin(time * 6 + i) * 1);
+    const size = m.size || (m.boss ? 44 : 32);
+    const wob = Math.round(Math.sin(time * (m.king ? 3 : 6) + i) * (m.king ? 2 : 1));
+    const warn = m.king && battle.slamWarn ? 0.5 + 0.5 * Math.sin(time * 24) : 0;
     ctx.save();
     if (m.dead > 0) ctx.globalAlpha = m.dead * 2;
-    shadow(m.x + size / 2, m.boss ? 15 : 11);
-    drawImg(SPR[m.sprite], m.x, GROUND - size + 1 + wob, size, m.hurt);
+    shadow(m.x + size / 2, m.king ? 26 : m.boss ? 15 : 11);
+    drawImg(SPR[m.sprite], m.x, GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
     ctx.restore();
     if (i === 0 && m.dead <= 0) {
       hpBar(m.x + 2, GROUND - size - 5, size - 4, m.hp / m.maxHp, '#ff6b7a');
@@ -634,22 +899,30 @@ function renderBattle() {
     }
   }
   drawFloats(floats);
+  drawBubbles({ hero: [hx + 16, GROUND - 36] });
 }
+
+let camX = 0;            // 배경 카메라 위치 (웨이브 사이에 앞으로 걸어가면 커진다)
+let lastDt = 0;
 
 function render() {
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(SPR.bg_meadow, 0, 0, cv.width, cv.height);
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random() - 0.5) * 18 * shake, (Math.random() - 0.5) * 12 * shake);
+  Scenery.drawBack(ctx, camX, time);
   if (screen === 'battle' && battle) renderBattle(); else renderLobby();
+  Scenery.drawFront(ctx, camX, time, lastDt);
+  ctx.restore();
 }
 
 // ── 화면 글자 ───────────────────────────────
 function updateHud() {
   const s = stats;
   const done = save.stage > LAST_STAGE;
-  $('lStage').textContent = done ? '챕터 1 · 완료!' : `챕터 1 · ${save.stage} / ${LAST_STAGE}`;
+  $('lStage').textContent = save.bossDone ? '챕터 1 · 완료' : done ? '챕터 1 · 보스' : `챕터 1 · ${save.stage} / ${LAST_STAGE}`;
   $('lGold').textContent = Math.floor(save.gold).toLocaleString('ko-KR');
-  $('lBattleSub').textContent = done ? '챕터 보스 준비 중' : '들꽃 평원 1-' + save.stage;
-  $('toBattle').classList.toggle('lock', done);
+  $('lShards').textContent = save.shards || 0;
+  $('lBattleSub').textContent = save.bossDone ? '스테이지 선택' : done ? '👑 챕터 보스 도전' : '들꽃 평원 1-' + save.stage;
   $('lName').textContent = save.name;
   refreshSettings();
   $('chestRate').textContent = `초당 ${idleRate().toFixed(1)} G`;
@@ -672,8 +945,9 @@ function updateChest() {
 
 function updateBattleHud() {
   if (!battle) return;
-  $('bStage').textContent = `들꽃 평원 1-${battle.stage}`;
-  $('bWave').textContent = `웨이브 ${battle.wave + 1} / ${WAVES.length}` + (battle.wave === WAVES.length - 1 ? ' · 대장 등장!' : '') + ` · 몬스터 치명타 저항 ${critRes(battle.stage).toFixed(1)}%`;
+  $('waves').hidden = !!battle.king;
+  $('bStage').textContent = battle.king ? '👑 챕터 보스 · 거대 슬라임 왕' : `들꽃 평원 1-${battle.stage}`;
+  if (!battle.king) $('bWave').textContent = `웨이브 ${battle.wave + 1} / ${WAVES.length}` + (battle.wave === WAVES.length - 1 ? ' · 대장 등장!' : '') + ` · 몬스터 치명타 저항 ${critRes(battle.stage).toFixed(1)}%`;
   $('skillBar').innerHTML = save.slots.map((id, i) => {
     const sk = id && skillById(id);
     return `<button class="stone skbtn${sk ? '' : ' lock'}" data-slot="${i}"><kbd>${i + 1}</kbd><span>${sk ? sk.name : '빈 칸'}</span>${sk ? `<small>Lv ${save.skills[id]}</small>` : ''}<i class="cd"></i><span class="cdn"></span></button>`;
@@ -695,6 +969,10 @@ function updateBattleBars() {
   const cd = battle ? battle.potionCd : 0;
   $('potionCd').style.setProperty('--p', (cd / POTION_CD * 100) + '%');
   $('potionCdn').textContent = cd > 0 ? Math.ceil(cd) : '';
+  if (battle && battle.king) {
+    const s = Math.ceil(battle.timeLeft);
+    $('bWave').textContent = `제한 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · 몸통 박치기 ${Math.max(0, battle.slamCd).toFixed(1)}초 후`;
+  }
   $('skillBar').querySelectorAll('.skbtn').forEach(b => {
     const id = save.slots[b.dataset.slot];
     if (!id || !battle) return;
@@ -710,7 +988,7 @@ function showScreen(name) {
   $('lobbyUI').hidden = name !== 'lobby';
   $('battleUI').hidden = name !== 'battle';
   closeModal();
-  if (name === 'lobby') { battle = null; refreshStats(); }
+  if (name === 'lobby') { battle = null; endDialog(true); bubbles = []; refreshStats(); }
   updateHud();
   updateBattleHud();
 }
@@ -1116,6 +1394,7 @@ function showStart() {
 const ICON_URL = {};
 
 function begin() {
+  for (const id of ['slime', 'mushroom', 'bee', 'slime_king']) ICON_URL[id] = SPR[id].toDataURL ? SPR[id].toDataURL() : SPR[id].src;
   for (const sl of GEAR_SLOTS) {
     const img = SPR['icon_' + sl.id];
     ICON_URL[sl.id] = img.toDataURL ? img.toDataURL() : img.src;
@@ -1128,15 +1407,18 @@ function begin() {
   ic.drawImage(SPR['hero_' + save.gender], 0, 0);
   document.querySelectorAll('.picon').forEach(c => { const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(SPR.potion, 0, 0); });
 
-  $('toBattle').onclick = () => { if (save.stage <= LAST_STAGE) startBattle(); };
+  $('toBattle').onclick = openStages;
   $('retreat').onclick = () => {
     if (battle && battle.state === 'fight') endBattle('retreat');
     else showScreen('lobby');
   };
   $('chestBtn').onclick = collectChest;
   $('potionBtn').onclick = usePotion;
+  $('dBox').onclick = dialogNext;
+  $('dSkip').onclick = () => endDialog();
   document.addEventListener('keydown', e => {
-    if (screen !== 'battle') return;
+    if (dlg && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); dialogNext(); return; }
+    if (screen !== 'battle' || dlg) return;
     if (e.key === 'q' || e.key === 'Q' || e.key === 'ㅂ') usePotion();
     if (e.key >= '1' && e.key <= String(SKILL_SLOTS)) castSkill(+e.key - 1, false);
   });
@@ -1157,7 +1439,11 @@ function begin() {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     time += dt;
+    lastDt = dt;
     if (screen === 'battle') { updateBattle(dt); updateBattleBars(); }
+    dialogTick(dt);
+    updateBubbles(dt);
+    shake = Math.max(0, shake - dt);
     tick += dt;
     if (tick > 0.25) { tick = 0; accrue(); updateChest(); updateShopTimer(); }
     render();
@@ -1173,6 +1459,7 @@ function begin() {
 let spritesReady = false;
 
 loadSprites().then(() => {
+  Scenery.build();
   spritesReady = true;
   claimTab();
   if (TEST) {                              // 테스트: 로그인 없이 브라우저 저장만

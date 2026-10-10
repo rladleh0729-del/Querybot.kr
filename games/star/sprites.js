@@ -127,55 +127,52 @@ function drawBee() {
   });
 }
 
-// ── 챕터 1 배경: 들꽃 평원 (320×180) ────────────
-function drawMeadow() {
-  const W = 320, H = 180, GROUND = 140;
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const g = c.getContext('2d');
-  const p = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
-  let seed = 7;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+// ── 챕터 1 보스: 거대 슬라임 왕 (64×64, 왼쪽을 봄) ──
+function drawSlimeKing() {
+  return makeSprite(64, 64, p => {
+    ellipse(p, 32, 44, 27, 18, '#3a9a52', (x, y) => y <= 61);
+    ellipse(p, 32, 45, 25, 15, '#55c46a');
+    ellipse(p, 33, 48, 19, 10, '#6fd982');
+    p(10, 61, 45, 1, '#2f8044');
+    p(14, 34, 7, 3, '#c8ffd2'); p(16, 32, 4, 2, '#ffffff'); p(13, 38, 2, 3, '#c8ffd2');   // 반짝임
+    // 화난 눈
+    p(16, 42, 6, 7, '#1d2a20'); p(29, 42, 6, 7, '#1d2a20');
+    p(17, 43, 2, 2, '#ffffff'); p(30, 43, 2, 2, '#ffffff');
+    p(13, 38, 3, 1, '#1d2a20'); p(16, 39, 3, 1, '#1d2a20'); p(19, 40, 3, 1, '#1d2a20');
+    p(29, 40, 3, 1, '#1d2a20'); p(32, 39, 3, 1, '#1d2a20'); p(35, 38, 3, 1, '#1d2a20');
+    // 입과 송곳니
+    p(19, 53, 14, 2, '#2e6e3b'); p(21, 55, 2, 2, '#ffffff'); p(29, 55, 2, 2, '#ffffff');
+    // 왕관
+    p(19, 21, 26, 7, '#f0c040'); p(19, 15, 4, 6, '#f0c040'); p(30, 11, 4, 10, '#f0c040'); p(41, 15, 4, 6, '#f0c040');
+    p(19, 21, 26, 1, '#ffe27a'); p(31, 12, 2, 2, '#ffe27a'); p(20, 16, 2, 1, '#ffe27a'); p(42, 16, 2, 1, '#ffe27a');
+    p(24, 23, 3, 3, '#e0405a'); p(31, 23, 3, 3, '#7ad0ff'); p(38, 23, 3, 3, '#e0405a');
+    // 몸속에 삼킨 별조각
+    p(40, 47, 3, 9, '#d6f3ff'); p(38, 49, 7, 5, '#d6f3ff'); p(41, 48, 1, 6, '#ffffff');
+  });
+}
 
-  // 하늘 (띠 모양 그라데이션)
-  const sky = ['#6fb6ff', '#7fc0ff', '#8fcaff', '#a2d4ff', '#b6deff', '#c9e7ff'];
-  sky.forEach((col, i) => p(0, i * 16, W, 16, col));
-  p(0, 96, W, GROUND - 96, '#d8eeff');
-  // 해
-  ellipse(p, 262, 30, 12, 12, '#fff3b0'); ellipse(p, 262, 30, 9, 9, '#fffbe0');
-  // 구름
-  const cloud = (x, y) => { p(x, y, 26, 6, '#ffffff'); p(x + 5, y - 4, 14, 4, '#ffffff'); p(x + 2, y + 6, 22, 2, '#e6f2ff'); };
-  cloud(30, 28); cloud(140, 18); cloud(205, 52);
-  // 먼 산
-  for (let x = 0; x < W; x++) {
-    const h = 30 + Math.sin(x / 23) * 10 + Math.sin(x / 9) * 4;
-    p(x, 108 - h, 1, h + 40, '#9cc7d8');
-  }
-  // 가까운 언덕
-  for (let x = 0; x < W; x++) {
-    const h = 18 + Math.sin(x / 31 + 2) * 8 + Math.sin(x / 13) * 3;
-    p(x, GROUND - h, 1, h, '#7cc46a');
-    p(x, GROUND - h, 1, 2, '#95d67e');
-  }
-  // 나무 몇 그루
-  const tree = (x, y) => { p(x + 4, y + 10, 3, 10, '#6b4a2b'); ellipse(p, x + 5, y + 6, 7, 7, '#4f9a4a'); ellipse(p, x + 3, y + 4, 4, 3, '#67b25c'); };
-  tree(20, GROUND - 38); tree(95, GROUND - 34); tree(286, GROUND - 40);
-  // 땅
-  p(0, GROUND, W, H - GROUND, '#5aa84e');
-  p(0, GROUND, W, 3, '#78c464');
-  p(0, GROUND + 22, W, H - GROUND - 22, '#4e9444');
-  for (let i = 0; i < 160; i++) {
-    const x = (rnd() * W) | 0, y = GROUND + 4 + ((rnd() * (H - GROUND - 6)) | 0);
-    p(x, y, 1, 2, rnd() < .5 ? '#6cbc5c' : '#46883c');
-  }
-  // 들꽃
-  const flowers = ['#ffffff', '#ffd25e', '#ff9ac0', '#b9a2ff'];
-  for (let i = 0; i < 45; i++) {
-    const x = (rnd() * W) | 0, y = GROUND + 3 + ((rnd() * (H - GROUND - 6)) | 0);
-    const col = flowers[(rnd() * flowers.length) | 0];
-    p(x - 1, y, 3, 1, col); p(x, y - 1, 1, 3, col); p(x, y, 1, 1, '#ffb030');
-  }
-  return c;
+// ── 동료: 미르 (견습 약초사, 오른쪽을 봄) ──
+function drawMiru() {
+  return makeSprite(32, 32, p => {
+    p(12, 25, 3, 4, '#4a3b2a'); p(17, 25, 3, 4, '#4a3b2a');
+    p(11, 28, 4, 2, '#5a3a20'); p(17, 28, 4, 2, '#5a3a20');
+    // 초록 망토
+    p(10, 15, 12, 11, '#4f9a5a'); p(10, 15, 3, 11, '#3d7a47'); p(11, 24, 10, 2, '#3d7a47');
+    p(14, 17, 4, 7, '#f2e6c8');                                 // 앞치마
+    p(15, 19, 2, 2, '#e0405a');                                 // 약초 주머니 단추
+    // 머리
+    p(12, 7, 8, 9, '#f4cba3'); p(12, 14, 8, 2, '#d9a47c');
+    p(20, 10, 1, 3, '#f4cba3');
+    p(18, 10, 1, 2, '#2a1d1a'); p(19, 9, 1, 1, '#2a1d1a');
+    p(17, 13, 2, 1, '#c0806a');
+    // 청록 단발
+    p(11, 5, 10, 3, '#3fb4a8'); p(11, 8, 3, 6, '#3fb4a8'); p(14, 8, 2, 1, '#3fb4a8'); p(19, 8, 2, 2, '#3fb4a8');
+    p(12, 4, 7, 1, '#3fb4a8'); p(11, 5, 2, 1, '#2a8a80'); p(11, 12, 2, 3, '#2a8a80');
+    p(17, 4, 3, 2, '#ff9ac0');                                  // 꽃핀
+    // 지팡이와 잎
+    p(21, 8, 1, 21, '#8a5a34'); p(22, 6, 3, 3, '#6fd982'); p(20, 5, 2, 2, '#6fd982');
+    p(20, 18, 2, 2, '#f4cba3');
+  });
 }
 
 // ── 로비 캠프 소품 ──────────────────────────────
@@ -248,11 +245,12 @@ function loadSprites() {
     slime: drawSlime(),
     mushroom: drawMushroom(),
     bee: drawBee(),
-    bg_meadow: drawMeadow(),
     tent: drawTent(),
     chest: drawChest(false),
     chest_full: drawChest(true),
     potion: drawPotion(),
+    slime_king: drawSlimeKing(),
+    miru: drawMiru(),
     icon_weapon: drawSwordIcon(),
     icon_armor: drawArmorIcon(),
     icon_acc: drawRingIcon(),
