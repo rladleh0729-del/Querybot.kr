@@ -527,6 +527,7 @@ function collectChest() {
   if (got < 1) return;
   save.gold += got;
   save.chest -= got;
+  Sound.coin();
   floatsLobby.push({ text: '+' + fmt(got) + ' G', t: 0 });
   writeSave();
   updateHud();
@@ -857,6 +858,7 @@ function waveCleared() {
 // result: 'won'(승리) | 'lost'(쓰러짐) | 'retreat'(후퇴) | 'timeout'(보스 시간 초과)
 function endBattle(result) {
   const won = result === 'won';
+  if (won) Sound.win(); else if (result !== 'retreat') Sound.lose();
   battle.state = result;
   const r = battle;
   if (r.king) return endBoss(result);
@@ -1794,7 +1796,11 @@ function openSettings() {
       <div class="val"><input id="setName" maxlength="8" value="${esc(save.name)}">
         <span class="gpick"><button data-sg="m" class="${save.gender === 'm' ? 'on' : ''}">소년</button><button data-sg="f" class="${save.gender === 'f' ? 'on' : ''}">소녀</button></span></div>
       <button id="saveChar">변경</button></div>
+    <div class="up"><div class="nm">소리</div><div class="val">배경음악 · 버튼 효과음</div>
+      <div class="skbtns"><button id="tBgm" class="equip${Sound.bgm ? ' on' : ''}">음악 ${Sound.bgm ? '켜짐' : '꺼짐'}</button><button id="tSfx" class="equip${Sound.sfx ? ' on' : ''}">효과음 ${Sound.sfx ? '켜짐' : '꺼짐'}</button></div></div>
     <div id="setBody"></div>`;
+  $('tBgm').onclick = () => { const on = Sound.toggle('bgm'); $('tBgm').textContent = '음악 ' + (on ? '켜짐' : '꺼짐'); $('tBgm').classList.toggle('on', on); };
+  $('tSfx').onclick = () => { const on = Sound.toggle('sfx'); $('tSfx').textContent = '효과음 ' + (on ? '켜짐' : '꺼짐'); $('tSfx').classList.toggle('on', on); };
   let gender = save.gender;
   $('mBody').querySelectorAll('[data-sg]').forEach(b => b.onclick = () => {
     gender = b.dataset.sg;
@@ -1996,7 +2002,11 @@ function begin() {
     updateMood();
     shake = Math.max(0, shake - dt);
     tick += dt;
-    if (tick > 0.25) { tick = 0; accrue(); updateChest(); updateShopTimer(); }
+    if (tick > 0.25) {
+      tick = 0; accrue(); updateChest(); updateShopTimer();
+      const inBattle = screen === 'battle' && battle;
+      Sound.setScene(chapter(inBattle ? chOf(battle.stage) : campChapter()).theme, inBattle ? (battle.king ? 'boss' : 'battle') : 'camp');
+    }
     render();
     requestAnimationFrame(frame);
   };
