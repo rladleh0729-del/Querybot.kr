@@ -3008,13 +3008,13 @@ function refreshSettings() {
 
 // ── 개발자 도구 ──
 // 테스트 모드(?test)이거나 개발자 계정으로 로그인했을 때만 설정 화면에 나온다. 계정은 이메일의 SHA-256 값으로만 비교
-const DEV_HASH = '410f5af8785efc48318b3aacfa7c970eb181d864cb673464afcea3bad172a571';
+const DEV_HASHES = ['410f5af8785efc48318b3aacfa7c970eb181d864cb673464afcea3bad172a571', '21c92c937c2c7eb9f2ce722ba4b6bf7762ae902ba1b8b382fccc5a21e33fb73c'];
 async function isDev() {
   if (TEST) return true;
   const u = window.Cloud && window.Cloud.user;
   if (!u || !u.email || !(window.crypto && crypto.subtle)) return false;
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(u.email.trim().toLowerCase()));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('') === DEV_HASH;
+  return DEV_HASHES.includes([...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join(''));
 }
 async function devTools() {
   if (!(await isDev()) || modalKind !== 'settings' || !$('devSlot') || $('devBox')) return;
