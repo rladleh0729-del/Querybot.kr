@@ -3,7 +3,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, linkWithPopup, linkWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, where, getCountFromServer } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // 공개용 설정값 (보호는 Firestore 보안 규칙이 담당)
 const app = initializeApp({
@@ -32,6 +32,16 @@ window.Cloud = {
   async load() {
     const snap = await getDoc(saveDoc());
     return snap.exists() ? JSON.parse(snap.data().data) : null;
+  },
+  // 전투력 랭킹
+  rankSave: data => setDoc(doc(db, 'ranking', auth.currentUser.uid), data),
+  async rankTop(n) {
+    const s = await getDocs(query(collection(db, 'ranking'), orderBy('power', 'desc'), limit(n)));
+    return s.docs.map(d => ({ uid: d.id, ...d.data() }));
+  },
+  async rankOf(power) {
+    const c = await getCountFromServer(query(collection(db, 'ranking'), where('power', '>', power)));
+    return c.data().count + 1;
   },
   async save(obj) {
     await setDoc(saveDoc(), { data: JSON.stringify(obj), updatedAt: Date.now() });

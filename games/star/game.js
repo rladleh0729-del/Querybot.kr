@@ -205,7 +205,10 @@ function fullStats(lv) {
     const A = allyById(id);
     if (A && A.type === 'support') { const lv = save.allies[id] || 1, p = allyPow(id); s.atk = Math.floor(s.atk * (1 + (4 + lv) * p / 100)); s.aspd *= 1 + (2 + lv * 0.5) * p / 100; }
   }
+  const sb = ok ? setBonus() : { atk: 0, hp: 0, crit: 0, guard: 0, aspd: 0, gold: 0 };
+  s.atk = Math.floor(s.atk * (1 + sb.atk / 100)); s.maxHp = Math.floor(s.maxHp * (1 + sb.hp / 100)); s.crit += sb.crit; s.aspd *= 1 + sb.aspd / 100;
   const m = traitMods();
+  m.guard = Math.min(60, m.guard + sb.guard); m.gold += sb.gold;
   if (tc('warrior')) m.guard = Math.min(60, m.guard + (tc('warrior') >= 2 ? 10 : 5));
   s.atk = Math.floor(s.atk * (1 + m.atk / 100));
   s.maxHp = Math.floor(s.maxHp * (1 + m.hp / 100));
@@ -633,6 +636,7 @@ function allyRoll(minR = 1) {
   if ((save.apity || 0) + 1 >= APITY) r = 3;
   else { const w = AGACHA_W.map((x, i) => i >= minR ? x : 0); let x = Math.random() * w.reduce((a, b) => a + b, 0); r = 0; while (x >= w[r]) { x -= w[r]; r++; } }
   save.apity = r === 3 ? 0 : (save.apity || 0) + 1;
+  if (r === 3 && Math.random() < 0.5) return pickupId();          // 이번 주 픽업
   const pool = ALLIES.filter(A => A.r === r);
   return pool[Math.floor(Math.random() * pool.length)].id;
 }
@@ -954,6 +958,188 @@ function migrateSave(s) {
   } catch (e) { return null; }
 }
 
+// ── 매일 출석: 날마다 소량, 7일째 크게. 하루 빠지면 1일차부터 ──
+const ATTEND = [
+  { text: '별가루 5 · 골드',      give: u => { save.dust += 5; save.gold += u; } , gold: 1 },
+  { text: '물약 2 · 골드',        give: u => { save.potions += 2; save.gold += u; }, gold: 1 },
+  { text: '별가루 10',            give: () => { save.dust += 10; } },
+  { text: '골드 ×3',              give: u => { save.gold += u * 3; }, gold: 3 },
+  { text: '별가루 15',            give: () => { save.dust += 15; } },
+  { text: '희귀 이상 장비 상자',  give: () => { addItem(makeItem(topStage(), gachaGrade(2))); } },
+  { text: '전설 동료 1명 + 별가루 20', give: () => { const pool = ALLIES.filter(A => A.r === 3); gainAlly(pool[Math.floor(Math.random() * pool.length)].id); save.dust += 20; }, big: true },
+];
+const attendGold = () => Math.max(500, Math.floor(idleRate() * 600));          // 방치 10분치
+const dayKey = d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const attendReady = () => !save.attend || save.attend.last !== todayKey();
+function attendDay() {                                                           // 오늘이 몇 일차인지 (1~7)
+  const a = save.attend, y = new Date(); y.setDate(y.getDate() - 1);
+  const streak = a && a.last === dayKey(y) ? a.streak + 1 : 1;
+  return { streak, day: (streak - 1) % 7 + 1 };
+}
+function openAttend() {
+  modalKind = 'attend';
+  $('mTitle').textContent = '매일 출석';
+  const ready = attendReady(), { streak, day } = ready ? attendDay() : { streak: save.attend.streak, day: (save.attend.streak - 1) % 7 + 1 }, u = attendGold();
+  $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
+    <p class="lead">매일 접속하면 보상 · 7일째 전설 동료 · 하루라도 빠지면 1일차부터 · 연속 ${streak}일</p>
+    <div class="attend">${ATTEND.map((A, i) => {
+      const d = i + 1, done = d < day || (d === day && !ready), today = d === day && ready;
+      return `<div class="aday${today ? ' today' : ''}${done ? ' done' : ''}${A.big ? ' big' : ''}"><b>${d}일차</b><span>${A.text}${A.gold ? ` ${fmt(u * A.gold)}` : ''}</span>${done ? '<em>✔</em>' : ''}</div>`;
+    }).join('')}</div>
+    <div class="gbtns"><button id="attOk" ${ready ? '' : 'disabled'}>${ready ? day + '일차 보상 받기' : '오늘 받음 · 내일 또'}</button></div>`;
+  $('modal').hidden = false;
+  refreshModal();
+  if (ready) $('attOk').onclick = () => {
+    const now = attendDay();
+    ATTEND[now.day - 1].give(attendGold());
+    save.attend = { last: todayKey(), streak: now.streak };
+    Sound.claim && Sound.claim();
+    refreshStats(); updateHud(); writeSave(); cloudUpload();
+    closeModal();
+    fanfare(`${now.day}일차 출석!`, ATTEND[now.day - 1].text, Sound.levelUp);
+  };
+}
+
+// ── 접속 보상: 꺼 둔 동안 모인 골드(상자) + 별가루(30분에 1, 최대 16) ──
+const AWAY_MIN = 300, AWAY_X2 = 20;
+function checkAway() {
+  const sec = Math.min(IDLE_CAP_HOURS * 3600, (Date.now() - (save.savedAt || Date.now())) / 1000);
+  if (sec >= AWAY_MIN) {
+    const p = save.awayPend || { dust: 0, sec: 0 };
+    save.awayPend = { dust: Math.min(16, p.dust + Math.floor(sec / 1800)), sec: Math.max(p.sec, sec) };
+  }
+  return save.awayPend && (save.awayPend.dust > 0 || save.chest >= 1);
+}
+function showAway(next) {
+  accrue();
+  const p = save.awayPend, gold = Math.floor(save.chest), h = Math.floor(p.sec / 3600), m = Math.floor(p.sec % 3600 / 60);
+  $('away').hidden = false;
+  { const c = $('awayChest').getContext('2d'); c.clearRect(0, 0, 144, 120); c.drawImage(SPR.chest_full, 0, 0, 144, 120); }
+  $('awayBody').innerHTML = `<p>${h ? h + '시간 ' : ''}${m}분 동안 모은 것</p><div class="awrow"><span class="coin"></span>${fmt(gold)} G</div>${p.dust ? `<div class="awrow">✦ 별가루 ${p.dust}</div>` : ''}`;
+  $('awayX2').innerHTML = `2배로 받기<small>골드 ×2 · 별가루 ${AWAY_X2}</small>`;
+  $('awayX2').disabled = save.dust < AWAY_X2 || gold < 1;
+  const take = x2 => {
+    if (x2) { if (save.dust < AWAY_X2) return; save.dust -= AWAY_X2; save.gold += gold; }
+    save.dust += p.dust;
+    save.awayPend = null;
+    $('away').hidden = true;
+    collectChest();
+    if (x2) notify('2배 획득!', '#ffe27a');
+    writeSave(); updateHud();
+    if (next) next();
+  };
+  $('awayOk').onclick = () => take(false);
+  $('awayX2').onclick = () => take(true);
+}
+// 접속 순서: 접속 보상 → 출석
+function showWelcome() {
+  if (!save.leader) return;
+  const att = () => { if (attendReady()) openAttend(); };
+  if (checkAway()) showAway(att); else att();
+}
+
+// ── 다음 목표 ──
+function nextGoal() {
+  const cleared = save.stage - 1;
+  for (let c = 1; c <= CHAPTERS.length; c++) if (bossOpen(c) && !bossBeaten(c))
+    return { text: `챕터 ${c} 보스 처치 → 별조각 · 동료 · ${c === 1 ? '특성 해금' : '동료 칸 +1'}`, prog: 1, go: () => openStages(c) };
+  if (traitsOpen() && pointsLeft() > 0) return { text: `특성 포인트 ${pointsLeft()}개 남음 → 특성 탭에서 배치`, prog: 1, go: () => openModal('traits') };
+  if (traitsOpen() && !save.job) {
+    const best = Math.max(...TRAIT_TREES.map(treeSpent));
+    return { text: best >= JOB_POINTS ? '1차 전직 가능!' : `한 갈래 ${JOB_POINTS}포인트 → 1차 전직 (${best}/${JOB_POINTS})`, prog: Math.min(1, best / JOB_POINTS), go: () => openModal('traits') };
+  }
+  const ms = SKILLS.filter(s => s.unlock > 0).map(s => ({ at: s.unlock, label: `스킬 '${s.name}' 해금` }))
+    .concat(CHAPTERS.map((C, i) => ({ at: (i + 1) * STAGES_PER, label: `챕터 ${i + 1} 보스 도전` })))
+    .filter(x => x.at > cleared).sort((a, b) => a.at - b.at);
+  if (ms.length) {
+    const t = ms[0], prev = Math.max(0, ...SKILLS.map(s => s.unlock).concat(CHAPTERS.map((C, i) => (i + 1) * STAGES_PER)).filter(x => x <= cleared));
+    return { text: `${stageLabel(t.at)} 클리어까지 ${t.at - cleared}스테이지 → ${t.label}`, prog: (cleared - prev) / Math.max(1, t.at - prev), go: () => openStages() };
+  }
+  return { text: '다음 챕터는 업데이트 예정 · 랭킹 올리기!', prog: 1, go: () => openRank() };
+}
+function updateGoal() {
+  if (!$('goalBar')) return;
+  const G = nextGoal();
+  $('gText').textContent = G.text;
+  $('gFill').style.width = Math.round(G.prog * 100) + '%';
+  $('goalBar').onclick = G.go;
+}
+
+// ── 전투력 랭킹 (Firestore ranking/{uid}) ──
+let rankSent = 0;
+function rankUpload() {
+  if (!cloudOn() || !window.Cloud.rankSave) return;
+  const p = Math.floor(power(stats));
+  if (p === rankSent) return;
+  rankSent = p;
+  window.Cloud.rankSave({ name: String(save.name || '모험단').slice(0, 10), leader: leaderId(), star: allyStar(leaderId()), power: p, stage: save.stage - 1, job: jobTitle(), at: Date.now() })
+    .catch(e => { console.warn(e); rankSent = 0; });
+}
+async function openRank() {
+  modalKind = 'rank';
+  $('mTitle').textContent = '전투력 랭킹';
+  $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div id="rankBody"><p class="note">불러오는 중…</p></div>';
+  $('modal').hidden = false;
+  refreshModal();
+  if (TEST || !window.Cloud || !window.Cloud.user) return ($('rankBody').innerHTML = '<p class="note">테스트 모드 · 랭킹 꺼짐</p>');
+  rankSent = 0; rankUpload();
+  try {
+    const my = Math.floor(power(stats));
+    const [top, mine] = await Promise.all([window.Cloud.rankTop(50), window.Cloud.rankOf(my)]);
+    if (modalKind !== 'rank') return;
+    const me = window.Cloud.user.uid;
+    $('rankBody').innerHTML = `<div class="lead">내 순위 <b>${mine}위</b> · 전투력 ${fmt(my)} · 이름 ${esc(save.name)} <button id="rkName" class="plain">이름 바꾸기</button></div>
+      <table class="rank"><tr><th>순위</th><th>이름</th><th>리더</th><th>전직</th><th>스테이지</th><th>전투력</th></tr>
+      ${top.map((r, i) => `<tr class="${r.uid === me ? 'me' : ''}${i < 3 ? ' top' : ''}"><td>${['🥇', '🥈', '🥉'][i] || i + 1}</td><td>${esc(r.name)}</td>
+        <td>${allyById(r.leader) ? `<img src="${allyIcon(r.leader, Math.min(5, Math.max(1, r.star | 0)))}"> ${allyById(r.leader).name}` : '-'}</td><td>${esc(r.job || '')}</td>
+        <td>${r.stage > 0 ? stageLabel(Math.min(r.stage, MAX_STAGE)) : '-'}</td><td>${fmt(r.power)}</td></tr>`).join('')}</table>`;
+    $('rkName').onclick = () => {
+      const n = (prompt('모험단 이름 (최대 8자)', save.name) || '').trim().slice(0, 8);
+      if (!n) return;
+      save.name = n; writeSave(); rankSent = 0; rankUpload(); setTimeout(openRank, 600);
+    };
+  } catch (e) {
+    console.warn(e);
+    if (modalKind === 'rank') $('rankBody').innerHTML = '<p class="note">랭킹 서버 준비 중 · 잠시 후 다시</p>';
+  }
+}
+
+// ── 기간 한정 픽업: 매주 월요일에 바뀜. 전설이 나오면 50%로 픽업 동료 ──
+const PICKUPS = ['pio', 'lea', 'noeul'];
+const WEEK = 7 * 86400000, WEEK_SHIFT = 4 * 86400000;     // 1970-01-01(목) 기준 → 월요일 0시(UTC+9) 시작
+const weekIdx = () => Math.floor((Date.now() + 9 * 3600000 - WEEK_SHIFT) / WEEK);
+const pickupId = () => PICKUPS[weekIdx() % PICKUPS.length];
+function pickupLeft() {
+  const ms = (weekIdx() + 1) * WEEK + WEEK_SHIFT - 9 * 3600000 - Date.now();
+  return `${Math.floor(ms / 86400000)}일 ${Math.floor(ms % 86400000 / 3600000)}시간`;
+}
+
+// ── 도감 세트: 모으면 영구 효과 + 한 번 별가루 ──
+const SETS = [
+  { id: 'heal',   name: '치유의 손길', ids: ['miru', 'sea', 'hana'],                 text: '체력 +5%',          b: { hp: 5 },  dust: 30 },
+  { id: 'magic',  name: '마법 학회',   ids: ['serin', 'pio', 'arin', 'danbi'],        text: '공격력 +5%',        b: { atk: 5 }, dust: 40 },
+  { id: 'shot',   name: '명사수 모임', ids: ['kai', 'noeul', 'eunho', 'rio', 'sora'], text: '치명타 확률 +3%',   b: { crit: 3 }, dust: 50 },
+  { id: 'wall',   name: '철벽 전사단', ids: ['lea', 'luka', 'bron', 'tobi', 'jun'],   text: '받는 피해 -3%',     b: { guard: 3 }, dust: 50 },
+  { id: 'fest',   name: '별빛 악단',   ids: ['baram', 'momo', 'yuri'],                text: '공격 속도 +5%',     b: { aspd: 5 }, dust: 30 },
+  { id: 'story',  name: '첫 여행의 셋', ids: ['miru', 'serin', 'kai'],                text: '처치 골드 +10%',    b: { gold: 10 }, dust: 30 },
+  { id: 'legend', name: '전설의 별',   ids: ['pio', 'lea', 'noeul'],                 text: '공격력·체력 +10%',  b: { atk: 10, hp: 10 }, dust: 100 },
+];
+const setDone = S => S.ids.every(id => save.allies && save.allies[id]);
+const setReward = () => SETS.some(S => setDone(S) && !(save.sets || {})[S.id]);
+function setBonus() {
+  const t = { atk: 0, hp: 0, crit: 0, guard: 0, aspd: 0, gold: 0 };
+  for (const S of SETS) if (setDone(S)) for (const k in S.b) t[k] += S.b[k];
+  return t;
+}
+function setsHtml() {
+  return `<div class="aff"><b>도감 세트</b> <small class="note">모두 모으면 영구 효과 + 별가루</small>${SETS.map(S => {
+    const n = S.ids.filter(id => save.allies[id]).length, done = n === S.ids.length, got = (save.sets || {})[S.id];
+    return `<div class="setrow${done ? ' done' : ''}"><b>${S.name}</b> <small>${n}/${S.ids.length} · ${S.text}</small>
+      <span class="seticons">${S.ids.map(id => `<img src="${allyIcon(id, save.allies[id] ? allyStar(id) : 1)}" class="${save.allies[id] ? '' : 'off'}">`).join('')}</span>
+      ${done ? (got ? '<em>✔ 받음</em>' : `<button data-set="${S.id}">별가루 ${S.dust} 받기</button>`) : ''}</div>`;
+  }).join('')}</div>`;
+}
+
 // ── 방치 상자 ───────────────────────────────
 // 깬 스테이지가 높을수록 초당 골드가 많이 쌓인다. 실제 시간 기준이라 꺼 둔 동안에도 쌓인다.
 function idleRate() {
@@ -1066,6 +1252,16 @@ function spawnWave() {
     m.hp = m.maxHp = Math.floor(m.hp * 1.5);
     if (role === 'healer') m.name = '치유사 ' + m.name;
     else Object.assign(m, ELITE_LOOK[role]);
+  }
+  // 깜짝 난입: 황금 슬라임(골드·별가루) 또는 보물 골렘(장비). 8초 안에 못 잡으면 도망
+  if (Math.random() < 0.12) {
+    const gol = Math.random() < 0.2, m = makeMonster(battle.stage, false);
+    Object.assign(m, { name: gol ? '보물 골렘' : '황금 슬라임', sprite: gol ? 'golem' : 'gold_slime', body: gol ? 'armored' : 'soft', align: 'neutral',
+      size: gol ? 44 : 36, intruder: gol ? 'golem' : 'slime', escape: 8, gold: 0, x: 195 });
+    m.hp = m.maxHp = Math.floor(m.hp * (gol ? 4 : 2.5));
+    battle.queue.unshift(m);
+    toast(`${m.name} 난입! 8초 안에 잡기`);
+    say('hero', gol ? '보물 골렘이다!' : '황금 슬라임이다! 놓치지 마!', 2);
   }
   if (battle.wave === WAVES.length - 1 && Math.random() < 0.5) say('hero', pick(LINES.bossWave));
   giveShield();
@@ -1318,6 +1514,10 @@ function updateBattle(dt) {
   }
 
   // 몬스터 공격 (기절이면 못 함, 최면이면 자기 편을 공격, 둔화면 느리게)
+  if (front && mon.intruder) {                             // 난입 몬스터는 공격하지 않고 시간이 다 되면 도망
+    if ((mon.escape -= dt) <= 0) { mon.dead = 0.5; mon.fled = true; addFloat('도망쳤다…', mon.x + 16, GROUND - 56, '#c8c8d0', true); }
+    return;
+  }
   if (!front || mon.stun > 0) return;
   mon.cd -= dt * (mon.slow > 0 ? 0.6 : 1);
   if (mon.cd <= 0) {
@@ -1473,14 +1673,22 @@ function hit(mon, mult, color, kind, els) {
   mon.dead = 0.5;
   if (m.soul) battle.souls = Math.min(30, (battle.souls || 0) + 1);
   const burned = mon.burn > 0 || (els && els.includes('fire'));
-  if (!mon.king && !mon.boss && !mon.undead && !mon.role && !battle.dungeon && !burned) (battle.corpses = battle.corpses || []).push(mon);
+  if (!mon.king && !mon.boss && !mon.undead && !mon.role && !mon.intruder && !battle.dungeon && !burned) (battle.corpses = battle.corpses || []).push(mon);
   if (m.shadow) spawnShadow();
   const gold = Math.floor(mon.gold * (1 + m.gold / 100));
   save.gold += gold;              // 얻은 골드는 바로 저장 (져도 남는다)
   battle.earned += gold;
   if (gold > 0) addFloat('+' + fmt(gold) + 'G', mon.x + 16, GROUND - 52, '#ffd25e');
   track('kills');
-  if (!mon.noDrop && (mon.boss || Math.random() < DROP_CHANCE)) dropItem(mon);
+  if (mon.intruder) {
+    const d = mon.intruder === 'golem' ? 5 : 3;
+    save.dust += d;
+    if (mon.intruder === 'slime') { const gg = monGold(battle.stage) * 40; save.gold += gg; battle.earned += gg; addFloat('+' + fmt(gg) + 'G', mon.x + 16, GROUND - 64, '#ffd25e', true); }
+    else { const it = makeItem(battle.stage, gachaGrade(2)); if (addItem(it)) battle.loot.push(it); addFloat(GRADES[it.grade].name + ' ' + itemName(it) + '!', mon.x + 16, GROUND - 76, GRADES[it.grade].color, true); }
+    addFloat(`${mon.name} 처치! 별가루 +${d}`, mon.x + 16, GROUND - 88, '#ffe27a', true);
+    shake = 0.25;
+  }
+  if (!mon.noDrop && !mon.intruder && (mon.boss || Math.random() < DROP_CHANCE)) dropItem(mon);
   updateBattleHud();
   return true;
 }
@@ -2046,9 +2254,15 @@ function refreshAllies() {
     html += `<button class="acard${has ? '' : ' locked'}${party.includes(A.id) || A.id === save.leader ? ' inparty' : ''}${A.id === allySel ? ' sel' : ''}" style="--rc:${R.color}" ${has ? `data-asel="${A.id}"` : 'disabled'}>
       ${A.id === save.leader ? '<i class="crown">👑</i>' : ''}<img src="${allyIcon(A.id, has ? st : 1)}"><b>${has ? allyName(A.id) : A.name}</b><small>${has ? '★'.repeat(st) : R.stars}</small>${canAwk ? '<em class="rdot"></em>' : ''}</button>`;
   }
-  html += '</div>' + affinityChart() + '<div class="syn"><b>시너지</b>' + SYNERGY.map(s => { const n = typeCount(s.type); return `<div class="${n ? 'on' : ''}">${n ? '✓' : '·'} ${s.text(n || 1)}</div>`; }).join('') + '</div>';
+  html += '</div>' + setsHtml() + affinityChart() + '<div class="syn"><b>시너지</b>' + SYNERGY.map(s => { const n = typeCount(s.type); return `<div class="${n ? 'on' : ''}">${n ? '✓' : '·'} ${s.text(n || 1)}</div>`; }).join('') + '</div>';
   $('allyList').innerHTML = html;
   $('allyList').querySelectorAll('[data-asel]').forEach(b => b.onclick = () => { allySel = b.dataset.asel; refreshAllies(); });
+  $('allyList').querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
+    const S = SETS.find(x => x.id === b.dataset.set);
+    if (!setDone(S) || (save.sets || {})[S.id]) return;
+    save.sets = save.sets || {}; save.sets[S.id] = true; save.dust += S.dust;
+    writeSave(); updateHud(); notify(`${S.name} 완성! 별가루 +${S.dust}`, '#ffe27a');
+  });
   if (!allySel) return;
   const id = allySel;
   $('aUp').onclick = () => {
@@ -2199,6 +2413,9 @@ function updateDots() {
   setDot('[data-open=skill]', SKILLS.some(sk => save.stage - 1 >= sk.unlock && save.gold >= skillCost(sk, save.skills[sk.id] || 0)));
   setDot('[data-open=gear]', save.items.some(it => !Object.values(save.gear).includes(it.id) && itemScore(it) > itemScore(equipped(it.slot))));
   setDot('[data-open=gacha]', save.dust >= GACHA_COST);
+  setDot('#lAttend', attendReady());
+  if (setReward()) setDot('[data-open=allies]', true);
+  updateGoal();
 }
 
 // ── 금화 분수: 상자에서 금화가 튀고, 받으면 골드 칸으로 날아간다 ──
@@ -2265,6 +2482,10 @@ function drawMonMarks(m, size) {
   if (m.stun > 0) { ctx.fillStyle = '#ffe27a'; for (let k = 0; k < 3; k++) { const an = time * 6 + k * 2.1; ctx.beginPath(); ctx.arc(cx + Math.cos(an) * 26, top + 26 + Math.sin(an) * 7, 5, 0, Math.PI * 2); ctx.fill(); } }
   if (tauntOn(m)) { ctx.fillStyle = '#ff5a3a'; ctx.font = '900 24px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('💢', cx + 22, top + 14); }
   if (m.charm > 0) { ctx.fillStyle = '#ff7ac8'; ctx.font = '900 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('♥', cx + Math.sin(time * 5) * 14, top + 16 - (time * 30 % 20)); }
+  if (m.intruder) {
+    ctx.fillStyle = '#ffe27a'; ctx.font = '900 20px sans-serif'; ctx.textAlign = 'center'; ctx.shadowColor = '#c8800a'; ctx.shadowBlur = 8;
+    ctx.fillText(`⏱ ${Math.max(0, m.escape).toFixed(1)}`, cx, top - 2);
+  }
   if (m.burn > 0) { ctx.fillStyle = `rgba(255,120,40,${0.5 + 0.3 * Math.sin(time * 20)})`; ctx.beginPath(); ctx.arc(cx, (GROUND - 6) * SCALE, 10 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
 }
@@ -2755,7 +2976,7 @@ function refreshModal() {
   } else if (modalKind === 'missions') {
     refreshMissions();
   } else if (modalKind === 'gacha' && gachaTab === 'ally') {
-    $('pBody').innerHTML = `<div class="gtabs"><button data-gt="gear">장비</button><button class="on">동료</button></div><div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
+    $('pBody').innerHTML = `<div class="gtabs"><button data-gt="gear">장비</button><button class="on">동료</button></div><div class="pickup"><img src="${allyIcon(pickupId(), 1)}"><div><b>이번 주 픽업 · ★★★ ${allyById(pickupId()).name}</b><small>전설이 나오면 50% 확률로 ${allyById(pickupId()).name} · 남은 시간 ${pickupLeft()}</small></div></div><div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
       <div class="grates">${[1, 2, 3].map(r => `<span style="color:${RARITY[r].color}">${RARITY[r].stars} ${RARITY[r].name} ${AGACHA_W[r]}%</span>`).join('')}</div>
       <div class="gbtns"><button id="a1" ${save.dust < AGACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${AGACHA_COST}</small></button>
       <button id="a10" ${save.dust < AGACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${AGACHA10_COST} · 희귀 이상 1명 보장</small></button></div>
@@ -2949,6 +3170,7 @@ async function cloudUpload() {
     writeSave();
     await window.Cloud.save(save);
     cloudAt = Date.now();
+    rankUpload();
     cloudMsg = '';
   } catch (e) {
     console.warn(e);
@@ -3028,6 +3250,7 @@ function openLeaderPick() {
     closeModal();
     refreshStats(); updateHud(); drawBattleIcon(); writeSave(); cloudUpload();
     fanfare('리더 결정!', allyName(id) + ' · 맨 앞에서 싸움');
+    setTimeout(showWelcome, 2000);
   });
 }
 
@@ -3272,6 +3495,8 @@ function begin() {
   document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openModal(b.dataset.open));
   $('mClose').onclick = closeModal;
   $('gOk').onclick = closeGacha;
+  $('lAttend').onclick = openAttend;
+  $('lRank').onclick = openRank;
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden && modalKind !== 'leader') closeModal(); });
   $('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
   $('lSave').onclick = () => {
@@ -3281,7 +3506,7 @@ function begin() {
   $('lReset').onclick = openSettings;
 
   showScreen('lobby');
-  if (!save.leader) openLeaderPick();
+  if (!save.leader) openLeaderPick(); else showWelcome();
   let last = performance.now();
   let tick = 0;
   const frame = now => {

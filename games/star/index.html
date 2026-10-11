@@ -294,6 +294,34 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 /* 리더 */
 .lead{background:#fff3c8;border:2px solid #f0c95a;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;color:#6a4a10;margin:6px 0}
 .acard .crown{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-style:normal;font-size:18px}
+/* 다음 목표 */
+.goal{position:absolute;left:1.5%;top:22.3%;width:30%;height:5.4%;display:flex;align-items:center;gap:.8cqw;padding:0 1.2cqw;font-size:1.25cqw;text-align:left;overflow:hidden;background:linear-gradient(180deg,#f4fff0,#d8f0c8)}
+.goal #gText{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goal .mbar{position:absolute;left:0;right:0;bottom:0;height:.45cqw;background:#0001}.goal .mbar b{display:block;height:100%;background:linear-gradient(90deg,#7ad070,#2f9a4a)}
+/* 출석 */
+.attend{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:10px 0}
+.aday{position:relative;background:#fff7e6;border:2px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;display:flex;flex-direction:column;gap:6px;min-height:110px;justify-content:center}
+.aday b{color:var(--wood)}.aday span{font-size:13px;font-weight:800}
+.aday.big{background:linear-gradient(180deg,#fff3c8,#ffd870);border-color:#e0902a}
+.aday.today{border-color:#ff8a3a;box-shadow:0 0 0 3px #ffd25e,0 0 22px #ffb03a;transform:scale(1.07);animation:dotp 1.2s infinite}
+.aday.done{opacity:.5}.aday em{position:absolute;top:4px;right:8px;color:#2f9a4a;font-size:22px;font-style:normal;font-weight:900}
+/* 접속 보상 */
+#away{position:absolute;inset:0;z-index:6;background:radial-gradient(circle,#2a1a4ae6,#0a0614f2);display:flex;align-items:center;justify-content:center}
+#awayChest{width:12cqw;animation:chestpop .8s ease-out}
+@keyframes chestpop{0%{transform:scale(.3) rotate(-10deg)}60%{transform:scale(1.15) rotate(4deg)}100%{transform:none}}
+#awayBody{color:#fff3c8;font-weight:900;font-size:1.8cqw;margin:1cqw 0}#awayBody p{margin:0 0 .6cqw;font-size:1.4cqw;color:#e0d8ff}
+.awrow{display:flex;align-items:center;justify-content:center;gap:.8cqw;font-size:2.6cqw;color:#ffe27a}
+#awayOk{padding:1cqw 3cqw;font-size:1.8cqw}
+/* 랭킹 */
+table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+.rank th,.rank td{padding:6px 10px;border-bottom:1px solid #e2c896;text-align:left}.rank td img{width:30px;height:30px;vertical-align:middle}
+.rank tr.top td{font-weight:900}.rank tr.me{background:#fff3c8}
+/* 픽업·세트 */
+.pickup{display:flex;gap:10px;align-items:center;background:linear-gradient(90deg,#fff3c8,#ffd870);border:2px solid #e0902a;border-radius:12px;padding:6px 12px;margin-bottom:8px}
+.pickup img{width:64px;height:64px}.pickup small{display:block;color:#6a4a10}
+.setrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #e2c896;flex-wrap:wrap}.setrow.done b{color:#2f9a4a}
+.seticons img{width:34px;height:34px}.seticons img.off{filter:grayscale(1);opacity:.35}
+.setrow em{color:#2f9a4a;font-style:normal;font-weight:900}
 /* 상성표 */
 .aff{margin-top:12px;background:#fff7e6;border:2px solid var(--wood);border-radius:12px;padding:10px 14px}
 .aff table{border-collapse:collapse;margin:6px 0;font-size:13px}
@@ -419,6 +447,8 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
     <canvas id="cv" width="960" height="540"></canvas>
 
     <div id="gacha" hidden><div class="gbox"><h2 id="gTitle">장비 뽑기</h2><div class="gcards" id="gCards"></div><div id="gAgain"></div><button class="stone" id="gOk">나가기</button></div></div>
+    <div id="away" hidden><div class="gbox"><h2>다시 온 걸 환영해!</h2><canvas id="awayChest" width="144" height="120"></canvas><div id="awayBody"></div>
+      <div class="againrow"><button class="again" id="awayX2"></button><button class="stone" id="awayOk">받기</button></div></div></div>
     <div id="fanfare" hidden><b id="ffTitle"></b><span id="ffSub"></span></div>
     <!-- 로비 (캠프) -->
     <div class="ui" id="lobbyUI">
@@ -428,10 +458,13 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
         <div class="stone"><span class="gem"></span><span><span id="lShards">0</span><small>별조각</small></span><span class="dust">✦</span><span><span id="lDust">0</span><small>별가루</small></span></div>
       </div>
       <div class="icons">
+        <button class="stone" id="lAttend"><b>📅</b><span>출석</span></button>
+        <button class="stone" id="lRank"><b>🏆</b><span>랭킹</span></button>
         <button class="stone" id="lSave"><b>💾</b><span>저장</span></button>
         <button class="stone" id="lReset"><b>⚙</b><span>설정</span></button>
       </div>
       <button class="stone mission" id="missionBtn"><span class="mic">📜</span><span id="mText"></span><i class="mbar"><b id="mFill"></b></i></button>
+      <button class="stone goal" id="goalBar"><span class="mic">🎯</span><span id="gText"></span><i class="mbar"><b id="gFill"></b></i></button>
       <div class="lside">
         <button class="stone" data-open="gacha"><b>✦</b>뽑기</button>
         <button class="stone" data-open="dungeon"><b>🏰</b>던전<small id="dunLeft"></small></button>
@@ -489,10 +522,10 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">◀ 돌아가기</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261012f"></script>
-<script src="scenery.js?v=20261012f"></script>
-<script src="audio.js?v=20261012f"></script>
-<script src="game.js?v=20261012f"></script>
-<script type="module" src="cloud.js?v=20261012f"></script>
+<script src="sprites.js?v=20261012g"></script>
+<script src="scenery.js?v=20261012g"></script>
+<script src="audio.js?v=20261012g"></script>
+<script src="game.js?v=20261012g"></script>
+<script type="module" src="cloud.js?v=20261012g"></script>
 </body>
 </html>
