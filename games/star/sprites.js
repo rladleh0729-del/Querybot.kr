@@ -558,6 +558,46 @@ function drawScorpionQueen() {
   });
 }
 
+// ── 일일 던전 보스 (192×192) ──
+function drawGoldSlime() {
+  return vs(192, 192, g => {
+    glowAt(g, 96, 120, 96, 'rgba(255,230,120,0.45)');
+    slimeBody(g, 2, '#fff6b0', '#f0c040', '#b07a18');
+    eye(g, 68, 122, '#7a4a10', 1.8); eye(g, 102, 122, '#7a4a10', 1.8);
+    blush(g, 54, 140, 1.6); blush(g, 116, 140, 1.6);
+    smile(g, 85, 150, 8);
+    // 머리 위 금화 탑
+    [[86, 52], [96, 42], [80, 40], [92, 30]].forEach(([x, y]) => { oval(g, x, y, 16, 6, lin(g, 0, y - 6, 0, y + 6, [[0, '#fff3a0'], [1, '#d09a20']]), 2.5); });
+    star(g, 92, 28, 6, '#fff8d0');
+    [[30, 90], [160, 110], [140, 60]].forEach(([x, y]) => glowAt(g, x, y, 10, 'rgba(255,250,200,0.9)'));
+  });
+}
+
+function drawGolem() {
+  return vs(192, 192, g => {
+    // 다리와 팔
+    shape(g, () => g.roundRect(56, 140, 32, 42, 8), lin(g, 0, 140, 0, 182, [[0, '#a8a0b8'], [1, '#6a6478']]), 3);
+    shape(g, () => g.roundRect(104, 140, 32, 42, 8), lin(g, 0, 140, 0, 182, [[0, '#a8a0b8'], [1, '#6a6478']]), 3);
+    shape(g, () => g.roundRect(12, 76, 34, 70, 14), lin(g, 12, 0, 46, 0, [[0, '#7a748a'], [1, '#b0a8c0']]), 3);
+    shape(g, () => g.roundRect(146, 76, 34, 70, 14), lin(g, 146, 0, 180, 0, [[0, '#b0a8c0'], [1, '#7a748a']]), 3);
+    // 몸통
+    shape(g, () => g.roundRect(40, 60, 112, 90, 20), lin(g, 0, 60, 0, 150, [[0, '#c8c0d8'], [1, '#7a748a']]), 3.5);
+    g.strokeStyle = 'rgba(60,50,80,0.4)'; g.lineWidth = 3;
+    [[60, 70, 70, 110], [130, 80, 120, 130], [90, 120, 104, 146]].forEach(([a, b, c, d]) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); });
+    // 머리
+    shape(g, () => g.roundRect(64, 18, 64, 50, 14), lin(g, 0, 18, 0, 68, [[0, '#d0c8e0'], [1, '#8a849a']]), 3.5);
+    glowAt(g, 82, 42, 12, 'rgba(120,230,255,0.9)'); glowAt(g, 110, 42, 12, 'rgba(120,230,255,0.9)');
+    oval(g, 82, 42, 6, 5, '#bff4ff', 2); oval(g, 110, 42, 6, 5, '#bff4ff', 2);
+    // 보석들
+    [[96, 100, '#ff5a8a'], [66, 90, '#5ab0ff'], [126, 96, '#6fe08a'], [30, 110, '#ffd25e'], [162, 112, '#c890ff']].forEach(([x, y, c]) => {
+      glowAt(g, x, y, 14, 'rgba(255,255,255,0.6)');
+      shape(g, () => { g.moveTo(x, y - 10); g.lineTo(x + 8, y); g.lineTo(x, y + 10); g.lineTo(x - 8, y); g.closePath(); }, c, 2);
+      shine(g, x - 2, y - 3, 2, 3, 0.8, 0);
+    });
+    oval(g, 60, 64, 10, 5, '#6fbf5a', 2);
+  });
+}
+
 // ── 캠프 소품 ──
 function drawTent() {
   return vs(144, 120, g => {
@@ -650,6 +690,8 @@ function loadSprites() {
     scorpion: drawScorpion(),
     mummy: drawMummy(),
     scorpion_queen: drawScorpionQueen(),
+    gold_slime: drawGoldSlime(),
+    golem: drawGolem(),
     tent: drawTent(),
     chest: drawChest(false),
     chest_full: drawChest(true),

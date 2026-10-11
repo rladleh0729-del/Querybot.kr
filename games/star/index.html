@@ -167,6 +167,63 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .jobbtn small{font-size:11px;color:var(--muted)}
 .jobbtn:disabled{opacity:.45;cursor:not-allowed}
 .jobbtn:not(:disabled):hover{filter:brightness(1.05)}
+/* 미션 배너·옆 버튼 */
+.mission{position:absolute;left:1.5%;top:15%;width:30%;height:6.5%;display:flex;align-items:center;gap:.8cqw;padding:0 1.2cqw;font-size:1.35cqw;text-align:left;overflow:hidden}
+.mission .mic{font-size:1.8cqw}
+.mission #mText{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mission .mbar{position:absolute;left:0;right:0;bottom:0;height:.45cqw;background:#0001}
+.mission .mbar b{display:block;height:100%;background:linear-gradient(90deg,#ffc83a,#ff8a3a)}
+.mission.ready{animation:glowp 1s infinite;background:linear-gradient(180deg,#fff6c8,#ffd870)}
+@keyframes glowp{50%{box-shadow:inset 0 2px 0 #fff,0 0 1.6cqw #ffc83a,0 .35cqw 0 #7a4f2a}}
+.lside{position:absolute;right:1.5%;top:31%;display:flex;flex-direction:column;gap:1cqw;width:8%}
+.lside button{position:relative;height:7cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.4cqw;padding:0}
+.lside button b{font-size:2.2cqw;line-height:1}
+.lside small{font-size:1cqw;color:var(--muted)}
+.dot{position:absolute;top:.4cqw;right:.5cqw;width:1.1cqw;height:1.1cqw;border-radius:50%;background:#ff4a5a;border:2px solid #fff}
+.dust{color:#c890ff;font-size:2.2cqw;margin-left:1cqw}
+.mrow .nm small{display:block;margin:2px 0 0}
+.mrow.main{background:#fff1c8;border-color:#f0a828}
+.mrow.got{opacity:.5}
+.mbar{display:inline-block;width:90px;height:7px;border-radius:4px;background:#0002;vertical-align:middle;overflow:hidden}
+.mbar b{display:block;height:100%;background:linear-gradient(90deg,#ffc83a,#ff8a3a)}
+.mhead{display:block;margin:10px 2px 6px;font-size:14px}
+.mhead small{color:var(--muted);font-weight:600;font-size:11px}
+.pgain{color:var(--good);font-style:normal;font-weight:900;animation:pop .5s}
+@keyframes pop{0%{opacity:0;transform:translateY(6px)}100%{opacity:1}}
+/* 뽑기 */
+.gtop{font-size:14px;margin-bottom:8px}.gtop b{color:#8a3fd0;font-size:18px}
+.grates{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;font-weight:800;margin-bottom:10px}
+.gbtns{display:flex;gap:8px}
+.gbtns button{flex:1;padding:12px;border-radius:12px;border:2px solid #6a2aa0;background:linear-gradient(180deg,#c8a0ff,#8a4ae0);color:#fff;font-weight:900;font-size:15px}
+.gbtns button small{display:block;font-size:11px;font-weight:700;opacity:.9}
+.gbtns button:disabled{opacity:.4;cursor:not-allowed}
+#gacha{position:absolute;inset:0;z-index:6;background:radial-gradient(circle,#2a1a4ae6,#0a0614f2);display:flex;align-items:center;justify-content:center}
+#gacha.flash{animation:gflash .8s 1.6s}
+@keyframes gflash{0%{background:#fff}100%{}}
+.gbox{text-align:center;width:90%}
+.gbox h2{color:#ffe27a;font-size:3cqw;margin:0 0 1.5cqw}
+.gcards{display:flex;flex-wrap:wrap;gap:1cqw;justify-content:center;margin-bottom:2cqw}
+.gcard{position:relative;width:15%;padding:1.2cqw .8cqw;border-radius:1.2cqw;background:#fff7e6;border:3px solid var(--wood);display:flex;flex-direction:column;align-items:center;gap:.3cqw;opacity:0;animation:card .45s var(--d) forwards;overflow:hidden}
+@keyframes card{0%{opacity:0;transform:translateY(2cqw) rotateY(90deg)}100%{opacity:1;transform:none}}
+.gcard img{width:4cqw;height:4cqw;position:relative}
+.gcard b{font-size:1.5cqw;position:relative}
+.gcard span{font-size:1.2cqw;font-weight:800;color:#5a3418;position:relative}
+.gcard small{font-size:.95cqw;color:var(--muted);position:relative}
+.gbeam{position:absolute;inset:0;opacity:.35}
+.g2 .gbeam{background:linear-gradient(0deg,transparent,#6fb2ff)}
+.g3 .gbeam{background:linear-gradient(0deg,transparent,#c48cff);opacity:.5}
+.g4 .gbeam{background:linear-gradient(0deg,transparent,#ffb84a);opacity:.7}
+.g5 .gbeam{background:linear-gradient(0deg,#ff5a6e,#ffd25e,#7ad0ff);opacity:.8}
+.g4,.g5{box-shadow:0 0 2cqw #ffd25e}
+#gOk{padding:1cqw 4cqw;font-size:1.8cqw}
+/* 성장 연출 */
+#fanfare{position:absolute;left:0;right:0;top:30%;z-index:7;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+#fanfare b{font-size:6cqw;font-weight:900;color:#fff3a0;text-shadow:0 .3cqw 0 #c8800a,0 0 2cqw #ffc83a,0 0 4cqw #fff}
+#fanfare span{font-size:2cqw;font-weight:900;color:#fff;text-shadow:0 2px 0 #7a4f2a,0 0 1cqw #000}
+#fanfare.go b{animation:ffin 1.9s}
+#fanfare.go span{animation:ffin 1.9s .1s backwards}
+@keyframes ffin{0%{opacity:0;transform:scale(.4)}15%{opacity:1;transform:scale(1.15)}25%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:translateY(-2cqw)}}
+.dun .gicon{width:40px;height:40px}
 /* 팝업 */
 #modal{position:fixed;inset:0;background:#2a1a0c99;display:flex;align-items:center;justify-content:center;z-index:5}
 .mbox{width:min(520px,92vw);max-height:85vh;display:flex;flex-direction:column;background:linear-gradient(180deg,#fffaf0,#f8ebcc);border:3px solid var(--wood);border-radius:16px;padding:14px;box-shadow:0 6px 0 #7a4f2a,0 12px 30px #0006;color:var(--text)}
@@ -252,16 +309,24 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
   <div class="stagebox">
     <canvas id="cv" width="960" height="540"></canvas>
 
+    <div id="gacha" hidden><div class="gbox"><h2>장비 뽑기</h2><div class="gcards" id="gCards"></div><button class="stone" id="gOk" onclick="document.getElementById('gacha').hidden=true">확인</button></div></div>
+    <div id="fanfare" hidden><b id="ffTitle"></b><span id="ffSub"></span></div>
     <!-- 로비 (캠프) -->
     <div class="ui" id="lobbyUI">
       <div class="lbar">
         <div class="stone"><span id="lStage"></span></div>
         <div class="stone"><span class="coin"></span><span id="lGold"></span></div>
-        <div class="stone"><span class="gem"></span><span><span id="lShards">0</span><small>별조각</small></span></div>
+        <div class="stone"><span class="gem"></span><span><span id="lShards">0</span><small>별조각</small></span><span class="dust">✦</span><span><span id="lDust">0</span><small>별가루</small></span></div>
       </div>
       <div class="icons">
         <button class="stone" id="lSave"><b>💾</b><span>저장</span></button>
         <button class="stone" id="lReset"><b>⚙</b><span>설정</span></button>
+      </div>
+      <button class="stone mission" id="missionBtn"><span class="mic">📜</span><span id="mText"></span><i class="mbar"><b id="mFill"></b></i></button>
+      <div class="lside">
+        <button class="stone" data-open="gacha"><b>✦</b>뽑기</button>
+        <button class="stone" data-open="dungeon"><b>🏰</b>던전<small id="dunLeft"></small></button>
+        <button class="stone" data-open="missions"><b>📜</b>미션<em class="dot" id="msDot" hidden></em></button>
       </div>
       <button class="stone" id="toBattle"><canvas id="battleIcon" width="96" height="96"></canvas>전투<small id="lBattleSub"></small></button>
       <button id="chestBtn"><span id="chestAmt"></span><canvas id="chestCv" width="72" height="60"></canvas><small id="chestRate"></small></button>
@@ -315,10 +380,10 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261011n"></script>
-<script src="scenery.js?v=20261011n"></script>
-<script src="audio.js?v=20261011n"></script>
-<script src="game.js?v=20261011n"></script>
-<script type="module" src="cloud.js?v=20261011n"></script>
+<script src="sprites.js?v=20261011r"></script>
+<script src="scenery.js?v=20261011r"></script>
+<script src="audio.js?v=20261011r"></script>
+<script src="game.js?v=20261011r"></script>
+<script type="module" src="cloud.js?v=20261011r"></script>
 </body>
 </html>

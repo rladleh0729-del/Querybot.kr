@@ -1,136 +1,91 @@
-// 별의 설화 — 배경음악과 효과음 (Web Audio로 직접 만든 소리, 음원 파일 없음)
-// 챕터마다 곡이 다르고, 전투에서는 드럼이 더해지고 조금 빨라진다.
+// 별의 설화 — 배경음악(음원 파일)과 효과음(Web Audio로 직접 만든 소리)
+// 배경음악: bgm/ 폴더 (Pixabay 무료 음원). 챕터마다 곡이 다르고 보스·던전은 전투곡.
 'use strict';
 
 const Sound = (() => {
   const KEY = 'starTale.audio';
+  const VOL = 0.45;                 // 배경음악 최대 볼륨
   let opt = { bgm: true, sfx: true };
   try { Object.assign(opt, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) { /* 기본값 */ }
 
-  let ac = null, master, music, sfx, noiseBuf;
-  let want = { theme: 'meadow', mode: 'camp' };   // 지금 틀어야 할 곡
-  let cur = null;                                  // 지금 나오는 곡
-  let nextTime = 0, step = 0;
+  // ── 배경음악 (음원 파일, 바뀔 때 부드럽게 넘어감) ──
+  const tracks = {};               // 이름 → <audio>
+  let want = 'title', playing = null, unlocked = false;
 
-  const midi = n => 440 * Math.pow(2, (n - 69) / 12);
-  const _ = null;
+  function track(name) {
+    if (!tracks[name]) {
+      const a = new Audio('bgm/' + name + '.mp3');
+      a.loop = true; a.preload = 'auto'; a.volume = 0;
+      tracks[name] = a;
+    }
+    return tracks[name];
+  }
 
-  // 곡: 4마디 반복, 마디마다 8분음표 8칸. chords는 마디별 화음, melody는 32칸.
-  const SONGS = {
-    meadow: { bpm: 100, lead: 'triangle', chords: [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]],
-      melody: [72, _, 76, _, 79, 77, 76, _,  74, _, 71, _, 74, 76, 74, _,  72, _, 76, _, 81, 79, 76, _,  77, 76, 74, 72, 74, _, _, _] },
-    forest: { bpm: 84, lead: 'sine', chords: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]],
-      melody: [69, _, 72, _, 76, _, 74, 72,  72, _, 69, _, 65, _, 67, 69,  67, _, 72, _, 76, _, 79, 76,  74, _, 71, _, 67, _, _, _] },
-    desert: { bpm: 92, lead: 'triangle', chords: [[62, 65, 69], [60, 64, 67], [58, 62, 65], [57, 61, 64]],
-      melody: [74, _, 73, 74, 77, _, 76, 74,  72, _, 74, 72, 70, _, 69, _,  70, _, 74, _, 77, 76, 74, 72,  73, _, 76, _, 73, _, 69, _] },
-  };
+  // 0.1초마다 볼륨을 조금씩 바꿔 겹쳐 넘긴다
+  setInterval(() => {
+    if (!unlocked) return;
+    if (want !== playing && opt.bgm) {
+      const next = track(want);
+      if (next.paused) next.play().catch(() => {});
+      playing = want;
+    }
+    for (const [name, a] of Object.entries(tracks)) {
+      const target = opt.bgm && name === playing ? VOL : 0;
+      a.volume = Math.max(0, Math.min(1, a.volume + Math.sign(target - a.volume) * Math.min(0.05, Math.abs(target - a.volume))));
+      if (a.volume === 0 && name !== playing && !a.paused) a.pause();
+    }
+  }, 100);
 
+  // theme: meadow | forest | desert | title, mode: camp | battle | boss | dungeon
+  function setScene(theme, mode) { want = mode === 'boss' || mode === 'dungeon' ? 'battle' : theme; }
+
+  // ── 효과음 (Web Audio) ──
+  let ac = null, sfx = null;
   function init() {
+    if (!unlocked) { unlocked = true; }
     if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ac = new AC();
-    master = ac.createGain(); master.gain.value = 0.8; master.connect(ac.destination);
-    music = ac.createGain(); music.gain.value = opt.bgm ? 0.32 : 0; music.connect(master);
-    sfx = ac.createGain(); sfx.gain.value = opt.sfx ? 0.55 : 0; sfx.connect(master);
-    // 은은한 울림 (딜레이)
-    const delay = ac.createDelay(); delay.delayTime.value = 0.3;
-    const fb = ac.createGain(); fb.gain.value = 0.25;
-    const wet = ac.createGain(); wet.gain.value = 0.22;
-    music.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
-    // 하이햇용 잡음
-    noiseBuf = ac.createBuffer(1, ac.sampleRate * 0.2, ac.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    nextTime = ac.currentTime + 0.1;
-    setInterval(schedule, 50);
+    sfx = ac.createGain(); sfx.gain.value = opt.sfx ? 0.55 : 0; sfx.connect(ac.destination);
   }
-
-  // 음 하나
-  function tone(t, freq, dur, type, vol, dest, attack = 0.01, release = 0.25, cutoff) {
+  const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+  function tone(t, freq, dur, type, vol, attack = 0.005, release = 0.2) {
     const o = ac.createOscillator(); o.type = type; o.frequency.value = freq;
     const gn = ac.createGain();
     gn.gain.setValueAtTime(0.0001, t);
     gn.gain.linearRampToValueAtTime(vol, t + attack);
     gn.gain.exponentialRampToValueAtTime(0.0001, t + dur + release);
-    let node = o;
-    if (cutoff) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; o.connect(f); node = f; }
-    node.connect(gn); gn.connect(dest);
+    o.connect(gn); gn.connect(sfx);
     o.start(t); o.stop(t + dur + release + 0.05);
   }
-
-  function kick(t, vol) {
-    const o = ac.createOscillator(), gn = ac.createGain();
-    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.15);
-    gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-    o.connect(gn); gn.connect(music); o.start(t); o.stop(t + 0.25);
-  }
-  function hat(t, vol) {
-    const s = ac.createBufferSource(); s.buffer = noiseBuf;
-    const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
-    const gn = ac.createGain(); gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    s.connect(f); f.connect(gn); gn.connect(music); s.start(t); s.stop(t + 0.06);
-  }
-
-  // 미리 0.3초 앞까지 음을 예약한다. 곡 바꾸기는 마디 처음에서.
-  function schedule() {
-    if (!ac) return;
-    while (nextTime < ac.currentTime + 0.3) {
-      if (step % 8 === 0 && (!cur || cur.theme !== want.theme || cur.mode !== want.mode)) cur = { ...want };
-      const S = SONGS[cur.theme] || SONGS.meadow;
-      const fight = cur.mode !== 'camp', boss = cur.mode === 'boss';
-      const eighth = 60 / (S.bpm * (fight ? 1.12 : 1) * (boss ? 1.06 : 1)) / 2;
-      const bar = Math.floor(step / 8) % 4, s8 = step % 8, t = nextTime;
-      const chord = S.chords[bar];
-      if (s8 === 0) chord.forEach(n => tone(t, midi(n), eighth * 7, 'triangle', 0.045, music, 0.3, 0.6, 1200));   // 화음 패드
-      if (s8 === 0 || s8 === 4) tone(t, midi(chord[0] - 12), eighth * 3, 'sine', boss ? 0.22 : 0.16, music, 0.01, 0.2);   // 베이스
-      if (s8 % 2 === 1) tone(t, midi(chord[(s8 >> 1) % 3] + 12), eighth * 0.6, 'sine', 0.03, music, 0.005, 0.12);      // 반짝이는 분산화음
-      const m = S.melody[step % 32];
-      if (m) tone(t, midi(m), eighth * 1.4, S.lead, 0.09, music, 0.01, cur.theme === 'forest' ? 0.5 : 0.25);
-      if (fight) {
-        if (s8 === 0 || s8 === 4) kick(t, boss ? 0.5 : 0.35);
-        if (s8 % 2 === 1) hat(t, 0.08);
-        if (boss && (s8 === 2 || s8 === 6)) kick(t, 0.25);
-      }
-      nextTime += eighth;
-      step++;
-    }
-  }
-
-  // ── 효과음 ──
-  function click() {
-    if (!ac || !opt.sfx) return;
+  const ok = () => ac && opt.sfx;
+  const seq = (notes, gap, type = 'triangle', vol = 0.22, dur = 0.08) => {
+    if (!ok()) return;
     const t = ac.currentTime;
-    tone(t, 880, 0.03, 'sine', 0.25, sfx, 0.002, 0.06);
-    tone(t + 0.025, 1320, 0.03, 'sine', 0.18, sfx, 0.002, 0.06);
-  }
-  function coin() {
-    if (!ac || !opt.sfx) return;
-    const t = ac.currentTime;
-    tone(t, midi(88), 0.05, 'square', 0.08, sfx, 0.002, 0.08);
-    tone(t + 0.07, midi(93), 0.12, 'square', 0.08, sfx, 0.002, 0.2);
-  }
-  function win() {
-    if (!ac || !opt.sfx) return;
-    const t = ac.currentTime;
-    [72, 76, 79, 84].forEach((n, i) => tone(t + i * 0.09, midi(n), 0.08, 'triangle', 0.22, sfx, 0.005, 0.25));
-  }
-  function lose() {
-    if (!ac || !opt.sfx) return;
-    const t = ac.currentTime;
-    [67, 63, 60].forEach((n, i) => tone(t + i * 0.16, midi(n), 0.14, 'triangle', 0.2, sfx, 0.005, 0.3));
-  }
+    notes.forEach((n, i) => n && tone(t + i * gap, midi(n), dur, type, vol, 0.005, 0.25));
+  };
 
-  function setScene(theme, mode) { want = { theme, mode }; }
+  function click() { if (!ok()) return; const t = ac.currentTime; tone(t, 880, 0.03, 'sine', 0.25); tone(t + 0.025, 1320, 0.03, 'sine', 0.18); }
+  const coin = () => seq([88, 93], 0.07, 'square', 0.08, 0.06);
+  const win = () => seq([72, 76, 79, 84], 0.09);
+  const lose = () => seq([67, 63, 60], 0.16, 'triangle', 0.2, 0.14);
+  const levelUp = () => seq([72, 76, 79, 84, 88, 91], 0.07, 'triangle', 0.22, 0.1);
+  const fanfare = () => { seq([67, 72, 76, 79], 0.12, 'triangle', 0.24, 0.12); setTimeout(() => seq([84, 84, 88], 0.1, 'square', 0.1, 0.2), 520); };
+  const claim = () => seq([79, 84, 91], 0.06, 'sine', 0.22, 0.08);
+  // 뽑기 등급에 따라 높아지는 소리
+  function reveal(grade) {
+    if (!ok()) return;
+    const base = [60, 64, 67, 72, 76, 79][grade] || 60;
+    seq(grade >= 4 ? [base, base + 4, base + 7, base + 12, base + 16] : [base, base + 7], 0.06, grade >= 3 ? 'square' : 'triangle', grade >= 3 ? 0.14 : 0.18, 0.1);
+  }
 
   function save() { try { localStorage.setItem(KEY, JSON.stringify(opt)); } catch (e) { /* 무시 */ } }
   function toggle(kind) {
     opt[kind] = !opt[kind];
     save();
-    if (ac) {
-      if (kind === 'bgm') music.gain.setTargetAtTime(opt.bgm ? 0.32 : 0, ac.currentTime, 0.1);
-      else sfx.gain.value = opt.sfx ? 0.55 : 0;
-    }
+    if (kind === 'sfx' && sfx) sfx.gain.value = opt.sfx ? 0.55 : 0;
+    if (kind === 'bgm' && opt.bgm) playing = null;          // 다시 켜면 지금 곡부터
     return opt[kind];
   }
 
@@ -141,5 +96,6 @@ const Sound = (() => {
   }, true);
   document.addEventListener('keydown', init, { once: true });
 
-  return { setScene, click, coin, win, lose, toggle, get bgm() { return opt.bgm; }, get sfx() { return opt.sfx; } };
+  return { setScene, click, coin, win, lose, levelUp, fanfare, claim, reveal, toggle,
+    get bgm() { return opt.bgm; }, get sfx() { return opt.sfx; } };
 })();
