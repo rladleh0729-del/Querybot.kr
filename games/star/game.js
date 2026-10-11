@@ -871,6 +871,8 @@ function makeMonster(stage, boss) {
 }
 
 // ── 숫자 표시 (1.2만, 3.4억) ─────────────────
+// 골드 칸: 1000조 아래는 전부, 그 이상은 짧게
+const goldText = () => save.gold < 1e15 ? Math.floor(save.gold).toLocaleString('ko-KR') : fmt(save.gold);
 function fmt(n) {
   n = Math.floor(n);
   if (n < 10000) return n.toLocaleString('ko-KR');
@@ -2302,13 +2304,14 @@ function usePotion() {
 
 // ── 그리기 ──────────────────────────────────
 function drawImg(img, x, y, size, flash) {
+  if (img.scaleUp) { const k = img.scaleUp, sz = size || 32, pad = sz * (k - 1) / 2; x -= pad; y -= pad; size = sz * k; }   // ★5 큰 그림
   const w = (size || 32) * SCALE, h = img.height / img.width * w;
-  ctx.drawImage(img, Math.round(x) * SCALE, Math.round(y) * SCALE, w, h);
+  ctx.drawImage(img, x * SCALE, y * SCALE, w, h);
   if (flash) {
     ctx.save();
     ctx.globalAlpha = flash * 0.6;
     ctx.globalCompositeOperation = 'lighter';
-    ctx.drawImage(img, Math.round(x) * SCALE, Math.round(y) * SCALE, w, h);
+    ctx.drawImage(img, x * SCALE, y * SCALE, w, h);
     ctx.restore();
   }
 }
@@ -2823,7 +2826,7 @@ function updateHud() {
   const allDone = bossBeaten(CHAPTERS.length);
   const atBoss = bossOpen(c) && !bossBeaten(c);
   $('lStage').textContent = allDone ? `챕터 ${c} · 완료` : atBoss ? `챕터 ${c} · 보스` : `챕터 ${c} · ${localOf(top)} / ${STAGES_PER}`;
-  $('lGold').textContent = Math.floor(save.gold).toLocaleString('ko-KR');
+  $('lGold').textContent = goldText();
   $('lShards').textContent = save.shards || 0;
   $('lDust').textContent = fmt(save.dust || 0);
   $('dunLeft').textContent = `${dunLeft('gold') + dunLeft('gear')}/${DUNGEON_TRIES * 2}`;
@@ -2864,7 +2867,7 @@ function updateBattleHud() {
   }).join('') + `<button class="stone skauto${save.autoSkill ? ' on' : ''}" id="autoBtn">AUTO<small>${save.autoSkill ? '켜짐' : '꺼짐'}</small></button>`;
   $('skillBar').querySelectorAll('.skbtn').forEach(b => b.onclick = () => castSkill(+b.dataset.slot, false));
   $('autoBtn').onclick = () => { save.autoSkill = !save.autoSkill; updateBattleHud(); };
-  $('bGold').textContent = Math.floor(save.gold).toLocaleString('ko-KR');
+  $('bGold').textContent = goldText();
   $('waves').innerHTML = WAVES.map((_, i) => `<i class="${i < battle.wave ? 'done' : i === battle.wave ? 'now' : ''}"></i>`).join('');
   $('potionCnt').textContent = save.potions + '개';
   $('bName').textContent = '👑 ' + allyName(leaderId());
@@ -2960,7 +2963,7 @@ function closeModal() {
 function potionPrice() { return monGold(save.stage) * 6; }
 
 function refreshModal() {
-  $('mGold').innerHTML = '보유 골드 ' + Math.floor(save.gold).toLocaleString('ko-KR') + ' G' + (modalKind === 'up' ? ` · 전투력 ${fmt(power(stats))}${powerGain > 0 ? ` <em class="pgain">▲ ${fmt(powerGain)}</em>` : ''}` : '');
+  $('mGold').innerHTML = '보유 골드 ' + goldText() + ' G' + (modalKind === 'up' ? ` · 전투력 ${fmt(power(stats))}${powerGain > 0 ? ` <em class="pgain">▲ ${fmt(powerGain)}</em>` : ''}` : '');
   if (modalKind === 'up') {
     UPGRADES.forEach(u => {
       const row = $('up_' + u.id);

@@ -1000,7 +1000,9 @@ function weaponUp(g, draw, s, type) {
 function drawFinal(id, type) {
   const me = drawAlly(id, 5, type);
   const c = ALLY_GLOW[type] || '255,230,150';
-  return vs(96, 96, g => {
+  // 날개·후광·탈것이 잘리지 않게 144칸에 그리고(가운데 96칸이 캐릭터), 그릴 때 1.5배로 넓힌다
+  const out = vs(144, 144, g => {
+    g.translate(24, 24);
     glowAt(g, 48, 56, 48, `rgba(${c},0.45)`);
     if (type === 'heal') {
       g.save(); g.translate(48, 46); g.scale(1.6, 1.6); g.translate(-48, -56); wings(g); g.restore();
@@ -1037,6 +1039,8 @@ function drawFinal(id, type) {
       for (const [t, x, y] of [['♪', 8, 30], ['♫', 80, 22], ['♪', 84, 56]]) g.fillText(t, x, y);
     }
   });
+  out.scaleUp = 1.5;
+  return out;
 }
 
 // 표정까지 포함해 캐시 (이스터에그용 MOOD 반영)
