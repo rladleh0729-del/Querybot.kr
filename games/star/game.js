@@ -724,6 +724,7 @@ function collectChest() {
   save.chest -= got;
   Sound.coin();
   track('chests');
+  coinBurst(Math.min(30, 10 + Math.floor(Math.log10(got + 1) * 3)));
   floatsLobby.push({ text: '+' + fmt(got) + ' G', t: 0 });
   writeSave();
   updateHud();
@@ -1548,6 +1549,52 @@ function updateMood() {
 }
 function face(name) { return (mood && SPR[name + '_m' + mood]) || SPR[name]; }
 
+// ── 레드닷: 지금 할 수 있는 일이 있는 버튼에 빨간 점 ──
+function setDot(sel, on, num) {
+  const b = document.querySelector(sel);
+  if (!b) return;
+  let dot = b.querySelector('.rdot');
+  if (!dot) { dot = document.createElement('em'); dot.className = 'rdot'; b.appendChild(dot); }
+  dot.hidden = !on;
+  dot.textContent = num ? (num > 99 ? '99+' : num) : '';
+  dot.classList.toggle('num', !!num);
+}
+function updateDots() {
+  setDot('[data-open=up]', UPGRADES.some(u => save.lv[u.id] < u.max && save.gold >= upgradeCost(u, save.lv[u.id])));
+  setDot('[data-open=traits]', traitsOpen() && pointsLeft() > 0, pointsLeft());
+  setDot('[data-open=allies]', Object.entries(save.allies || {}).some(([, lv]) => save.gold >= allyCost(lv)));
+  setDot('[data-open=skill]', SKILLS.some(sk => save.stage - 1 >= sk.unlock && save.gold >= skillCost(sk, save.skills[sk.id] || 0)));
+  setDot('[data-open=gear]', save.items.some(it => !Object.values(save.gear).includes(it.id) && itemScore(it) > itemScore(equipped(it.slot))));
+  setDot('[data-open=gacha]', save.dust >= GACHA_COST);
+}
+
+// ── 금화 분수: 상자에서 금화가 튀고, 받으면 골드 칸으로 날아간다 ──
+let coins = [], coinTimer = 0;
+const CHEST_PX = () => { const r = $('chestCv').getBoundingClientRect(), s = cv.getBoundingClientRect(); return [(r.left + r.width / 2 - s.left) / s.width * cv.width, (r.top + r.height * 0.3 - s.top) / s.height * cv.height]; };
+const GOLD_PX = () => { const r = $('lGold').getBoundingClientRect(), s = cv.getBoundingClientRect(); return [(r.left - s.left) / s.width * cv.width, (r.top + r.height / 2 - s.top) / s.height * cv.height]; };
+function coinBurst(n) {
+  const [x, y] = CHEST_PX();
+  for (let i = 0; i < n; i++) coins.push({ x, y, vx: (Math.random() - 0.5) * 420, vy: -250 - Math.random() * 300, t: 0, fly: 0.35 + Math.random() * 0.25 });
+}
+function drawCoins(dt) {
+  if (save.chest >= 1 && (coinTimer -= dt) <= 0) {          // 쌓여 있으면 통통 튄다
+    coinTimer = 0.35;
+    const [x, y] = CHEST_PX();
+    coins.push({ x: x + (Math.random() - 0.5) * 30, y, vx: (Math.random() - 0.5) * 80, vy: -160 - Math.random() * 80, t: 0, hop: true });
+  }
+  const [gx, gy] = GOLD_PX();
+  coins = coins.filter(c => {
+    c.t += dt;
+    if (c.hop) { c.vy += 700 * dt; c.x += c.vx * dt; c.y += c.vy * dt; if (c.t > 0.55) return false; }
+    else if (c.t < c.fly) { c.vy += 900 * dt; c.x += c.vx * dt; c.y += c.vy * dt; }
+    else { const k = Math.min(1, (c.t - c.fly) * 2.2); c.x += (gx - c.x) * k; c.y += (gy - c.y) * k; if (Math.hypot(gx - c.x, gy - c.y) < 12) return false; }
+    const s = 1 + Math.sin(c.t * 18) * 0.5;
+    ctx.fillStyle = '#c8901e'; ctx.beginPath(); ctx.ellipse(c.x, c.y, 8 * Math.abs(s - 0.5) + 2, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffe27a'; ctx.beginPath(); ctx.ellipse(c.x - 1, c.y - 1, (8 * Math.abs(s - 0.5) + 2) * 0.7, 6, 0, 0, Math.PI * 2); ctx.fill();
+    return c.t < 3;
+  });
+}
+
 function renderLobby() {
   drawImg(SPR.tent, 50, GROUND - 38, 48);
   drawCampfire(104);
@@ -1563,6 +1610,7 @@ function renderLobby() {
   shadow(138);
   drawImg(face('hero_' + save.gender), 122, GROUND - 31 + bob);
   drawBubbles(pos);
+  drawCoins(1 / 60);
   floatsLobby.forEach(f => f.t += 1 / 60);
   floatsLobby = floatsLobby.filter(f => f.t < 1);
   drawFloats(floatsLobby, 166, 100);
@@ -1678,7 +1726,8 @@ function updateHud() {
   $('lName').textContent = `Lv ${heroLevel()} ${save.name}`;
   const tb = $('traitBtn');
   tb.classList.toggle('lock', !traitsOpen());
-  tb.querySelector('small').textContent = !traitsOpen() ? '잠김' : pointsLeft() > 0 ? `포인트 ${pointsLeft()}` : jobTitle();
+  tb.querySelector('small').textContent = traitsOpen() ? '' : '잠김';
+  updateDots();
   refreshSettings();
   $('chestRate').textContent = `초당 ${idleRate().toFixed(1)} G`;
   updateChest();
