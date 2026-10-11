@@ -222,44 +222,53 @@ function fullStats(lv) {
 // 특성 보드는 챕터 1 보스를 깨면 열린다. 한 갈래에 15포인트면 1차 전직,
 // 챕터 3 보스를 깨고 같은 갈래 30포인트면 2차 전직.
 const TRAIT_TREES = [
-  { id: 'sword', name: '물리 · 검술', color: '#d0443c', nodes: [
+  { id: 'sword', name: '검술 · 무기', color: '#d0443c', nodes: [
     { id: 's_atk',    name: '날카로운 칼날', max: 10, desc: r => `공격력 +${r * 3}%` },
     { id: 's_hp',     name: '단단한 몸',     max: 10, desc: r => `체력 +${r * 4}%` },
-    { id: 's_crit',   name: '급소 찌르기',   max: 5,  desc: r => `치명타 확률 +${r}%` },
+    { id: 's_wave',   name: '검기 날리기',   max: 5,  desc: r => `공격할 때마다 검기가 날아가 뒤의 적에게 공격력 ${r * 20}% 피해` },
     { id: 's_double', name: '연속 베기',     max: 3,  req: 10, desc: r => `${r * 8}% 확률로 한 번 더 공격` },
-    { id: 's_drain',  name: '피의 갈증',     max: 5,  req: 10, desc: r => `준 피해의 ${r}% 회복 (흡혈)` },
+    { id: 's_exec',   name: '처형',          max: 1,  req: 15, desc: () => '체력 15% 아래로 떨어진 일반 몬스터를 즉시 처치' },
   ] },
-  { id: 'mana', name: '마나 · 원소', color: '#7a5ad0', nodes: [
+  { id: 'mana', name: '마법 · 그림자', color: '#7a5ad0', nodes: [
+    { id: 'm_color',  name: '삼색 마법',     max: 10, desc: r => `3번째 공격마다 불(화상)·얼음(적 공격 느려짐)·번개(3명 연쇄) 마법 · 공격력 ${r * 20}%` },
     { id: 'm_skill',  name: '마력 증폭',     max: 10, desc: r => `스킬 피해 +${r * 6}%` },
     { id: 'm_cd',     name: '빠른 영창',     max: 5,  desc: r => `스킬 쿨타임 -${r * 4}%` },
-    { id: 'm_cdmg',   name: '원소 폭발',     max: 10, desc: r => `치명타 피해 +${r * 5}%` },
-    { id: 'm_shield', name: '마나 방벽',     max: 3,  req: 10, desc: r => `웨이브마다 최대 체력 ${r * 6}% 보호막` },
+    { id: 'm_shadow', name: '그림자 군대',   max: 5,  req: 10, desc: r => `쓰러뜨린 적이 그림자 병사로 일어남 · 최대 ${r}명, 10초, 1초마다 공격력 30%` },
     { id: 'm_ally',   name: '동료 공명',     max: 5,  req: 10, desc: r => `마법형 동료 피해 +${r * 15}%` },
   ] },
-  { id: 'agi', name: '민첩 · 사격', color: '#2f9a4a', nodes: [
+  { id: 'agi', name: '민첩 · 사냥', color: '#2f9a4a', nodes: [
     { id: 'a_aspd',   name: '날렵한 손',     max: 10, desc: r => `공격 속도 +${r * 3}%` },
     { id: 'a_pierce', name: '약점 포착',     max: 5,  desc: r => `치명타 관통 +${r * 2}%` },
     { id: 'a_dodge',  name: '몸놀림',        max: 5,  desc: r => `${r * 2}% 확률로 공격 회피` },
-    { id: 'a_gold',   name: '보물 감각',     max: 5,  req: 10, desc: r => `처치 골드 +${r * 5}%` },
+    { id: 'a_mark',   name: '사냥감 표식',   max: 5,  req: 10, desc: r => `맨 앞의 적에게 표식 · 받는 피해 +${r * 8}%` },
     { id: 'a_ally',   name: '사냥 동료',     max: 5,  req: 10, desc: r => `사격형 동료 피해 +${r * 15}%` },
   ] },
-  { id: 'holy', name: '신성 · 치유', color: '#d89a10', nodes: [
+  { id: 'holy', name: '신성 · 치유 (선)', color: '#d89a10', nodes: [
     { id: 'h_regen',  name: '축복',          max: 10, desc: r => `초당 회복 +${r * 15}%` },
-    { id: 'h_guard',  name: '수호',          max: 5,  desc: r => `받는 피해 -${r * 2}%` },
-    { id: 'h_potion', name: '물약 숙련',     max: 5,  desc: r => `물약 회복량 +${r * 8}%` },
+    { id: 'h_smite',  name: '심판의 빛',     max: 10, desc: r => `악 몬스터에게 피해 +${r * 20}% · 공격 속도 +${r * 5}%` },
+    { id: 'h_purify', name: '정화',          max: 3,  desc: r => r >= 3 ? '저주·독 면역' : `저주·독 지속 시간 -${r * 33}%` },
     { id: 'h_heal',   name: '치유 공명',     max: 5,  req: 10, desc: r => `치유형 동료 회복 +${r * 15}%` },
     { id: 'h_revive', name: '부활의 기도',   max: 1,  req: 15, desc: () => '전투마다 한 번, 쓰러지면 체력 30%로 부활' },
+  ] },
+  { id: 'dark', name: '악 · 어둠 (악)', color: '#9a2a5a', nodes: [
+    { id: 'e_dark',   name: '어둠의 힘',     max: 10, desc: r => `모든 적에게 피해 +${r * 8}% · 단, 선·타락 천사 몬스터를 때리면 반발로 준 피해의 ${r}%를 받음` },
+    { id: 'e_drain',  name: '피의 계약',     max: 5,  desc: r => `준 피해의 ${r}% 회복 (흡혈)` },
+    { id: 'e_fear',   name: '공포',          max: 5,  desc: r => `공격할 때 ${r * 4}% 확률로 적이 1.5초 동안 얼어붙음` },
+    { id: 'e_weak',   name: '역저주',        max: 3,  req: 10, desc: r => `적 공격력 -${r * 6}%` },
+    { id: 'e_soul',   name: '영혼 수확',     max: 5,  req: 10, desc: r => `적을 쓰러뜨릴 때마다 공격력 +${r}% (전투 동안 최대 30번)` },
   ] },
 ];
 const JOBS = {
   sword: { name: '검사',   bonus: '공격력 +10% · 체력 +10%',
-    adv: [{ id: 'sm', name: '소드마스터', bonus: '공격력 +15% · 연속 베기 +15%' }, { id: 'knight', name: '나이트', bonus: '체력 +25% · 받는 피해 -15%' }] },
-  mana:  { name: '마법사', bonus: '스킬 피해 +25%',
-    adv: [{ id: 'elem', name: '엘리멘탈리스트', bonus: '스킬 피해 +40% · 스킬 쿨타임 -10%' }, { id: 'warlock', name: '흑마법사', bonus: '흡혈 3% · 스킬 피해 +15%' }] },
+    adv: [{ id: 'sm', name: '소드마스터', bonus: '공격력 +15% · 연속 베기 +15% · 검기 피해 2배' }, { id: 'knight', name: '나이트', bonus: '체력 +25% · 받는 피해 -15% · 동료 체력 +50%' }] },
+  mana:  { name: '마법사', bonus: '스킬 피해 +25% · 삼색 마법 피해 +30%',
+    adv: [{ id: 'elem', name: '엘리멘탈리스트', bonus: '2번째 공격마다 삼색 마법 · 마법 피해 +50%' }, { id: 'necro', name: '네크로맨서', bonus: '그림자 병사 최대 +3 · 병사가 사라지지 않음' }] },
   agi:   { name: '궁수',   bonus: '공격 속도 +15%',
     adv: [{ id: 'sniper', name: '저격수', bonus: '치명타 피해 +50% · 치명타 관통 +10%' }, { id: 'ranger', name: '레인저', bonus: '공격 속도 +20% · 처치 골드 +15%' }] },
   holy:  { name: '성직자', bonus: '초당 회복 +최대 체력 2% · 받는 피해 -5%',
-    adv: [{ id: 'priest', name: '사제', bonus: '전투마다 부활 · 회복 효과 +50%' }, { id: 'paladin', name: '성기사', bonus: '공격력 +15% · 받는 피해 -10%' }] },
+    adv: [{ id: 'priest', name: '사제', bonus: '전투마다 부활 · 회복 효과 +50% · 저주 면역' }, { id: 'paladin', name: '성기사', bonus: '공격력 +15% · 악 몬스터 피해 +100%' }] },
+  dark:  { name: '주술사', bonus: '어둠의 힘 +15% · 흡혈 2%',
+    adv: [{ id: 'hypno', name: '최면술사', bonus: '8초마다 맨 앞의 적을 4초 동안 최면 · 최면 걸린 적은 자기 편을 공격' }, { id: 'fallen', name: '타락 기사', bonus: '공격력 +20% · 반발 면역' }] },
 };
 const JOB_POINTS = 15, ADV_POINTS = 30, ADV_CH = 3;
 
@@ -278,26 +287,36 @@ function jobTitle() {
 }
 
 // 특성과 직업 효과를 한데 모은다 (% 단위)
+// SEALED: 보스의 '룰 브레이커'가 특성·전직 효과를 봉인한 상태
+let SEALED = false;
 function traitMods() {
-  const r = traitRank;
-  const m = { atk: r('s_atk') * 3, hp: r('s_hp') * 4, crit: r('s_crit'), double: r('s_double') * 8, drain: r('s_drain'),
-    skill: r('m_skill') * 6, cd: r('m_cd') * 4, critDmg: r('m_cdmg') * 5, shield: r('m_shield') * 6, magicAlly: r('m_ally') * 15,
-    aspd: r('a_aspd') * 3, pierce: r('a_pierce') * 2, dodge: r('a_dodge') * 2, gold: r('a_gold') * 5, shotAlly: r('a_ally') * 15,
-    regen: r('h_regen') * 15, guard: r('h_guard') * 2, potion: r('h_potion') * 8, healAlly: r('h_heal') * 15, revive: r('h_revive'),
-    regenFlat: 0, healMul: 0 };
+  const r = id => SEALED ? 0 : traitRank(id);
+  const m = { atk: r('s_atk') * 3, hp: r('s_hp') * 4, crit: 0, double: r('s_double') * 8, drain: r('e_drain'),
+    wave: r('s_wave') * 20, exec: r('s_exec'),
+    skill: r('m_skill') * 6, cd: r('m_cd') * 4, critDmg: 0, shield: 0, magicAlly: r('m_ally') * 15,
+    color: r('m_color') * 20, colorEvery: 3, shadow: r('m_shadow'), shadowPerm: 0,
+    aspd: r('a_aspd') * 3, pierce: r('a_pierce') * 2, dodge: r('a_dodge') * 2, gold: 0, shotAlly: r('a_ally') * 15, mark: r('a_mark') * 8,
+    regen: r('h_regen') * 15, guard: 0, potion: 0, healAlly: r('h_heal') * 15, revive: r('h_revive'),
+    smite: r('h_smite') * 20, smiteSpd: r('h_smite') * 5, purify: r('h_purify'),
+    dark: r('e_dark') * 8, reflect: r('e_dark'), noReflect: 0, fear: r('e_fear') * 4, weak: r('e_weak') * 6, soul: r('e_soul'),
+    hypno: 0, allyHp: 0, regenFlat: 0, healMul: 0 };
+  if (SEALED) return m;
   if (save.job === 'sword') { m.atk += 10; m.hp += 10; }
-  if (save.job === 'mana') m.skill += 25;
+  if (save.job === 'mana') { m.skill += 25; m.color = Math.floor(m.color * 1.3); }
   if (save.job === 'agi') m.aspd += 15;
   if (save.job === 'holy') { m.regenFlat += 2; m.guard += 5; }
+  if (save.job === 'dark') { m.dark += 15; m.drain += 2; }
   switch (save.adv) {
-    case 'sm': m.atk += 15; m.double += 15; break;
-    case 'knight': m.hp += 25; m.guard += 15; break;
-    case 'elem': m.skill += 40; m.cd += 10; break;
-    case 'warlock': m.drain += 3; m.skill += 15; break;
+    case 'sm': m.atk += 15; m.double += 15; m.wave *= 2; break;
+    case 'knight': m.hp += 25; m.guard += 15; m.allyHp += 50; break;
+    case 'elem': m.colorEvery = 2; m.color = Math.floor(m.color * 1.5); break;
+    case 'necro': m.shadow += 3; m.shadowPerm = 1; break;
     case 'sniper': m.critDmg += 50; m.pierce += 10; break;
     case 'ranger': m.aspd += 20; m.gold += 15; break;
-    case 'priest': m.revive = 1; m.healMul += 50; break;
-    case 'paladin': m.atk += 15; m.guard += 10; break;
+    case 'priest': m.revive = 1; m.healMul += 50; m.purify = 3; break;
+    case 'paladin': m.atk += 15; m.smite += 100; break;
+    case 'hypno': m.hypno = 1; break;
+    case 'fallen': m.atk += 20; m.noReflect = 1; break;
   }
   m.guard = Math.min(m.guard, 60);
   return m;
@@ -431,6 +450,7 @@ function startDungeon(id) {
   ensureDaily();
   save.daily['d' + id] = (save.daily['d' + id] || 0) + 1;
   track('dungeon');
+  SEALED = false;
   refreshStats();
   hero.hp = stats.maxHp; hero.cd = 0; floats = [];
   const top = topStage();
@@ -439,6 +459,7 @@ function startDungeon(id) {
     hp: 1e30, maxHp: 1e30, atk: Math.floor(k.atk * 0.25), gold: 0 });
   battle = { stage: top, dungeon: id, king: true, mech: null, wave: 0, queue: [k], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [],
     timeLeft: DUNGEON_TIME, mechCd: Infinity, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0, dealt: 0 };
+  initAllyHp();
   $('result').hidden = true;
   showScreen('battle');
   giveShield();
@@ -686,14 +707,14 @@ const TALK = {
 // mech: 보스 특수 공격 (slam = 7초마다 강한 박치기, root = 8초마다 2초 동안 묶음, poison = 8초마다 독침, 4초 동안 독 피해)
 const CHAPTERS = [
   { name: '들꽃 평원', theme: 'meadow',
-    monsters: [{ from: 1, sprite: 'slime', name: '풀잎 슬라임' }, { from: 8, sprite: 'mushroom', name: '꽃버섯' }, { from: 15, sprite: 'bee', name: '들벌' }],
-    boss: { name: '거대 슬라임 왕', sprite: 'slime_king', mech: 'slam', every: 7, mechName: '몸통 박치기', ally: 'miru' } },
+    monsters: [{ from: 1, sprite: 'slime', name: '풀잎 슬라임', align: 'neutral' }, { from: 8, sprite: 'mushroom', name: '꽃버섯', align: 'neutral' }, { from: 15, sprite: 'bee', name: '들벌', align: 'neutral' }],
+    boss: { name: '거대 슬라임 왕', sprite: 'slime_king', mech: 'slam', every: 7, mechName: '몸통 박치기', ally: 'miru', align: 'neutral' } },
   { name: '속삭이는 숲', theme: 'forest',
-    monsters: [{ from: 1, sprite: 'wisp', name: '숲 요정' }, { from: 8, sprite: 'toadstool', name: '독버섯' }, { from: 15, sprite: 'sprout', name: '나무 정령' }],
-    boss: { name: '고목 수호자', sprite: 'treant', mech: 'root', every: 8, mechName: '뿌리 감옥', ally: 'serin' } },
+    monsters: [{ from: 1, sprite: 'wisp', name: '숲 요정', align: 'good' }, { from: 8, sprite: 'toadstool', name: '독버섯', align: 'evil' }, { from: 15, sprite: 'sprout', name: '나무 정령', align: 'good' }],
+    boss: { name: '고목 수호자', sprite: 'treant', mech: 'root', every: 8, mechName: '뿌리 감옥', ally: 'serin', align: 'good' } },
   { name: '붉은 사막', theme: 'desert',
-    monsters: [{ from: 1, sprite: 'cactus', name: '선인장 무사' }, { from: 8, sprite: 'scorpion', name: '모래 전갈' }, { from: 15, sprite: 'mummy', name: '붕대 유령' }],
-    boss: { name: '사막 전갈 여왕', sprite: 'scorpion_queen', mech: 'poison', every: 8, mechName: '독침', ally: 'kai' } },
+    monsters: [{ from: 1, sprite: 'cactus', name: '선인장 무사', align: 'neutral' }, { from: 8, sprite: 'scorpion', name: '모래 전갈', align: 'evil' }, { from: 15, sprite: 'mummy', name: '붕대 유령', align: 'evil' }],
+    boss: { name: '사막 전갈 여왕', sprite: 'scorpion_queen', mech: 'poison', every: 8, mechName: '독침', ally: 'kai', align: 'evil', breaker: true } },
 ];
 const MAX_STAGE = CHAPTERS.length * STAGES_PER;
 const chOf = stage => Math.ceil(stage / STAGES_PER);                 // 1부터
@@ -726,6 +747,22 @@ function monGold(stage) { return Math.ceil(BAL.monGold * Math.pow(BAL.goldGrow, 
 // 치명타 저항: 스테이지마다 1.5%씩. 내 치명타 확률에서 그만큼 빠진다
 function critRes(stage) { return Math.min(60, (stage - 1) * 1.5); }
 
+// 계열: 선·악·중립·타락 천사. 신성 특성은 악에게 강하고, 악 특성은 선·타락 천사에게 반발을 받는다
+const ALIGN = { good: ['선', '#ffe27a'], evil: ['악', '#ff7aa8'], neutral: null, fallen: ['타락 천사', '#c8a0ff'] };
+// 특수 몬스터: 치유사(동료 몬스터 회복), 저주술사(공격 속도·공격력 저주), 암살자(뒤로 잠입해 동료를 노림)
+const ROLES = {
+  healer:   { name: '치유사',   color: '#6fe39a', icon: '✚' },
+  curser:   { name: '저주술사', color: '#c070ff', icon: '☾' },
+  assassin: { name: '암살자',   color: '#ff5a6e', icon: '✖' },
+};
+function eliteRoles(stage) {
+  const c = chOf(stage), l = localOf(stage), r = [];
+  if (c > 1 || l >= 4) r.push('healer');
+  if (c > 1 || l >= 8) r.push('assassin');
+  if (c > 1 || l >= 12) r.push('curser');
+  return r;
+}
+
 function makeMonster(stage, boss) {
   const type = monsterType(stage);
   const hp = Math.floor(BAL.monHp * growth(stage, BAL.hpGrow, BAL.hpGrow2) * (boss ? BAL.bossHp : 1));
@@ -754,7 +791,7 @@ let save = null;
 
 function newSave(name, gender) {
   return { name, gender, gold: 0, stage: 1, lv: { atk: 0, hp: 0, regen: 0, crit: 0, aspd: 0 },
-    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: {}, party: [], seenCh: 1, traits: {}, job: null, adv: null, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
+    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: {}, party: [], seenCh: 1, traits: {}, job: null, adv: null, traitsV: 2, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
 }
 
 // 탭이 여러 개면 서로 저장을 덮어쓰므로, 가장 나중에 연 탭만 저장한다
@@ -816,6 +853,10 @@ function migrateSave(s) {
     }
     if (!s.seenCh) s.seenCh = 1;
     if (!s.traits) { s.traits = {}; s.job = null; s.adv = null; }
+    if (s.traitsV !== 2) {
+      if (Object.keys(s.traits).length || s.job) s.traitReset = true;
+      s.traits = {}; s.job = null; s.adv = null; s.traitsV = 2;
+    }
     if (s.dust === undefined) { s.dust = 150; s.stats = {}; s.daily = null; s.mainIdx = 0; s.mainBase = 0; }   // 새 기능 기념 별가루
     if (!s.gearV2) {
       s.items.forEach(it => it.value = rollValue(it.grade, it.stage));
@@ -874,11 +915,13 @@ function refreshStats() { stats = fullStats(save.lv); hero.x = 70 + Math.max(0, 
 // stage: 도전할 스테이지 (깬 곳 또는 다음 곳)
 function startBattle(stage) {
   stage = Math.max(1, Math.min(stage || save.stage, topStage()));
+  SEALED = false;
   refreshStats();
   hero.hp = stats.maxHp;
   hero.cd = 0;
   floats = [];
   battle = { stage, wave: 0, queue: [], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [], allyCd: {}, fx: [], shield: 0, revived: false, poison: 0 };
+  initAllyHp();
   spawnWave();
   if (chOf(stage) > (save.seenCh || 1)) {                          // 새 챕터에 처음 들어옴
     save.seenCh = chOf(stage);
@@ -895,13 +938,14 @@ function startBoss(c) {
   c = c || campChapter();
   if (!bossOpen(c)) return;
   const B = chapter(c).boss, last = c * STAGES_PER;
+  SEALED = false;
   refreshStats();
   hero.hp = stats.maxHp;
   hero.cd = 0;
   floats = [];
   const k = makeMonster(last, true);
   Object.assign(k, {
-    name: B.name, sprite: B.sprite, king: true, size: 64, x: 200,
+    name: B.name, sprite: B.sprite, king: true, size: 64, x: 200, align: B.align,
     hp: Math.floor(BAL.monHp * growth(last, BAL.hpGrow, BAL.hpGrow2) * BAL.kingHp),
     atk: Math.floor(BAL.monAtk * growth(last, BAL.atkGrow, BAL.atkGrow2) * BAL.kingAtk),
     gold: monGold(last) * BAL.kingGold,
@@ -910,6 +954,7 @@ function startBoss(c) {
   k.maxHp = k.hp;
   battle = { stage: last, ch: c, king: true, mech: B.mech, every: B.every, wave: 0, queue: [k], earned: 0, state: 'talk', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [],
     timeLeft: BOSS_TIME, mechCd: B.every, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0 };
+  initAllyHp();
   $('result').hidden = true;
   showScreen('battle');
   talkCh = c;
@@ -925,6 +970,15 @@ function spawnWave() {
     const m = makeMonster(battle.stage, boss);
     m.x = 220 + i * 30;
     battle.queue.push(m);
+  }
+  // 특수 몬스터 (웨이브마다 최대 1마리)
+  const roles = eliteRoles(battle.stage), plain = battle.queue.filter(m => !m.boss);
+  if (roles.length && plain.length && Math.random() < 0.45) {
+    const m = plain[Math.floor(Math.random() * plain.length)], role = roles[Math.floor(Math.random() * roles.length)];
+    m.role = role; m.rcd = role === 'assassin' ? 2.2 : 3;
+    m.hp = m.maxHp = Math.floor(m.hp * 1.5);
+    m.name = ROLES[role].name + ' ' + m.name;
+    if (role === 'curser') m.align = 'fallen';
   }
   if (battle.wave === WAVES.length - 1 && Math.random() < 0.5) say('hero', pick(LINES.bossWave));
   giveShield();
@@ -977,12 +1031,23 @@ function toast(text) {
 function updateBattle(dt) {
   floats.forEach(f => f.t += dt);
   floats = floats.filter(f => f.t < 1);
+  if (battle) {
+    battle.fx = battle.fx.filter(f => (f.t += dt) < (f.dur || 0.3));
+    for (const id in battle.anim || {}) if ((battle.anim[id].t += dt) > battle.anim[id].dur) delete battle.anim[id];
+    for (const a of Object.values(battle.ahp || {})) a.hurt = Math.max(0, a.hurt - dt * 4);
+  }
   hero.lunge = Math.max(0, hero.lunge - dt * 4);
   hero.hurt = Math.max(0, hero.hurt - dt * 4);
   if (!battle || battle.state !== 'fight') return;
 
   battle.potionCd = Math.max(0, battle.potionCd - dt);
   hero.hp = Math.min(stats.maxHp, hero.hp + stats.regen * dt);
+  for (const a of Object.values(battle.ahp || {})) if (a.hp > 0) a.hp = Math.min(a.max, a.hp + a.max * stats.regen / stats.maxHp * dt);
+  battle.curse = Math.max(0, (battle.curse || 0) - dt);
+  if (battle.seal > 0 && (battle.seal -= dt) <= 0) {
+    SEALED = false; refreshStats();
+    addFloat('봉인 해제', hero.x + 16, GROUND - 62, '#ffe27a', true);
+  }
   updateSkills(dt);
 
   // 웨이브 사이 쉬는 시간
@@ -1010,10 +1075,22 @@ function updateBattle(dt) {
         const mult = { root: 1.5, poison: 1.2 }[battle.mech] || 3;
         shake = battle.mech === 'slam' ? 0.45 : 0.25;
         if (battle.mech === 'root') { battle.bound = ROOT_TIME; addFloat('묶임!', hero.x + 16, GROUND - 60, '#c8a060', true); }
-        if (battle.mech === 'poison') { battle.poison = 4; battle.poisonDps = k.atk * 0.5; addFloat('독!', hero.x + 16, GROUND - 60, '#b070e0', true); }
+        if (battle.mech === 'poison') { battle.poison = 4 * (1 - stats.mods.purify / 3); battle.poisonDps = k.atk * 0.5; addFloat('독!', hero.x + 16, GROUND - 60, '#b070e0', true); }
         battle.mechCd = battle.every;
         battle.mechWarn = 0;
+        if (battle.mech === 'slam') for (const id in battle.ahp) hurtAlly(id, battle.ahp[id].max * 0.25);
         if (takeHit(Math.floor(k.atk * mult), '#ff3a4a', true, true)) return endBattle('lost');
+      }
+    }
+    // 룰 브레이커: 챕터 3 보스가 체력 절반 아래로 폭주하면 14초마다 6초 동안 특성·전직 봉인
+    if (k && k.dead <= 0 && chapter(battle.ch || 1).boss.breaker && !battle.dungeon && k.hp < k.maxHp * 0.5) {
+      if (!battle.phase2) { battle.phase2 = true; battle.rbCd = 1.5; shake = 0.4; addFloat('폭주!', k.x + 32, GROUND - 80, '#ff5a6e', true); say('boss', '감히… 내 사막의 법칙을 따르거라!', 2.5); }
+      if ((battle.rbCd -= dt) <= 0) {
+        battle.rbCd = 14;
+        battle.seal = 6;
+        SEALED = true; refreshStats(); hero.hp = Math.min(hero.hp, stats.maxHp);
+        shake = 0.35;
+        addFloat('룰 브레이커! 특성 봉인', hero.x + 16, GROUND - 70, '#ff5a6e', true);
       }
     }
     // 독 피해 (초마다)
@@ -1031,7 +1108,38 @@ function updateBattle(dt) {
   // 쓰러진 몬스터 치우기
   for (const m of q) if (m.dead > 0) m.dead -= dt;
   while (q.length && q[0].dead < 0) q.shift();
-  if (!q.length) return waveCleared();
+  const sn = battle.sneak;
+  if (sn && sn.dead > 0 && (sn.dead -= dt) <= 0) battle.sneak = null;
+  if (!q.length && !battle.sneak) return waveCleared();
+  updateMonsterRoles(dt);
+  // 상태 이상 (기절·최면·둔화·화상)
+  for (const m of q.concat(battle.sneak ? [battle.sneak] : [])) {
+    m.stun = Math.max(0, (m.stun || 0) - dt);
+    m.charm = Math.max(0, (m.charm || 0) - dt);
+    m.slow = Math.max(0, (m.slow || 0) - dt);
+    m.kb = Math.max(0, (m.kb || 0) - dt * 40);
+    if (m.burn > 0 && m.dead <= 0) {
+      m.burn -= dt;
+      if ((m.burnT = (m.burnT || 0) + dt) >= 0.5) { m.burnT -= 0.5; hit(m, m.burnMult, '#ff8a3a', 'dot'); }
+    }
+  }
+  // 암살자: 뒤에서 동료(또는 주인공)를 공격
+  if (battle.sneak && battle.sneak.dead <= 0) {
+    const s = battle.sneak;
+    s.hurt = Math.max(0, s.hurt - dt * 4);
+    if (s.target !== 'hero' && allyDown(s.target)) { s.target = sneakTarget(); s.x = s.target === 'hero' ? hero.x - 30 : allyX(save.party.indexOf(s.target)) - 22; }
+    if (!(s.stun > 0)) {
+      s.cd -= dt * (s.slow > 0 ? 0.6 : 1);
+      if (s.cd <= 0) {
+        s.cd += 1 / s.aspd;
+        s.lunge = 1;
+        const dmg = s.atk * 1.5 * (1 - stats.mods.weak / 100);
+        if (s.target === 'hero') { if (takeHit(dmg)) return endBattle('lost'); }
+        else hurtAlly(s.target, dmg);
+      }
+    }
+    s.lunge = Math.max(0, (s.lunge || 0) - dt * 4);
+  }
 
   // 앞 몬스터는 주인공 앞까지, 뒤 몬스터는 줄을 선다
   const meet = hero.x + 40;
@@ -1041,24 +1149,135 @@ function updateBattle(dt) {
     if (m.x > slot) m.x = Math.max(slot, m.x - 100 * dt);
   });
   const mon = q[0];
-  if (mon.dead > 0 || mon.x > meet) return;
+  const sneakOn = battle.sneak && battle.sneak.dead <= 0;
+  const front = mon && mon.dead <= 0 && mon.x <= meet;
+  if (!front && !sneakOn) return;
 
   updateAllies(dt, q);
-
-  // 주인공 공격 (뿌리에 묶여 있으면 못 함)
-  hero.cd -= dt;
-  if (hero.cd <= 0 && !battle.bound) {
-    hero.cd += 1 / (stats.aspd * (battle.cryT > 0 ? 1 + battle.cryPower : 1));
-    hero.lunge = 1;
-    if (hit(mon, 1, null, 'basic')) return;
-    if (Math.random() * 100 < stats.mods.double && hit(mon, 1, '#ffc0a0', 'basic')) return;
+  updateShadows(dt, q);
+  if (stats.mods.hypno && front) {                      // 최면술사
+    battle.hypCd = (battle.hypCd ?? 3) - dt;
+    if (battle.hypCd <= 0) {
+      battle.hypCd = 8;
+      const others = q.filter(m => m !== mon && m.dead <= 0);
+      if (!mon.king && others.length) { mon.charm = 4; addFloat('최면!', mon.x + 16, GROUND - 56, '#ff9ae0', true); }
+      else { mon.stun = 1.5; addFloat('최면… 멍', mon.x + (mon.size || 32) / 2, GROUND - (mon.size || 32) - 14, '#ff9ae0', true); }
+      battle.fx.push({ kind: 'hypno', x: mon.x + (mon.size || 32) / 2, t: 0, dur: 0.6 });
+    }
   }
 
-  // 몬스터 공격
-  mon.cd -= dt;
+  // 주인공 공격 (뿌리에 묶여 있으면 못 함). 암살자가 있으면 먼저 처리
+  const tgt = sneakOn ? battle.sneak : mon;
+  hero.cd -= dt;
+  if (hero.cd <= 0 && !battle.bound) {
+    const m = stats.mods;
+    const spd = (battle.cryT > 0 ? 1 + battle.cryPower : 1) * (battle.curse > 0 ? 0.5 : 1) * (tgt.align === 'evil' ? 1 + m.smiteSpd / 100 : 1);
+    hero.cd += 1 / (stats.aspd * spd);
+    hero.lunge = 1;
+    hero.back = sneakOn;
+    battle.fx.push({ kind: 'hslash', x: tgt.x + (tgt.size || 32) / 2, t: 0, dur: 0.22 });
+    const killed = hit(tgt, 1, null, 'basic');
+    battle.hits = (battle.hits || 0) + 1;
+    if (m.wave) { const t2 = q.find(x => x !== tgt && x.dead <= 0); if (t2) { battle.fx.push({ kind: 'wave', from: hero.x + 24, x: t2.x + (t2.size || 32) / 2, t: 0, dur: 0.3 }); hit(t2, m.wave / 100, '#bfe8ff', 'ally'); } }
+    if (m.color && battle.hits % m.colorEvery === 0) castColor(q);
+    if (killed) return;
+    if (Math.random() * 100 < m.double && hit(tgt, 1, '#ffc0a0', 'basic')) return;
+  }
+
+  // 몬스터 공격 (기절이면 못 함, 최면이면 자기 편을 공격, 둔화면 느리게)
+  if (!front || mon.stun > 0) return;
+  mon.cd -= dt * (mon.slow > 0 ? 0.6 : 1);
   if (mon.cd <= 0) {
     mon.cd += 1 / mon.aspd;
-    if (takeHit(mon.atk)) endBattle('lost');
+    if (mon.charm > 0) {
+      const o = q.find(x => x !== mon && x.dead <= 0);
+      if (o) {
+        const d = Math.floor(o.maxHp * 0.2);
+        o.hp -= d; o.hurt = 1; o.kb = 6;
+        addFloat(fmt(d), o.x + 16, GROUND - 40, '#ff9ae0');
+        if (o.hp <= 0) { o.hp = 1; hit(o, 0.001, '#ff9ae0', 'dot'); }
+      }
+      return;
+    }
+    if (takeHit(mon.atk * (1 - stats.mods.weak / 100))) endBattle('lost');
+  }
+}
+
+function updateMonsterRoles(dt) {
+  const q = battle.queue;
+  for (const m of q) {
+    if (!m.role || m.dead > 0 || m.x > 300 || m.stun > 0 || m.charm > 0) continue;
+    if ((m.rcd -= dt) > 0) continue;
+    if (m.role === 'healer') {
+      m.rcd = 5;
+      let any = false;
+      q.forEach(o => {
+        if (o.dead > 0 || o.hp >= o.maxHp) return;
+        const h = Math.floor(o.maxHp * 0.12);
+        o.hp = Math.min(o.maxHp, o.hp + h); any = true;
+        addFloat('+' + fmt(h), o.x + (o.size || 32) / 2, GROUND - 44, '#6fe39a');
+      });
+      if (any) battle.fx.push({ kind: 'mheal', x: m.x + 16, t: 0, dur: 0.7 });
+      else m.rcd = 1;
+    } else if (m.role === 'curser') {
+      m.rcd = 8;
+      battle.fx.push({ kind: 'curse', from: m.x + 16, x: hero.x + 16, t: 0, dur: 0.6 });
+      const pur = stats.mods.purify;
+      if (pur >= 3) { addFloat('정화! 저주 무효', hero.x + 16, GROUND - 62, '#ffe27a', true); continue; }
+      battle.curse = 4 * (1 - pur / 3);
+      addFloat('저주! 공격 속도 -50%', hero.x + 16, GROUND - 62, '#c070ff', true);
+    } else if (m.role === 'assassin' && !battle.sneak) {
+      q.splice(q.indexOf(m), 1);
+      battle.sneak = m;
+      m.cd = 0.9;
+      m.target = sneakTarget();
+      battle.fx.push({ kind: 'smoke', x: m.x + 16, t: 0, dur: 0.6 });
+      m.x = m.target === 'hero' ? hero.x - 30 : allyX(save.party.indexOf(m.target)) - 22;
+      battle.fx.push({ kind: 'smoke', x: m.x + 16, t: 0, dur: 0.6 });
+      addFloat('암살자 잠입!', m.x + 16, GROUND - 52, '#ff5a6e', true);
+      say('hero', m.target === 'hero' ? '뒤다!' : '뒤를 노린다! ' + allyName(m.target) + ' 조심해!', 2);
+      break;
+    }
+  }
+}
+
+function spawnShadow() {
+  const m = stats.mods;
+  battle.shadows = battle.shadows || [];
+  if (battle.shadows.length >= m.shadow) return;
+  battle.shadows.push({ t: m.shadowPerm ? Infinity : 10, cd: 0.6, rise: 0, k: battle.shadows.length, act: 0 });
+  addFloat('그림자 병사!', hero.x + 30, GROUND - 50, '#b48cff');
+}
+function updateShadows(dt, q) {
+  if (!battle.shadows || !battle.shadows.length) return;
+  battle.shadows = battle.shadows.filter(s => (s.t -= dt) > 0);
+  battle.shadows.forEach((s, k) => {
+    s.k = k;
+    s.rise = Math.min(1, s.rise + dt * 2);
+    s.act = Math.max(0, s.act - dt * 4);
+    if ((s.cd -= dt) > 0) return;
+    const t = q.find(m => m.dead <= 0 && m.x <= hero.x + 90);
+    if (!t) return;
+    s.cd = 1; s.act = 1;
+    battle.fx.push({ kind: 'shadowhit', x: t.x + (t.size || 32) / 2, t: 0, dur: 0.25 });
+    hit(t, 0.3, '#b48cff', 'ally');
+  });
+}
+
+const ELEM = [{ id: 'fire', color: '#ff7a3a', name: '화염' }, { id: 'ice', color: '#7ad0ff', name: '얼음' }, { id: 'bolt', color: '#ffe94a', name: '번개' }];
+function castColor(q) {
+  const m = stats.mods, alive = q.filter(x => x.dead <= 0);
+  if (!alive.length) return;
+  battle.elem = ((battle.elem ?? -1) + 1) % 3;
+  const e = ELEM[battle.elem], mult = m.color / 100;
+  const px = t => t.x + (t.size || 32) / 2;
+  if (e.id === 'bolt') {
+    alive.slice(0, 3).forEach(t => { battle.fx.push({ kind: 'elem', e: e.id, color: e.color, x: px(t), t: 0, dur: 0.35 }); hit(t, mult * 0.7, e.color, 'magic'); });
+  } else {
+    const t = alive[0];
+    battle.fx.push({ kind: 'elem', e: e.id, color: e.color, from: hero.x + 24, x: px(t), t: 0, dur: 0.35 });
+    if (e.id === 'fire') { t.burn = 3; t.burnMult = mult * 0.15; } else t.slow = 3;
+    hit(t, mult, e.color, 'magic');
   }
 }
 
@@ -1068,17 +1287,35 @@ function hit(mon, mult, color, kind) {
   if (mon.dead > 0) return false;
   const m = stats.mods;
   if (kind === 'skill') mult *= 1 + m.skill / 100;
+  if (mon.align === 'evil') mult *= 1 + m.smite / 100;
+  const repel = m.dark && (mon.align === 'good' || mon.align === 'fallen');
+  if (m.dark && !repel) mult *= 1 + m.dark / 100;
+  if (m.mark && mon === battle.queue[0]) mult *= 1 + m.mark / 100;
+  if (m.soul && battle.souls) mult *= 1 + battle.souls * m.soul / 100;
+  if (battle.curse > 0) mult *= 0.8;
   const crit = Math.random() * 100 < stats.crit - Math.max(0, mon.critRes - stats.pierce);
   const dmg = Math.floor(stats.atk * mult * (crit ? stats.critDmg : 1) * (0.9 + Math.random() * 0.2));
   if (m.drain && kind !== 'ally') hero.hp = Math.min(stats.maxHp, hero.hp + dmg * m.drain / 100);
   mon.hp -= dmg;
   if (battle.dungeon) battle.dealt += dmg;
   mon.hurt = 1;
+  if (kind !== 'dot') {
+    mon.kb = Math.min(mon.king ? 2 : 10, (mon.kb || 0) + (crit ? 5 : 3));
+    battle.fx.push({ kind: 'spark', x: mon.x + (mon.size || 32) / 2, y: GROUND - (mon.size || 32) / 2, color: crit ? '#ffd25e' : color || '#ffffff', big: crit, t: 0, dur: 0.25 });
+  }
+  if (repel && !m.noReflect && kind === 'basic') {
+    const back = Math.floor(dmg * m.reflect / 100);
+    if (back > 0) { hero.hp = Math.max(1, hero.hp - back); addFloat('반발 -' + fmt(back), hero.x + 16, GROUND - 44, '#ff7aa8'); }
+  }
+  if (kind === 'basic' && m.fear && !mon.king && mon.hp > 0 && Math.random() * 100 < m.fear) { mon.stun = 1.5; addFloat('공포!', mon.x + 16, GROUND - 56, '#c070ff'); }
+  if (m.exec && !mon.king && !battle.dungeon && mon.hp > 0 && mon.hp < mon.maxHp * 0.15) { mon.hp = 0; addFloat('처형!', mon.x + 16, GROUND - 60, '#ff5a6e', true); }
   const mid = (mon.size || 32) / 2;
   addFloat(fmt(dmg) + (crit ? '!' : ''), mon.x + mid, GROUND - 36 - (mult > 1 ? 8 : 0) - (mon.size ? 24 : 0), crit ? '#ffd25e' : color || '#ffffff', crit || mult > 1);
   if (mon.hp > 0) return false;
   mon.hp = 0;
   mon.dead = 0.5;
+  if (m.soul) battle.souls = Math.min(30, (battle.souls || 0) + 1);
+  if (m.shadow) spawnShadow();
   const gold = Math.floor(mon.gold * (1 + m.gold / 100));
   save.gold += gold;              // 얻은 골드는 바로 저장 (져도 남는다)
   battle.earned += gold;
@@ -1099,39 +1336,73 @@ function dropItem(mon) {
 
 // ── 전투 중 동료 ──
 function updateAllies(dt, q) {
-  battle.fx = battle.fx.filter(f => (f.t += dt) < 0.3);
+  const sn = battle.sneak && battle.sneak.dead <= 0 ? battle.sneak : null;
+  const cx = t => t.x + (t.size || 32) / 2;
   (save.party || []).forEach((id, i) => {
     const A = allyById(id), lv = save.allies[id] || 1;
-    if (!A || !A.every) return;
-    const p = allyPow(id);
-    battle.allyCd[id] = (battle.allyCd[id] ?? A.every * 0.5) - dt;
+    if (!A || !A.every || allyDown(id)) return;
+    const p = allyPow(id), big = allyStar(id) >= 3;
+    battle.allyCd[id] = (battle.allyCd[id] ?? A.every * 0.5) - dt * (battle.curse > 0 ? 0.5 : 1);
     if (battle.allyCd[id] > 0) return;
     if (A.type === 'heal') {
-      if (hero.hp >= stats.maxHp * 0.95) return;
-      const heal = Math.floor(stats.maxHp * (6 + lv) * p / 100 * (1 + stats.mods.healAlly / 100) * (1 + stats.mods.healMul / 100));
-      hero.hp = Math.min(stats.maxHp, hero.hp + heal);
-      addFloat('+' + fmt(heal), hero.x + 16, GROUND - 50, '#6fe39a');
-      battle.fx.push({ kind: 'heal', i, t: 0 });
+      // 체력 비율이 가장 낮은 아군(주인공 또는 동료)을 치유
+      let who = 'hero', low = hero.hp / stats.maxHp;
+      for (const [aid, a] of Object.entries(battle.ahp || {})) if (a.hp > 0 && a.hp / a.max < low) { low = a.hp / a.max; who = aid; }
+      if (low >= 0.95) return;
+      const k = (6 + lv) * p / 100 * (1 + stats.mods.healAlly / 100) * (1 + stats.mods.healMul / 100);
+      const tx = who === 'hero' ? hero.x + 16 : allyX(save.party.indexOf(who)) + 16;
+      if (who === 'hero') { const h = Math.floor(stats.maxHp * k); hero.hp = Math.min(stats.maxHp, hero.hp + h); addFloat('+' + fmt(h), tx, GROUND - 50, '#6fe39a'); }
+      else { const a = battle.ahp[who], h = Math.floor(a.max * k * 1.5); a.hp = Math.min(a.max, a.hp + h); addFloat('+' + fmt(h), tx, GROUND - 46, '#6fe39a'); }
+      battle.fx.push({ kind: 'heal', i, x: tx, big, t: 0, dur: 0.6 });
     } else if (A.type === 'magic') {
       const targets = q.filter(m => m.dead <= 0 && m.x <= hero.x + 120).slice(0, 3);
+      if (sn) targets.unshift(sn);
       if (!targets.length) return;
-      targets.forEach(m => { hit(m, (50 + lv * 10) * p / 100 * (1 + stats.mods.magicAlly / 100), '#d6b0ff', 'ally'); battle.fx.push({ kind: 'bolt', i, x: m.x + (m.size || 32) / 2, t: 0 }); });
+      targets.slice(0, 3).forEach(m => { hit(m, (50 + lv * 10) * p / 100 * (1 + stats.mods.magicAlly / 100), '#d6b0ff', 'ally'); battle.fx.push({ kind: 'bolt', i, x: cx(m), color: allyColor(id), big, t: 0, dur: 0.4 }); });
     } else if (A.type === 'shot') {
-      const t = q.find(m => m.dead <= 0 && m.x <= hero.x + 160);
+      const t = sn || q.find(m => m.dead <= 0 && m.x <= hero.x + 160);
       if (!t) return;
       hit(t, (100 + lv * 20) * p / 100 * (1 + stats.mods.shotAlly / 100), '#ffd27a', 'ally');
-      battle.fx.push({ kind: 'arrow', i, x: t.x + (t.size || 32) / 2, t: 0 });
+      for (let k = 0; k < (big ? 3 : 1); k++) battle.fx.push({ kind: 'arrow', i, x: cx(t), off: (k - 1) * 4 * (big ? 1 : 0), t: -k * 0.05, dur: 0.3, color: allyColor(id) });
     } else if (A.type === 'warrior') {
-      const t = q.find(m => m.dead <= 0 && m.x <= hero.x + 70);
+      const t = sn || q.find(m => m.dead <= 0 && m.x <= hero.x + 70);
       if (!t) return;
       hit(t, (120 + lv * 20) * p / 100, '#ff9a7a', 'ally');
-      battle.fx.push({ kind: 'slash', i, x: t.x + (t.size || 32) / 2, t: 0 });
+      battle.fx.push({ kind: 'slash', i, x: cx(t), big, color: allyColor(id), t: 0, dur: 0.3 });
     }
+    battle.anim[id] = { t: 0, dur: 0.4 };
     battle.allyCd[id] = A.every;
   });
 }
 
 function allyX(i) { return hero.x - 24 - i * 18; }
+
+// 동료 체력: 주인공 체력의 45~85% (각성할수록 단단)
+function allyMaxHp(id) { return Math.floor(stats.maxHp * (0.35 + 0.1 * allyStar(id)) * (1 + stats.mods.allyHp / 100)); }
+function initAllyHp() {
+  battle.ahp = {}; battle.anim = {};
+  for (const id of save.party || []) { const mx = allyMaxHp(id); battle.ahp[id] = { hp: mx, max: mx, hurt: 0 }; }
+}
+const allyDown = id => !battle.ahp || !battle.ahp[id] || battle.ahp[id].hp <= 0;
+function hurtAlly(id, raw) {
+  const a = battle.ahp && battle.ahp[id];
+  if (!a || a.hp <= 0) return;
+  const dmg = Math.floor(raw * (1 - stats.mods.guard / 100));
+  a.hp -= dmg; a.hurt = 1;
+  const x = allyX(save.party.indexOf(id)) + 16;
+  addFloat('-' + fmt(dmg), x, GROUND - 40, '#ff6b7a');
+  if (a.hp <= 0) { a.hp = 0; addFloat(allyName(id) + ' 쓰러짐', x, GROUND - 52, '#ff9aa0', true); }
+}
+// 암살자가 노릴 대상: 치유형 → 지원형 → 맨 뒤 동료 → 주인공
+function sneakTarget() {
+  const alive = (save.party || []).filter(id => !allyDown(id));
+  return alive.find(id => allyById(id).type === 'heal') || alive.find(id => allyById(id).type === 'support') || alive[alive.length - 1] || 'hero';
+}
+// 동료 공격 모션 종류 (무기별)
+const MOTION = { spear: 'thrust', greatsword: 'chop', axe: 'chop', sword: 'dash', shield: 'dash', bow: 'shoot', crossbow: 'shoot', sling: 'shoot',
+  staff_leaf: 'cast', staff_orb: 'cast', staff_fire: 'cast', staff_star: 'cast', book: 'cast', lute: 'play', tambourine: 'play', flag: 'play', bandage: 'play' };
+const allyColor = id => 'rgb(' + ALLY_GLOW[allyById(id).type] + ')';
+
 
 // ── 전투 중 스킬 ──
 function castSkill(slot, auto) {
@@ -1178,6 +1449,8 @@ function waveCleared() {
     const heal = Math.floor(stats.maxHp * WAVE_HEAL);
     hero.hp = Math.min(stats.maxHp, hero.hp + heal);
     addFloat('+' + fmt(heal), hero.x + 16, GROUND - 46, '#6fe39a', true);
+    for (const a of Object.values(battle.ahp || {})) a.hp = a.hp <= 0 ? Math.floor(a.max * 0.3) : Math.min(a.max, a.hp + a.max * WAVE_HEAL);
+    battle.shadows = (battle.shadows || []).filter(s => s.t === Infinity);
     toast(`웨이브 ${battle.wave + 1} 클리어! 체력 회복`);
     battle.wave++;
     battle.delay = 1.6;
@@ -1189,6 +1462,7 @@ function waveCleared() {
 
 // result: 'won'(승리) | 'lost'(쓰러짐) | 'retreat'(후퇴) | 'timeout'(보스 시간 초과)
 function endBattle(result) {
+  if (SEALED) { SEALED = false; refreshStats(); }
   const won = result === 'won';
   if (won) Sound.win(); else if (result !== 'retreat') Sound.lose();
   battle.state = result;
@@ -1758,10 +2032,27 @@ function renderLobby() {
   drawFloats(floatsLobby, 166, 100);
 }
 
+// 특수 몬스터 표식과 상태 이상
+function drawMonMarks(m, size) {
+  const cx = (m.x + (m.kb || 0) + size / 2) * SCALE, top = (GROUND - size - 16) * SCALE;
+  ctx.save();
+  if (m.role) {
+    const R = ROLES[m.role];
+    ctx.fillStyle = R.color; ctx.shadowColor = R.color; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(cx, top - 6, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = '900 17px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(R.icon, cx, top - 5);
+  }
+  if (m.stun > 0) { ctx.fillStyle = '#ffe27a'; for (let k = 0; k < 3; k++) { const an = time * 6 + k * 2.1; ctx.beginPath(); ctx.arc(cx + Math.cos(an) * 26, top + 26 + Math.sin(an) * 7, 5, 0, Math.PI * 2); ctx.fill(); } }
+  if (m.charm > 0) { ctx.fillStyle = '#ff7ac8'; ctx.font = '900 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('♥', cx + Math.sin(time * 5) * 14, top + 16 - (time * 30 % 20)); }
+  if (m.burn > 0) { ctx.fillStyle = `rgba(255,120,40,${0.5 + 0.3 * Math.sin(time * 20)})`; ctx.beginPath(); ctx.arc(cx, (GROUND - 6) * SCALE, 10 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+
 function renderBattle() {
   const walking = battle.delay > 0;
   const bob = walking ? Math.round(Math.abs(Math.sin(time * 12)) * -2) : Math.round(Math.sin(time * 4) * 0.8);
-  const hx = hero.x + hero.lunge * 6;
+  const hx = hero.x + hero.lunge * (hero.back ? -6 : 6);
   shadow(hx + 16);
   ctx.save();
   if (battle.state === 'lost') ctx.globalAlpha = 0.35;
@@ -1789,31 +2080,162 @@ function renderBattle() {
     ctx.strokeStyle = 'rgba(150,210,255,0.8)'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.ellipse((hx + 16) * SCALE, (GROUND - 15) * SCALE, 21 * SCALE, 19 * SCALE, 0, 0, Math.PI * 2); ctx.stroke();
   }
-  // 동료 (주인공 뒤)
-  (save.party || []).forEach((id, i) => {
-    const x = allyX(i);
-    const act = battle.fx.find(f => f.i === i);
-    shadow(x + 16);
-    drawImg(allyImg(id), x + (act ? 3 : 0), GROUND - 31 + (walking ? bob : Math.round(Math.sin(time * 4 + i + 1) * 0.8)));
-  });
-  for (const f of battle.fx) {
-    const ax = (allyX(f.i) + 22) * SCALE, ay = (GROUND - 20) * SCALE;
+  // 그림자 병사 (주인공 바로 앞)
+  for (const s of battle.shadows || []) {
+    const sx = hero.x + 14 + (s.k % 3) * 7 + s.act * 6, sy = GROUND - 28 + (s.k % 2) * 2 + (1 - s.rise) * 20;
     ctx.save();
-    ctx.globalAlpha = 1 - f.t / 0.3;
-    if (f.kind === 'arrow') {
-      ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(f.x * SCALE, (GROUND - 16) * SCALE); ctx.stroke();
-    } else if (f.kind === 'slash') {
-      ctx.strokeStyle = '#fff0e0'; ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.arc(f.x * SCALE, (GROUND - 16) * SCALE, 40, -1.2 + f.t * 6, 0.2 + f.t * 6); ctx.stroke();
-    } else if (f.kind === 'bolt') {
-      ctx.strokeStyle = '#d6b0ff'; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(f.x * SCALE, (GROUND - 16) * SCALE); ctx.stroke();
-      ctx.fillStyle = '#f4e8ff'; ctx.beginPath(); ctx.arc(f.x * SCALE, (GROUND - 16) * SCALE, 14, 0, Math.PI * 2); ctx.fill();
-    } else {
-      ctx.fillStyle = '#9ef0b0';
-      for (let k = 0; k < 5; k++) ctx.fillRect((hero.x + 6 + k * 5) * SCALE, (GROUND - 20 - f.t * 60 - (k % 2) * 10) * SCALE, 6, 6);
+    ctx.globalAlpha = 0.8 * s.rise * (s.t < 1 ? s.t : 1);
+    ctx.filter = 'brightness(0.15) sepia(1) hue-rotate(230deg) saturate(4)';
+    drawImg(SPR['hero_' + save.gender], sx, sy, 28);
+    ctx.filter = 'none';
+    ctx.fillStyle = '#d0a0ff';
+    ctx.fillRect((sx + 17) * SCALE, (sy + 11) * SCALE, 5, 5); ctx.fillRect((sx + 21) * SCALE, (sy + 11) * SCALE, 5, 5);
+    ctx.restore();
+  }
+  // 동료 (주인공 뒤) · 무기마다 다른 모션, ★3부터 더 크게 움직이고 잔상과 빛
+  (save.party || []).forEach((id, i) => {
+    const x = allyX(i), a = battle.anim && battle.anim[id], hp = battle.ahp && battle.ahp[id];
+    const st = allyStar(id), big = st >= 3, kind = MOTION[ALLY_LOOKS[id].weapon] || 'dash';
+    const down = hp && hp.hp <= 0;
+    let dx = 0, dy = walking ? bob : Math.round(Math.sin(time * 4 + i + 1) * 0.8), rot = 0;
+    if (big && (kind === 'cast' || kind === 'play') && !down) dy += -3 + Math.sin(time * 3 + i) * 1.5;      // 떠 있는 자세
+    if (a && !down) {
+      const pr = a.t / a.dur, s = Math.sin(Math.PI * pr);
+      if (kind === 'thrust') dx = s * (big ? 16 : 9);
+      else if (kind === 'chop') { dy -= s * (big ? 14 : 8); dx = s * (big ? 12 : 5); rot = Math.sin(pr * Math.PI * 2) * 0.35; }
+      else if (kind === 'dash') dx = s * (big ? 22 : 8);
+      else if (kind === 'shoot') { dx = -s * 3; rot = -s * 0.12; }
+      else if (kind === 'cast') dy -= s * (big ? 8 : 5);
+      else { dy -= Math.abs(Math.sin(pr * Math.PI * 2)) * (big ? 6 : 4); rot = Math.sin(pr * Math.PI * 2) * 0.15; }
     }
+    shadow(x + 16);
+    if (big && !down) {                                       // ★3 빛
+      const gr = ctx.createRadialGradient((x + 16) * SCALE, (GROUND - 2) * SCALE, 0, (x + 16) * SCALE, (GROUND - 2) * SCALE, 20 * SCALE);
+      gr.addColorStop(0, `rgba(${ALLY_GLOW[allyById(id).type]},${0.35 + 0.15 * Math.sin(time * 4 + i)})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gr; ctx.fillRect((x - 6) * SCALE, (GROUND - 22) * SCALE, 44 * SCALE, 30 * SCALE);
+    }
+    const img = allyImg(id);
+    const draw = (ox, alpha) => {
+      ctx.save();
+      ctx.globalAlpha *= alpha;
+      ctx.translate((x + ox + 16) * SCALE, GROUND * SCALE); ctx.rotate(down ? -1.45 : rot); ctx.translate(-(x + ox + 16) * SCALE, -GROUND * SCALE);
+      if (down) ctx.filter = 'grayscale(1)';
+      drawImg(img, x + ox, GROUND - 31 + (down ? 6 : dy), 32, hp ? hp.hurt : 0);
+      ctx.restore();
+    };
+    if (down) { ctx.save(); ctx.globalAlpha = 0.55; draw(4, 1); ctx.restore(); }
+    else {
+      if (big && a) { draw(dx * 0.35, 0.25); draw(dx * 0.7, 0.4); }
+      draw(dx, 1);
+    }
+    if (hp && !walking) hpBar(x + 9, GROUND - 36 + (i % 2) * 2, 14, hp.hp / hp.max, down ? '#777' : '#6fe39a');
+  });
+  // 이펙트
+  const S = SCALE, Y = v => v * S;
+  for (const f of battle.fx) {
+    if (f.t < 0) continue;
+    const pr = Math.min(1, f.t / (f.dur || 0.3));
+    const ax = (f.i !== undefined ? allyX(f.i) + 24 : (f.from || hero.x + 24)) * S, ay = Y(GROUND - 20);
+    const tx = f.x * S, ty = Y(GROUND - 16);
+    ctx.save();
+    ctx.lineCap = 'round';
+    if (f.kind === 'arrow') {                           // 날아가는 화살 + 꼬리
+      const k = Math.min(1, pr / 0.6), px = ax + (tx - ax) * k, py = ay + (ty - ay) * k - Math.sin(k * Math.PI) * 30 + (f.off || 0) * S;
+      ctx.globalAlpha = pr < 0.6 ? 1 : 1 - (pr - 0.6) / 0.4;
+      ctx.strokeStyle = f.color; ctx.lineWidth = 3; ctx.globalAlpha *= 0.5;
+      ctx.beginPath(); ctx.moveTo(px - 50, py + 4); ctx.lineTo(px, py); ctx.stroke();
+      ctx.globalAlpha *= 2; ctx.strokeStyle = '#fff6d8'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(px - 18, py + 2); ctx.lineTo(px, py); ctx.stroke();
+      ctx.fillStyle = '#d0d8e8'; ctx.beginPath(); ctx.moveTo(px + 8, py); ctx.lineTo(px - 2, py - 5); ctx.lineTo(px - 2, py + 5); ctx.fill();
+    } else if (f.kind === 'bolt') {                     // 모으기 → 빛줄기
+      if (pr < 0.35) {
+        const r = (f.big ? 26 : 16) * (pr / 0.35);
+        ctx.fillStyle = f.color; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(ax, ay - 20, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ax, ay - 20, r * 0.45, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const q2 = (pr - 0.35) / 0.65;
+        ctx.globalAlpha = 1 - q2;
+        ctx.strokeStyle = f.color; ctx.lineWidth = f.big ? 16 : 10; ctx.shadowColor = f.color; ctx.shadowBlur = 20;
+        ctx.beginPath(); ctx.moveTo(ax, ay - 20); ctx.lineTo(tx, ty); ctx.stroke();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = f.big ? 6 : 4;
+        ctx.beginPath(); ctx.moveTo(ax, ay - 20); ctx.lineTo(tx, ty); ctx.stroke();
+        ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(tx, ty, (f.big ? 34 : 22) * (0.6 + q2), 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (f.kind === 'slash' || f.kind === 'hslash') {   // 베기 궤적
+      const r = f.kind === 'hslash' ? 46 : f.big ? 62 : 44;
+      ctx.globalAlpha = 1 - pr;
+      ctx.strokeStyle = f.color || (save.gender === 'f' ? '#ffc0e8' : '#ffffff'); ctx.lineWidth = f.big ? 12 : 8; ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(tx - 10, ty, r, -1.6 + pr * 1.2, -0.2 + pr * 1.8); ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(tx - 10, ty, r, -1.4 + pr * 1.2, -0.3 + pr * 1.8); ctx.stroke();
+    } else if (f.kind === 'heal') {                     // 초록 십자와 반짝임
+      ctx.globalAlpha = 1 - pr;
+      for (let k = 0; k < (f.big ? 8 : 5); k++) {
+        const px = tx + Math.sin(k * 2.3) * 40, py = Y(GROUND - 10) - pr * 90 - (k % 3) * 20;
+        ctx.fillStyle = k % 2 ? '#bfffd0' : '#6fe39a';
+        ctx.fillRect(px - 9, py - 3, 18, 6); ctx.fillRect(px - 3, py - 9, 6, 18);
+      }
+      ctx.strokeStyle = '#9ef0b0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(tx, Y(GROUND), 50 * pr + 10, 12 * pr + 4, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (f.kind === 'spark') {                    // 맞은 자리 별빛
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = f.color; ctx.lineWidth = f.big ? 6 : 4;
+      const r1 = 8 + pr * (f.big ? 50 : 32), r2 = r1 * 0.4, cy = Y(f.y);
+      for (let k = 0; k < 8; k++) { const an = k * Math.PI / 4 + 0.3; ctx.beginPath(); ctx.moveTo(tx + Math.cos(an) * r2, cy + Math.sin(an) * r2); ctx.lineTo(tx + Math.cos(an) * r1, cy + Math.sin(an) * r1); ctx.stroke(); }
+    } else if (f.kind === 'wave') {                     // 검기
+      const px = ax + (tx - ax) * pr;
+      ctx.globalAlpha = 1 - pr * 0.5; ctx.strokeStyle = '#bfe8ff'; ctx.lineWidth = 8; ctx.shadowColor = '#7ac8ff'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(px - 30, ty - 10, 40, -0.9, 0.9); ctx.stroke();
+    } else if (f.kind === 'elem') {                     // 삼색 마법
+      ctx.shadowColor = f.color; ctx.shadowBlur = 24;
+      if (f.e === 'bolt') {
+        ctx.globalAlpha = 1 - pr; ctx.strokeStyle = f.color; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(tx + 20, 0);
+        for (let k = 1; k <= 6; k++) ctx.lineTo(tx + (k % 2 ? -24 : 24) * (1 - k / 7), ty * k / 6);
+        ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx, ty, 26 * (1 - pr) + 8, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const k = Math.min(1, pr / 0.6), px = ax + (tx - ax) * k;
+        if (pr < 0.6) {
+          ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(px, ty - 10, 16, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(px - 22, ty - 8, 10, 0, Math.PI * 2); ctx.fill();
+        } else {
+          const q2 = (pr - 0.6) / 0.4;
+          ctx.globalAlpha = 1 - q2; ctx.fillStyle = f.color;
+          if (f.e === 'fire') { ctx.beginPath(); ctx.arc(tx, ty - 10, 20 + q2 * 50, 0, Math.PI * 2); ctx.fill(); }
+          else for (let n = 0; n < 6; n++) { const an = n * Math.PI / 3; ctx.save(); ctx.translate(tx + Math.cos(an) * q2 * 50, ty - 10 + Math.sin(an) * q2 * 50); ctx.rotate(an); ctx.fillRect(-10, -4, 20, 8); ctx.restore(); }
+        }
+      }
+    } else if (f.kind === 'shadowhit') {
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#b48cff'; ctx.lineWidth = 6; ctx.shadowColor = '#6a2aa0'; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.moveTo(tx - 30, ty - 30 + pr * 20); ctx.lineTo(tx + 20, ty + 10); ctx.stroke();
+    } else if (f.kind === 'mheal') {                    // 몬스터 치유사
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#6fe39a'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.ellipse(tx, Y(GROUND), 30 + pr * 160, 8 + pr * 20, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (f.kind === 'curse') {                    // 저주 구슬이 주인공에게
+      const fx = f.from * S, px = fx + (tx - fx) * pr;
+      ctx.fillStyle = '#9a40e0'; ctx.shadowColor = '#c070ff'; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(px, Y(GROUND - 30) - Math.sin(pr * Math.PI) * 50, 14, 0, Math.PI * 2); ctx.fill();
+    } else if (f.kind === 'smoke') {                    // 암살자 연막
+      ctx.globalAlpha = 0.8 * (1 - pr); ctx.fillStyle = '#5a5a6a';
+      for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.arc(tx + Math.cos(k) * pr * 50, Y(GROUND - 14) - pr * 30 + Math.sin(k * 2) * 20, 20 + pr * 20, 0, Math.PI * 2); ctx.fill(); }
+    } else if (f.kind === 'hypno') {                    // 최면 소용돌이
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#ff9ae0'; ctx.lineWidth = 4;
+      ctx.beginPath(); for (let a = 0; a < 18; a += 0.3) ctx.lineTo(tx + Math.cos(a + pr * 8) * a * 3, Y(GROUND - 50) + Math.sin(a + pr * 8) * a * 3); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // 저주·봉인 표시
+  if (battle.curse > 0) {
+    ctx.save(); ctx.strokeStyle = `rgba(190,100,255,${0.5 + 0.3 * Math.sin(time * 8)})`; ctx.lineWidth = 4;
+    for (let k = 0; k < 3; k++) { const an = time * 3 + k * 2.1; ctx.beginPath(); ctx.arc(Y(hx + 16) + Math.cos(an) * 50, Y(GROUND - 34) + Math.sin(an) * 14, 8, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
+  if (battle.seal > 0) {
+    ctx.save();
+    const gr = ctx.createRadialGradient(cv.width / 2, cv.height / 2, cv.height * 0.3, cv.width / 2, cv.height / 2, cv.height * 0.9);
+    gr.addColorStop(0, 'rgba(60,0,40,0)'); gr.addColorStop(1, `rgba(120,0,60,${0.45 + 0.1 * Math.sin(time * 6)})`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#ffb0c8'; ctx.font = '900 34px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`⛓ 특성 봉인 ${Math.ceil(battle.seal)}초`, cv.width / 2, 150);
     ctx.restore();
   }
 
@@ -1826,17 +2248,31 @@ function renderBattle() {
     ctx.save();
     if (m.dead > 0) ctx.globalAlpha = m.dead * 2;
     shadow(m.x + size / 2, m.king ? 26 : m.boss ? 15 : 11);
-    drawImg(face(m.sprite), m.x, GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
+    if (m.slow > 0) ctx.filter = 'hue-rotate(160deg) saturate(1.4)';
+    drawImg(face(m.sprite), m.x + (m.kb || 0), GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
     ctx.restore();
+    if (m.dead <= 0) drawMonMarks(m, size);
     if (i === 0 && m.dead <= 0 && !battle.dungeon) {
       hpBar(m.x + 2, GROUND - size - 5, size - 4, m.hp / m.maxHp, '#ff6b7a');
-      label(m.name, m.x + size / 2, GROUND - size - 9, m.boss ? '#ffb0b8' : '#fff');
+      label(m.name + (ALIGN[m.align] ? ' · ' + ALIGN[m.align][0] : ''), m.x + size / 2, GROUND - size - 9, m.role ? ROLES[m.role].color : m.boss ? '#ffb0b8' : '#fff');
     }
     if (i === 0 && battle.dungeon) label(m.name, m.x + size / 2, GROUND - size - 4, '#ffe9a8');
   }
+  // 뒤로 잠입한 암살자 (오른쪽을 봄)
+  const sn = battle.sneak;
+  if (sn) {
+    const sx = sn.x + (sn.lunge || 0) * 6;
+    ctx.save();
+    if (sn.dead > 0) ctx.globalAlpha = sn.dead * 2;
+    shadow(sx + 16, 11);
+    ctx.translate((sx + 16) * SCALE * 2, 0); ctx.scale(-1, 1);
+    drawImg(face(sn.sprite), sx, GROUND - 31, 32, sn.hurt);
+    ctx.restore();
+    if (sn.dead <= 0) { drawMonMarks(sn, 32); hpBar(sx + 2, GROUND - 37, 28, sn.hp / sn.maxHp, '#ff6b7a'); label(sn.name, sx + 16, GROUND - 41, ROLES.assassin.color); }
+  }
   drawFloats(floats);
   const pos = { hero: [hx + 16, GROUND - 36] };
-  (save.party || []).forEach((id, i) => { pos[id] = [allyX(i) + 16, GROUND - 32]; });
+  (save.party || []).forEach((id, i) => { pos[id] = [allyX(i) + 16, GROUND - 40]; });
   drawBubbles(pos);
 }
 
@@ -1857,6 +2293,7 @@ function render() {
 
 // ── 화면 글자 ───────────────────────────────
 function updateHud() {
+  if (save.traitReset) { delete save.traitReset; setTimeout(() => fanfare('특성 개편!', '포인트 전부 반환 · 특성 탭에서 새로 배치'), 900); }
   const s = stats;
   const c = campChapter(), top = topStage();
   const allDone = bossBeaten(CHAPTERS.length);

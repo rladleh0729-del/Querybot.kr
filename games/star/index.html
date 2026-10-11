@@ -3,14 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>별의 설화 · QueryBot Games</title>
-<meta name="description" content="부서진 별을 되찾는 방치형 판타지 RPG. 캠프에서 강화하고 전투에서 스테이지를 돌파한다.">
+<title>별의 설화 - 무료 방치형 판타지 RPG 웹게임</title>
+<meta name="description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG 웹게임. 부서진 별을 되찾는 모험 — 자동 사냥, 장비 수집, 전직 5종, 동료 시너지, 챕터 보스. 구글 로그인으로 어느 기기에서든 이어서 플레이.">
+<meta name="robots" content="index,follow">
 <link rel="canonical" href="https://querybot.kr/games/star/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="별의 설화 — 방치형 판타지 RPG">
-<meta property="og:description" content="부서진 별을 되찾는 방치형 판타지 RPG. 캠프에서 강화하고 전투에서 스테이지를 돌파한다.">
+<meta property="og:site_name" content="QueryBot Games">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="별의 설화 - 무료 방치형 판타지 RPG 웹게임">
+<meta property="og:description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG. 자동 사냥, 장비 수집, 전직, 동료, 챕터 보스.">
 <meta property="og:url" content="https://querybot.kr/games/star/">
 <meta property="og:image" content="https://querybot.kr/games/star/thumb.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="별의 설화 - 무료 방치형 판타지 RPG 웹게임">
+<meta name="twitter:description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG. 자동 사냥, 장비 수집, 전직, 동료, 챕터 보스.">
+<meta name="twitter:image" content="https://querybot.kr/games/star/thumb.jpg">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "name": "별의 설화",
+  "alternateName": "Tale of the Stars",
+  "url": "https://querybot.kr/games/star/",
+  "image": "https://querybot.kr/games/star/thumb.jpg",
+  "description": "하늘의 별이 부서져 대륙에 흩어진 세계. 캠프에서 강화하고 전투에서 스테이지를 돌파하는 무료 방치형 판타지 RPG 웹게임.",
+  "genre": ["방치형 RPG", "판타지 RPG"],
+  "gamePlatform": "웹 브라우저",
+  "applicationCategory": "Game",
+  "operatingSystem": "웹 브라우저",
+  "inLanguage": "ko",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" },
+  "publisher": { "@type": "Organization", "name": "QueryBot Games", "url": "https://querybot.kr/games/" }
+}
+</script>
 <style>
 :root{--bg:#2a1d14;--panel:#fff7e6;--panel2:#f6e6c2;--line:#d2ae78;--text:#4a2e1a;--muted:#8a6a48;--gold:#c8800a;--accent:#3f7fd0;--good:#2f9a4a;--bad:#d8404e;--wood:#9a6a3a}
 *{box-sizing:border-box}
@@ -146,7 +172,7 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .thead em{font-style:normal;font-weight:900;color:var(--gold);font-size:16px}
 .thead button{margin-left:auto;padding:5px 10px;border-radius:8px;border:2px solid #a02a3a;background:linear-gradient(180deg,#ff9aa6,#d83a4a);color:#fff;font-weight:800;font-size:12px}
 .thead button:disabled{opacity:.4;cursor:not-allowed}
-.tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .tcol{background:var(--panel2);border:1px solid #e2c896;border-top:5px solid;border-radius:10px;padding:8px}
 .tname{font-weight:900;font-size:14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
 .tname small{color:var(--muted);font-size:11px}
@@ -302,8 +328,12 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 #emailForm a{font-size:12px;color:#9ac0ff;text-align:center}
 #start .small{margin:14px 0 0;font-size:13px;color:#c8cde0;line-height:1.6}
 #start .small a{color:#9ac0ff}
-#start{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 20%,#2a2f6b,#0b0d1c 70%);display:flex;align-items:center;justify-content:center;z-index:10}
-#start .box{text-align:center;padding:20px}
+#start .intro{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,250px));gap:8px;justify-content:center;text-align:left}
+#start .intro li{padding:9px 12px;border-radius:10px;background:#ffffff0d;border:1px solid #ffffff1a;font-size:12.5px;color:#c8cde0;line-height:1.45}
+#start .intro b{display:block;font-size:13.5px;color:#ffd25e}
+@media (max-width:560px){#start .intro{grid-template-columns:minmax(0,300px)}}
+#start{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 20%,#2a2f6b,#0b0d1c 70%);display:flex;align-items:center;justify-content:center;z-index:10;overflow-y:auto}
+#start .box{text-align:center;padding:20px;margin:auto}
 #start h1{margin:0 0 4px;font-size:52px;letter-spacing:-.03em;color:#ffd25e;text-shadow:0 0 24px #ffd25e66}
 #start p{margin:0 0 28px;color:#c8cde0}
 .pick{display:flex;gap:18px;justify-content:center;margin-bottom:22px}
@@ -331,7 +361,13 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
       </div>
       <button id="guestBtn" class="gbtn ghost">게스트로 시작</button>
       <div class="msg" id="loginMsg"></div>
-      <p class="small">로그인 후 시작 · 진행 상황은 계정에 저장되어 어느 기기에서든 이어서 플레이<br><a href="privacy.html" target="_blank">개인정보처리방침</a></p>
+      <ul class="intro">
+        <li><b>방치 사냥</b>접속하지 않아도 캠프 상자에 골드 적립</li>
+        <li><b>챕터 3개 · 보스</b>들꽃 평원 · 속삭이는 숲 · 붉은 사막</li>
+        <li><b>전직 5종</b>검사 · 마법사 · 궁수 · 성직자 · 주술사</li>
+        <li><b>동료와 장비</b>미르 · 세린 · 카이 시너지, 6등급 장비 수집</li>
+      </ul>
+      <p class="small">무료 · 설치 없이 브라우저에서 바로 플레이하는 방치형 판타지 RPG<br>로그인 후 시작 · 진행 상황은 계정에 저장되어 어느 기기에서든 이어서 플레이<br><a href="privacy.html" target="_blank">개인정보처리방침</a></p>
     </div>
     <div id="createBox" hidden>
     <div class="pick">
@@ -420,10 +456,10 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261011v"></script>
-<script src="scenery.js?v=20261011v"></script>
-<script src="audio.js?v=20261011v"></script>
-<script src="game.js?v=20261011v"></script>
-<script type="module" src="cloud.js?v=20261011v"></script>
+<script src="sprites.js?v=20261011x"></script>
+<script src="scenery.js?v=20261011x"></script>
+<script src="audio.js?v=20261011x"></script>
+<script src="game.js?v=20261011x"></script>
+<script type="module" src="cloud.js?v=20261011x"></script>
 </body>
 </html>
