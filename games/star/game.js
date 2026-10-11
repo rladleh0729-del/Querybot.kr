@@ -582,6 +582,8 @@ const allyById = id => ALLIES.find(a => a.id === id);
 const allyStar = id => (save.astar && save.astar[id]) || 1;
 const allyName = id => { const A = allyById(id), p = PREFIX[A.type][allyStar(id) - 1]; return (p ? p + ' ' : '') + A.name; };
 const allyPow = id => RARITY[allyById(id).r].mul * (1 + 0.25 * (allyStar(id) - 1));
+// 동료 강화 최대 레벨: 20 + 각성 별 × 10 (★5 = 70)
+const allyLvMax = id => 20 + allyStar(id) * 10;
 function allyCost(lv) { return Math.floor(400 * Math.pow(1.45, lv)); }
 
 // ── 리더: 주인공 없이 동료 1명이 맨 앞에서 싸운다 ──
@@ -684,7 +686,7 @@ function awaken(id) {
   refreshStats(); writeSave(); updateHud();
   if (id === save.leader) drawBattleIcon();
   closeModal();
-  fanfare('각성!', `${allyName(id)} · ${'★'.repeat(st + 1)}`, Sound.levelUp);
+  fanfare(st + 1 === 5 ? '최종 각성!' : '각성!', `${allyName(id)} · ${'★'.repeat(st + 1)}`, Sound.levelUp);
   setTimeout(() => openAllies(id), 1900);
 }
 
@@ -872,7 +874,8 @@ function makeMonster(stage, boss) {
 function fmt(n) {
   n = Math.floor(n);
   if (n < 10000) return n.toLocaleString('ko-KR');
-  const units = [['경', 1e16], ['조', 1e12], ['억', 1e8], ['만', 1e4]];
+  if (n >= 1e24) return n.toExponential(1).replace('e+', 'e');
+  const units = [['해', 1e20], ['경', 1e16], ['조', 1e12], ['억', 1e8], ['만', 1e4]];
   for (const [u, v] of units) if (n >= v) return (n / v).toFixed(n / v < 100 ? 1 : 0) + u;
 }
 
@@ -936,6 +939,7 @@ function migrateSave(s) {
     if (!s.bosses) { s.bosses = s.bossDone ? { 1: true } : {}; delete s.bossDone; }
     if (!s.allies) { s.allies = {}; s.party = []; }
     if (!s.astar) { s.astar = {}; s.acopy = {}; s.apity = 0; }
+    for (const id in s.allies) s.allies[id] = Math.min(s.allies[id], 20 + ((s.astar[id] || 1) * 10));   // 최대 레벨 적용
     s.party = s.party.filter(id => allyById(id));
     for (const [c, ok] of Object.entries(s.bosses)) {            // 보스를 깼으면 그 챕터 동료가 있어야 한다
       const id = CHAPTERS[c - 1] && CHAPTERS[c - 1].boss.ally;
@@ -2244,7 +2248,7 @@ function refreshAllies() {
       <p class="note">공격 속성 · ${A.type === 'heal' ? '없음 (치유)' : A.type === 'support' ? '없음 (지원)' : ELEM_NAME[allyEl(id)]}</p>
       ${st < STAR_MAX ? `<div class="anext"><img src="${allyIcon(id, st + 1)}"><div><small>다음 각성</small><br><b>${PREFIX[A.type][st]} ${A.name}</b><br><small>조각 ${have} / ${need}</small></div></div>` : '<p class="note">최대 각성 · 중복은 별가루 +10</p>'}
       <div class="skbtns">${isLead ? '<button class="equip on" disabled>리더</button>' : `<button class="equip${inParty ? ' on' : ''}" id="aParty" ${!inParty && party.length >= partyMax() ? 'disabled' : ''}>${inParty ? '해제' : '배치'}</button><button id="aLead" class="plain">리더로</button>`}
-      <button id="aUp" ${save.gold < cost ? 'disabled' : ''}>강화 ${fmt(cost)} G</button>
+      ${lv >= allyLvMax(id) ? `<button disabled>최대 Lv ${allyLvMax(id)}${st < STAR_MAX ? ' · 각성하면 +10' : ''}</button>` : `<button id="aUp" ${save.gold < cost ? 'disabled' : ''}>강화 ${fmt(cost)} G</button>`}
       <button id="aAwk" class="awk" ${st >= STAR_MAX || have < need ? 'disabled' : ''}>각성</button></div></div></div>`;
   }
   html += `<p class="note" style="margin:8px 0">리더 1명 + 배치 ${party.length} / ${partyMax()}${partyMax() < PARTY_MAX ? ' · 챕터 보스 처치로 칸 추가' : ''} · 도감 ${own.length} / ${ALLIES.length} (공격력·체력 +${codexBonus()}%) · 새 동료는 뽑기에서 획득</p><div class="agrid">`;
@@ -2265,9 +2269,10 @@ function refreshAllies() {
   });
   if (!allySel) return;
   const id = allySel;
-  $('aUp').onclick = () => {
+  if ($('aUp')) $('aUp').onclick = () => {
     const cost = allyCost(save.allies[id]);
     if (save.gold < cost) return;
+    if (save.allies[id] >= allyLvMax(id)) return;
     save.gold -= cost; save.allies[id]++;
     refreshStats(); updateHud();
   };
@@ -2409,7 +2414,7 @@ function setDot(sel, on, num) {
 function updateDots() {
   setDot('[data-open=up]', UPGRADES.some(u => save.lv[u.id] < u.max && save.gold >= upgradeCost(u, save.lv[u.id])));
   setDot('[data-open=traits]', traitsOpen() && pointsLeft() > 0, pointsLeft());
-  setDot('[data-open=allies]', Object.entries(save.allies || {}).some(([id, lv]) => allyById(id) && (save.gold >= allyCost(lv) || (allyStar(id) < STAR_MAX && (save.acopy[id] || 0) >= AWAKEN_COST[allyStar(id)]))));
+  setDot('[data-open=allies]', Object.entries(save.allies || {}).some(([id, lv]) => allyById(id) && ((lv < allyLvMax(id) && save.gold >= allyCost(lv)) || (allyStar(id) < STAR_MAX && (save.acopy[id] || 0) >= AWAKEN_COST[allyStar(id)]))));
   setDot('[data-open=skill]', SKILLS.some(sk => save.stage - 1 >= sk.unlock && save.gold >= skillCost(sk, save.skills[sk.id] || 0)));
   setDot('[data-open=gear]', save.items.some(it => !Object.values(save.gear).includes(it.id) && itemScore(it) > itemScore(equipped(it.slot))));
   setDot('[data-open=gacha]', save.dust >= GACHA_COST);

@@ -938,7 +938,7 @@ function drawAlly(id, starN, type) {
   const hatFn = L.hat && HATS[L.hat] ? HATS[L.hat](s >= 4 ? '#f0c95a' : L.hatColor || '#888') : null;
   const backs = [];
   if (s >= 4) backs.push(g => { glowAt(g, 48, 50, 46, `rgba(${ALLY_GLOW[type] || '255,240,180'},0.55)`); });
-  if (s >= 5) backs.push(wings);
+  if (s >= 5 && type === 'heal') backs.push(wings);
   if (s >= 3) backs.push(g => cape(g, body[1]));
   if (L.hat === 'hood') backs.push(hoodBack(s >= 4 ? '#f0e0a0' : body[0]));
   if (L.hat === 'veil') backs.push(veilBack());
@@ -948,16 +948,94 @@ function drawAlly(id, starN, type) {
     iris: L.iris, legs: L.legs, boots: s >= 4 ? '#c8902a' : L.boots, skin: L.skin, ear: L.ear,
     body: body[0], bodyD: body[1], sleeveD: body[1],
     backHair: g => backs.forEach(f => f(g)),
-    outfit: OUTFITS[L.outfit] ? OUTFITS[L.outfit](look, s >= 4) : null,
+    outfit: g => { if (OUTFITS[L.outfit]) OUTFITS[L.outfit](look, s >= 4)(g); gearUp(g, s, body, type); },
     hair: hairFront(L.hairStyle, hair[0], hair[1]),
     hat: g => {
       if (hatFn) hatFn(g);
+      if (s >= 3) plume(g, s >= 5 ? '#ffffff' : s >= 4 ? '#ffd25e' : body[0]);   // 깃털 장식
       if (s >= 5) {            // 천사 고리
         g.strokeStyle = 'rgba(255,230,120,0.5)'; g.lineWidth = 7; g.beginPath(); g.ellipse(48, -1 + 4, 15, 4, 0, 0, TAU); g.stroke();
         g.strokeStyle = '#ffe27a'; g.lineWidth = 3; g.beginPath(); g.ellipse(48, 3, 15, 4, 0, 0, TAU); g.stroke();
       }
     },
-    front: WEAPONS[L.weapon] || sword,
+    front: g => weaponUp(g, WEAPONS[L.weapon] || sword, s, type),
+  });
+}
+
+// ── 각성 장비: 별이 오를수록 갑옷·장식·무기가 늘어난다 ──
+// ★2 천 어깨받이·허리띠 장식 · ★3 가죽 흉갑·깃털·망토 · ★4 황금 갑옷·어깨 갑옷 · ★5 빛나는 성갑과 보석
+function gearUp(g, s, body, type) {
+  if (s < 2) return;
+  const metal = s >= 4 ? ['#fff3b0', '#f0c95a', '#a8761a'] : ['#ffffff', '#c8d0e0', '#7a849a'];
+  // 어깨받이 (★2 천 → ★4 금속)
+  for (const x of [32, 63]) {
+    if (s >= 4) shape(g, () => { g.moveTo(x - 9, 58); g.quadraticCurveTo(x, 44, x + 9, 58); g.quadraticCurveTo(x, 54, x - 9, 58); }, lin(g, 0, 46, 0, 60, metal.map((c, i) => [i / 2, c])), 2.5);
+    else oval(g, x, 55, 7, 4.5, s >= 3 ? '#8a5a34' : body[1], 2);
+  }
+  // 흉갑 (★3 가죽 → ★4 금 → ★5 빛나는 성갑)
+  if (s >= 3) {
+    const plate = s >= 4 ? lin(g, 0, 56, 0, 74, metal.map((c, i) => [i / 2, c])) : lin(g, 0, 56, 0, 74, [[0, '#b07a44'], [1, '#6a4422']]);
+    shape(g, () => { g.moveTo(38, 56); g.quadraticCurveTo(48, 53, 58, 56); g.lineTo(57, 70); g.quadraticCurveTo(48, 75, 39, 70); g.closePath(); }, plate, 2);
+    g.strokeStyle = s >= 4 ? '#fff8d8' : '#d8a060'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(48, 56); g.lineTo(48, 72); g.stroke();
+  }
+  // 가운데 보석 (★2 작은 단추 → ★5 빛나는 보석)
+  const gem = `rgb(${ALLY_GLOW[type] || '255,220,120'})`;
+  if (s >= 5) glowAt(g, 48, 63, 12, `rgba(${ALLY_GLOW[type] || '255,220,120'},0.9)`);
+  oval(g, 48, 63, s >= 4 ? 3.6 : 2.4, s >= 4 ? 3.6 : 2.4, s >= 3 ? gem : '#f0c95a', 1.5);
+}
+function plume(g, c) {
+  shape(g, () => { g.moveTo(64, 16); g.quadraticCurveTo(76, 0, 88, 6); g.quadraticCurveTo(78, 8, 70, 20); g.closePath(); }, lin(g, 66, 0, 90, 0, [[0, c], [1, lighten(c, 0.5)]]), 2);
+}
+// 무기 강화: ★3부터 커지고 빛, ★4 금빛 오라, ★5 반짝이는 별가루
+function weaponUp(g, draw, s, type) {
+  const k = 1 + Math.max(0, s - 2) * 0.08, col = ALLY_GLOW[type] || '255,230,150';
+  if (s >= 3) glowAt(g, 72, 34, 22 + s * 4, `rgba(${s >= 4 ? '255,220,120' : col},${0.25 + s * 0.08})`);
+  g.save(); g.translate(69, 66); g.scale(k, k); g.translate(-69, -66);
+  draw(g);
+  g.restore();
+  if (s >= 5) for (const [x, y, r] of [[78, 20, 4], [62, 30, 3], [84, 42, 3.5], [70, 8, 3]]) star(g, x, y, r, '#fff8c0');
+}
+
+// ── ★5 최종 각성: 유형마다 모습이 확 바뀐다 (대천사·전투 사자·비행 수레·마법서·구름 무대) ──
+function drawFinal(id, type) {
+  const me = drawAlly(id, 5, type);
+  const c = ALLY_GLOW[type] || '255,230,150';
+  return vs(96, 96, g => {
+    glowAt(g, 48, 56, 48, `rgba(${c},0.45)`);
+    if (type === 'heal') {
+      g.save(); g.translate(48, 46); g.scale(1.6, 1.6); g.translate(-48, -56); wings(g); g.restore();
+      g.strokeStyle = 'rgba(255,240,150,0.6)'; g.lineWidth = 8; g.beginPath(); g.arc(48, 30, 30, 0, TAU); g.stroke();
+      g.strokeStyle = '#ffe27a'; g.lineWidth = 3; g.beginPath(); g.arc(48, 30, 30, 0, TAU); g.stroke();
+      g.drawImage(me, 8, 4, 80, 80);
+      for (const [x, y] of [[14, 70], [82, 66], [20, 20], [80, 18]]) star(g, x, y, 3.5, '#fff8c0');
+    } else if (type === 'warrior') {
+      const fur = lin(g, 0, 60, 0, 92, [[0, '#ffd27a'], [1, '#c8802a']]);
+      for (const x of [22, 34, 60, 72]) shape(g, () => g.roundRect(x, 78, 8, 14, 3), '#c8802a', 2);
+      oval(g, 46, 74, 32, 13, fur, 2.5);
+      g.strokeStyle = OUT; g.lineWidth = 4; g.beginPath(); g.moveTo(14, 72); g.quadraticCurveTo(4, 62, 10, 56); g.stroke();
+      oval(g, 82, 64, 15, 15, lin(g, 0, 50, 0, 80, [[0, '#a8401a'], [1, '#6a2a10']]), 2.5);
+      oval(g, 85, 66, 9, 9, fur, 2);
+      oval(g, 88, 64, 1.8, 2.2, '#2a1a10', 0); oval(g, 92, 69, 2.5, 1.8, '#3a2010', 0);
+      shape(g, () => g.roundRect(30, 60, 30, 8, 3), '#c8443c', 2);
+      g.drawImage(me, 18, -6, 70, 70);
+    } else if (type === 'shot') {
+      for (const s of [-1, 1]) { g.save(); g.translate(48, 78); g.scale(s * 0.9, 0.7); g.translate(-48, -56); wings(g); g.restore(); }
+      shape(g, () => { g.moveTo(14, 70); g.lineTo(82, 70); g.quadraticCurveTo(86, 86, 70, 90); g.lineTo(24, 90); g.quadraticCurveTo(10, 86, 14, 70); }, lin(g, 0, 70, 0, 90, [[0, '#d8a060'], [1, '#8a5a2a']]), 2.5);
+      glowAt(g, 20, 92, 10, 'rgba(255,200,100,0.9)');
+      g.drawImage(me, 14, -4, 68, 68);
+      shape(g, () => { g.moveTo(14, 70); g.lineTo(82, 70); g.lineTo(80, 76); g.lineTo(16, 76); g.closePath(); }, '#f0c95a', 2);
+    } else if (type === 'magic') {
+      glowAt(g, 48, 82, 30, `rgba(${c},0.8)`);
+      shape(g, () => { g.moveTo(10, 78); g.quadraticCurveTo(30, 70, 48, 78); g.quadraticCurveTo(66, 70, 86, 78); g.lineTo(86, 90); g.quadraticCurveTo(66, 82, 48, 90); g.quadraticCurveTo(30, 82, 10, 90); g.closePath(); }, '#fff8e8', 2.5);
+      g.strokeStyle = '#5a3a8a'; g.lineWidth = 2; g.beginPath(); g.moveTo(48, 78); g.lineTo(48, 90); g.stroke();
+      for (const [x, y] of [[16, 30], [80, 26], [12, 56], [86, 52]]) { glowAt(g, x, y, 8, `rgba(${c},0.9)`); oval(g, x, y, 3, 3, '#ffffff', 0); }
+      g.drawImage(me, 10, -4, 76, 76);
+    } else {
+      for (const [x, y, r] of [[22, 82, 13], [40, 86, 15], [58, 86, 15], [76, 82, 13], [48, 78, 12]]) oval(g, x, y, r, r * 0.7, '#ffffff', 2);
+      g.drawImage(me, 10, -6, 76, 76);
+      g.fillStyle = `rgb(${c})`; g.font = 'bold 14px sans-serif';
+      for (const [t, x, y] of [['♪', 8, 30], ['♫', 80, 22], ['♪', 84, 56]]) g.fillText(t, x, y);
+    }
   });
 }
 
@@ -968,7 +1046,7 @@ function allySprite(id, starN, type, mood) {
   if (!ALLY_CACHE[key]) {
     const keep = MOOD;
     MOOD = mood || 0;
-    ALLY_CACHE[key] = drawAlly(id, starN, type);
+    ALLY_CACHE[key] = starN >= 5 ? drawFinal(id, type) : drawAlly(id, starN, type);
     MOOD = keep;
   }
   return ALLY_CACHE[key];
