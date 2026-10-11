@@ -189,7 +189,8 @@ function drawGirl() {
       shape(g, () => { g.moveTo(32, 12); g.quadraticCurveTo(40, -2, 44, 10); g.quadraticCurveTo(42, 18, 32, 14); }, '#e0405a', 2);
       oval(g, 31, 13, 3.5, 3.5, '#b02a3a', 2);
     },
-    front: sword,
+    // 공중 캐스팅용 별 지팡이
+    front: g => staff(g, '#c87aa0', g => { glowAt(g, 70, 13, 18, 'rgba(255,160,215,0.75)'); star(g, 70, 13, 10, '#ffc8e6'); oval(g, 70, 13, 3, 3, '#ffffff', 0); }),
   });
 }
 
@@ -973,6 +974,94 @@ function allySprite(id, starN, type, mood) {
   return ALLY_CACHE[key];
 }
 
+
+// ── 특수 몬스터: 그림자 임프 (악마 · 암살자) ──
+function drawImp() {
+  return vs(96, 96, g => {
+    glowAt(g, 48, 56, 40, 'rgba(255,80,120,0.25)');
+    for (const s of [-1, 1]) {                       // 박쥐 날개
+      g.save(); g.translate(48, 50); g.scale(s, 1);
+      shape(g, () => { g.moveTo(10, -2); g.quadraticCurveTo(26, -24, 40, -16); g.lineTo(34, -8); g.lineTo(38, 2); g.lineTo(30, 0); g.lineTo(30, 10); g.quadraticCurveTo(20, 4, 10, 6); g.closePath(); },
+        lin(g, 0, -20, 0, 10, [[0, '#6a2a5a'], [1, '#3a1430']]), 2.5);
+      g.restore();
+    }
+    g.lineCap = 'round';                              // 꼬리
+    g.strokeStyle = OUT; g.lineWidth = 6; g.beginPath(); g.moveTo(62, 76); g.quadraticCurveTo(84, 82, 82, 64); g.stroke();
+    g.strokeStyle = '#c03a5a'; g.lineWidth = 3.5; g.beginPath(); g.moveTo(62, 76); g.quadraticCurveTo(84, 82, 82, 64); g.stroke();
+    shape(g, () => { g.moveTo(82, 55); g.lineTo(89, 66); g.lineTo(75, 66); g.closePath(); }, '#c03a5a', 2);
+    oval(g, 40, 86, 7, 4, '#5a1a3a'); oval(g, 56, 86, 7, 4, '#5a1a3a');
+    oval(g, 48, 58, 24, 26, rad(g, 48, 58, 28, [[0, '#ff8aa8'], [0.6, '#d8426a'], [1, '#8a1a40']]), 3);
+    const horn = lin(g, 0, 16, 0, 40, [[0, '#fff3d0'], [1, '#c8a070']]);
+    shape(g, () => { g.moveTo(30, 42); g.quadraticCurveTo(18, 28, 24, 16); g.quadraticCurveTo(32, 30, 40, 36); g.closePath(); }, horn, 2.5);
+    shape(g, () => { g.moveTo(66, 42); g.quadraticCurveTo(78, 28, 72, 16); g.quadraticCurveTo(64, 30, 56, 36); g.closePath(); }, horn, 2.5);
+    oval(g, 39, 54, 5, 6, '#ffe27a', 2); oval(g, 55, 54, 5, 6, '#ffe27a', 2);
+    oval(g, 38, 55, 2, 3.5, '#2a1020', 0); oval(g, 54, 55, 2, 3.5, '#2a1020', 0);
+    g.strokeStyle = OUT; g.lineWidth = 2.5; g.beginPath(); g.moveTo(32, 45); g.lineTo(44, 49); g.moveTo(62, 45); g.lineTo(50, 49); g.stroke();
+    smile(g, 47, 67, 4);
+    shape(g, () => { g.moveTo(43, 65); g.lineTo(45, 70); g.lineTo(47, 65); g.closePath(); }, '#ffffff', 1.5);
+    g.save(); g.translate(20, 66); g.rotate(-0.6);  // 단검
+    shape(g, () => g.roundRect(-2, 0, 4, 8, 1.5), '#3a2a2a', 1.5);
+    shape(g, () => { g.moveTo(-3.5, 0); g.lineTo(0, -22); g.lineTo(3.5, 0); g.closePath(); }, lin(g, -3, 0, 3, 0, [[0, '#ffffff'], [1, '#8a98b4']]), 1.5);
+    g.restore();
+    oval(g, 22, 68, 4.5, 4.5, '#d8426a', 2);
+  });
+}
+
+// ── 특수 몬스터: 저주의 타락 천사 (저주술사) ──
+function drawFallenAngel() {
+  return vs(96, 96, g => {
+    glowAt(g, 48, 50, 44, 'rgba(160,100,220,0.35)');
+    for (const s of [-1, 1]) {                       // 찢어진 검은 날개
+      g.save(); g.translate(48, 50); g.scale(s, 1);
+      shape(g, () => { g.moveTo(8, 0); g.quadraticCurveTo(28, -30, 45, -22); g.lineTo(38, -14); g.lineTo(45, -8); g.lineTo(36, -2); g.lineTo(41, 6); g.lineTo(30, 6); g.lineTo(31, 14); g.quadraticCurveTo(18, 10, 8, 8); g.closePath(); },
+        lin(g, 0, -24, 0, 14, [[0, '#4a3a6a'], [1, '#1a1428']]), 2.5);
+      g.strokeStyle = 'rgba(180,150,230,0.5)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(14, 2); g.quadraticCurveTo(28, -12, 38, -16); g.stroke();
+      g.restore();
+    }
+    longHair('#e8e4f4', '#9a90b8')(g);
+    shape(g, () => { g.moveTo(34, 52); g.quadraticCurveTo(26, 74, 28, 88); g.quadraticCurveTo(48, 92, 68, 88); g.quadraticCurveTo(70, 74, 62, 52); g.quadraticCurveTo(48, 47, 34, 52); },
+      lin(g, 0, 50, 0, 90, [[0, '#d8d0e8'], [1, '#5a4a7a']]), 2.5);
+    g.strokeStyle = '#8a3aa0'; g.lineWidth = 2; g.beginPath(); g.moveTo(48, 54); g.lineTo(48, 88); g.stroke();
+    oval(g, 48, 32, 22, 21, rad(g, 50, 34, 26, [[0, '#f4ecf8'], [1, '#c8bcd8']]));
+    bangs('#f0ecff', '#a8a0c8', true)(g);
+    eye(g, 40, 36, '#a02a5a'); eye(g, 54, 36, '#a02a5a');
+    g.strokeStyle = OUT; g.lineWidth = 2; g.beginPath(); g.moveTo(34, 27); g.lineTo(44, 30); g.moveTo(60, 27); g.lineTo(50, 30); g.stroke();
+    g.beginPath(); g.arc(47, 49, 3, 1.15 * Math.PI, 1.85 * Math.PI); g.stroke();
+    g.save(); g.translate(46, 5); g.rotate(-0.25);   // 금 간 검은 고리
+    g.strokeStyle = OUT; g.lineWidth = 6; g.beginPath(); g.ellipse(0, 0, 15, 4, 0, 0.4, TAU - 0.4); g.stroke();
+    g.strokeStyle = '#5a3a7a'; g.lineWidth = 3; g.beginPath(); g.ellipse(0, 0, 15, 4, 0, 0.4, TAU - 0.4); g.stroke();
+    g.restore();
+    glowAt(g, 22, 64, 16, 'rgba(190,100,255,0.7)'); // 저주 구슬
+    oval(g, 22, 64, 7, 7, rad(g, 22, 64, 8, [[0, '#ffffff'], [0.4, '#d090ff'], [1, '#6a2aa0']]), 2);
+    oval(g, 29, 66, 4.6, 4.6, '#e8dcf0', 2);
+  });
+}
+
+// ── 특수 몬스터: 해골 강령술사 (언데드를 되살림) ──
+function drawNecromancer() {
+  return vs(96, 96, g => {
+    glowAt(g, 48, 56, 42, 'rgba(120,255,140,0.22)');
+    shape(g, () => g.roundRect(19, 22, 4.5, 68, 2), '#4a3a2a', 2);   // 지팡이
+    glowAt(g, 21, 12, 16, 'rgba(120,255,140,0.75)');
+    shape(g, () => { g.moveTo(15, 17); g.quadraticCurveTo(13, 5, 21, -2); g.quadraticCurveTo(23, 7, 29, 5); g.quadraticCurveTo(31, 15, 25, 19); g.closePath(); }, lin(g, 0, 0, 0, 20, [[0, '#e0ffd0'], [1, '#3ad060']]), 2);
+    oval(g, 21, 22, 7, 6, '#efe8d8', 2); oval(g, 18.5, 22, 1.8, 2, '#2a2a2a', 0); oval(g, 23.5, 22, 1.8, 2, '#2a2a2a', 0);
+    shape(g, () => { g.moveTo(32, 46); g.quadraticCurveTo(24, 76, 26, 88); g.quadraticCurveTo(48, 92, 70, 88); g.quadraticCurveTo(72, 76, 64, 46); g.quadraticCurveTo(48, 40, 32, 46); },
+      lin(g, 0, 44, 0, 90, [[0, '#4a2a6a'], [1, '#1e1030']]), 2.5);
+    g.strokeStyle = '#8ad070'; g.lineWidth = 2; g.beginPath(); g.moveTo(34, 83); g.lineTo(62, 83); g.stroke();
+    oval(g, 23, 58, 4.5, 4, '#efe8d8', 2);                             // 뼈 손
+    shape(g, () => { g.moveTo(24, 46); g.quadraticCurveTo(20, 10, 50, 8); g.quadraticCurveTo(76, 10, 72, 46); g.quadraticCurveTo(48, 54, 24, 46); },
+      lin(g, 0, 8, 0, 50, [[0, '#6a3a8a'], [1, '#2a1440']]), 2.5);
+    oval(g, 47, 34, 17, 15, '#140a1c', 2);
+    oval(g, 46, 33, 12, 11, lin(g, 0, 22, 0, 44, [[0, '#fbf6e8'], [1, '#d0c8b4']]), 2);
+    oval(g, 41, 32, 3.5, 4, '#1a1a1a', 0); oval(g, 51, 32, 3.5, 4, '#1a1a1a', 0);
+    glowAt(g, 41, 32, 6, 'rgba(120,255,140,0.9)'); glowAt(g, 51, 32, 6, 'rgba(120,255,140,0.9)');
+    oval(g, 41, 32, 1.4, 1.6, '#c8ffc8', 0); oval(g, 51, 32, 1.4, 1.6, '#c8ffc8', 0);
+    g.strokeStyle = OUT; g.lineWidth = 1.5; g.beginPath();
+    for (let k = 0; k < 4; k++) { g.moveTo(41 + k * 3, 39); g.lineTo(41 + k * 3, 43); }
+    g.stroke();
+  });
+}
+
 // 모든 그림 준비. sprites/이름.png 파일이 있으면 그것을 우선 사용한다.
 const SPR = {};
 function loadSprites() {
@@ -996,6 +1085,9 @@ function loadSprites() {
     scorpion_queen: drawScorpionQueen(),
     gold_slime: drawGoldSlime(),
     golem: drawGolem(),
+    imp: drawImp(),
+    fallen_angel: drawFallenAngel(),
+    necromancer: drawNecromancer(),
     tent: drawTent(),
     chest: drawChest(false),
     chest_full: drawChest(true),
