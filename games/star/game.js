@@ -2144,7 +2144,10 @@ function refreshSettings() {
   let acct;
   if (TEST) acct = '<p class="note">테스트 모드 · 클라우드 저장 꺼짐</p>';
   else if (!window.Cloud) acct = '<p class="note">로그인 기능 불러오는 중…</p>';
-  else if (u) acct = `<div class="up"><div class="nm">구글 계정<small>${esc(u.email || '')}</small></div>
+  else if (u && u.isAnonymous) acct = `<div class="up"><div class="nm">게스트 계정<small>이 브라우저에만 저장</small></div>
+      <div class="val">구글·이메일 계정 연결 시 다른 기기에서도 이어서 플레이${cloudMsg ? ' · <span style="color:var(--bad)">' + cloudMsg + '</span>' : ''}</div>
+      <div class="skbtns"><button id="linkG">구글 연결</button><button id="linkE" class="plain">이메일 연결</button></div></div>`;
+  else if (u) acct = `<div class="up"><div class="nm">${u.providerData.some(x => x.providerId === 'google.com') ? '구글' : '이메일'} 계정<small>${esc(u.email || '')}</small></div>
       <div class="val">클라우드 저장 켜짐 · ${cloudChoice ? '세이브 선택 대기' : cloudBusy ? '동기화 중…' : cloudAt ? '마지막 저장 ' + hhmm(cloudAt) : '대기 중'}${cloudMsg ? ' · ' + cloudMsg : ''}</div>
       <button id="cloudOut" class="plain">로그아웃</button></div>`;
   else acct = `<div class="up"><div class="nm">클라우드 저장<small>꺼짐</small></div>
@@ -2168,6 +2171,20 @@ function refreshSettings() {
     await window.Cloud.signOut();
   };
   $('resetBtn').onclick = resetGame;
+  if ($('linkG')) $('linkG').onclick = async () => {
+    cloudMsg = '';
+    try { await window.Cloud.linkGoogle(); cloudMsg = '구글 연결 완료'; } catch (e) { cloudMsg = authError(e); }
+    refreshSettings(); cloudUpload();
+  };
+  if ($('linkE')) $('linkE').onclick = async () => {
+    const em = prompt('연결할 이메일');
+    if (!em) return;
+    const pw = prompt('사용할 비밀번호 (6자 이상)');
+    if (!pw) return;
+    cloudMsg = '';
+    try { await window.Cloud.linkEmail(em.trim(), pw); cloudMsg = '이메일 연결 완료'; } catch (e) { cloudMsg = authError(e); }
+    refreshSettings(); cloudUpload();
+  };
 }
 
 function resetGame() {
@@ -2222,6 +2239,24 @@ window.addEventListener('cloud-user', e => {
   if (!user) { sleeping = true; location.reload(); return; }   // 로그아웃 → 로그인 화면으로
   if (save && stats) refreshSettings();
 });
+
+// 로그인 오류 문구
+function authError(e) {
+  return ({
+    'auth/invalid-email': '이메일 형식 오류',
+    'auth/missing-password': '비밀번호 입력 필요',
+    'auth/weak-password': '비밀번호는 6자 이상',
+    'auth/email-already-in-use': '이미 가입된 이메일 · 로그인 필요',
+    'auth/invalid-credential': '이메일 또는 비밀번호 불일치',
+    'auth/user-not-found': '가입되지 않은 이메일',
+    'auth/wrong-password': '비밀번호 불일치',
+    'auth/too-many-requests': '시도가 너무 많음 · 잠시 후 다시',
+    'auth/popup-blocked': '팝업 차단됨 · 팝업 허용 필요',
+    'auth/credential-already-in-use': '이미 다른 진행에 연결된 계정',
+    'auth/provider-already-linked': '이미 연결된 계정',
+    'auth/operation-not-allowed': '이 로그인 방식이 아직 꺼져 있음',
+  })[e.code] || (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request' ? '' : '로그인 실패');
+}
 
 // ── 시작 화면 ───────────────────────────────
 function showStart() {
@@ -2339,13 +2374,23 @@ loadSprites().then(() => {
     if (save) begin(); else showStart();
     return;
   }
-  $('loginBtn').onclick = async () => {
+  const tryLogin = async fn => {
     $('loginMsg').textContent = '';
-    try { await window.Cloud.signIn(); }
-    catch (e) {
-      $('loginMsg').textContent = e.code === 'auth/popup-blocked' ? '팝업 차단됨 · 팝업 허용 필요'
-        : e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request' ? '' : '로그인 실패';
-    }
+    try { await fn(); } catch (e) { console.warn(e); $('loginMsg').textContent = authError(e); }
+  };
+  $('loginBtn').onclick = () => tryLogin(() => window.Cloud.signIn());
+  $('emailOpen').onclick = () => { $('emailForm').hidden = !$('emailForm').hidden; };
+  $('emLogin').onclick = () => tryLogin(() => window.Cloud.emailIn($('emIn').value.trim(), $('pwIn').value));
+  $('emJoin').onclick = () => tryLogin(() => window.Cloud.emailUp($('emIn').value.trim(), $('pwIn').value));
+  $('emReset').onclick = e => {
+    e.preventDefault();
+    const em = $('emIn').value.trim();
+    if (!em) return ($('loginMsg').textContent = '이메일 입력 필요');
+    tryLogin(async () => { await window.Cloud.resetPw(em); $('loginMsg').textContent = '비밀번호 재설정 메일 발송 완료'; });
+  };
+  $('guestBtn').onclick = () => {
+    if (!confirm('게스트로 시작\n이 브라우저에만 계정이 묶임 · 나중에 설정에서 구글·이메일 계정으로 연결 가능')) return;
+    tryLogin(() => window.Cloud.guest());
   };
   Sound.setScene('title', 'camp');
   if (window.Cloud) {                      // cloud.js가 먼저 준비됐으면 지금 상태로 시작

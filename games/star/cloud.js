@@ -1,7 +1,8 @@
-// 별의 설화 — 구글 로그인 + 클라우드 세이브 (Firebase)
+// 별의 설화 — 로그인(구글·이메일·게스트) + 클라우드 세이브 (Firebase)
 // game.js가 window.Cloud를 쓰고, 로그인 상태가 바뀌면 'cloud-user' 이벤트를 받는다.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, linkWithPopup, linkWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // 공개용 설정값 (보호는 Firestore 보안 규칙이 담당)
@@ -21,6 +22,13 @@ window.Cloud = {
   user: null,
   signIn: () => signInWithPopup(auth, new GoogleAuthProvider()),
   signOut: () => signOut(auth),
+  guest: () => signInAnonymously(auth),
+  emailIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw),
+  emailUp: (email, pw) => createUserWithEmailAndPassword(auth, email, pw),
+  resetPw: email => sendPasswordResetEmail(auth, email),
+  // 게스트 계정을 구글·이메일 계정으로 바꾼다 (진행 그대로)
+  linkGoogle: async () => { const r = await linkWithPopup(auth.currentUser, new GoogleAuthProvider()); window.dispatchEvent(new CustomEvent('cloud-user', { detail: r.user })); return r; },
+  linkEmail: async (email, pw) => { const r = await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(email, pw)); window.dispatchEvent(new CustomEvent('cloud-user', { detail: r.user })); return r; },
   async load() {
     const snap = await getDoc(saveDoc());
     return snap.exists() ? JSON.parse(snap.data().data) : null;
