@@ -139,6 +139,34 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .syn{margin-top:6px;padding:10px;border-radius:10px;background:#0000000c;font-size:12px;color:var(--muted)}
 .syn b{display:block;color:var(--text);margin-bottom:4px;font-size:13px}
 .syn .on{color:var(--good);font-weight:800}
+/* 특성 */
+.mbox.wide{width:min(980px,96vw)}
+.thead{display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:13px}
+.thead b{font-size:15px}
+.thead em{font-style:normal;font-weight:900;color:var(--gold);font-size:16px}
+.thead button{margin-left:auto;padding:5px 10px;border-radius:8px;border:2px solid #a02a3a;background:linear-gradient(180deg,#ff9aa6,#d83a4a);color:#fff;font-weight:800;font-size:12px}
+.thead button:disabled{opacity:.4;cursor:not-allowed}
+.tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tcol{background:var(--panel2);border:1px solid #e2c896;border-top:5px solid;border-radius:10px;padding:8px}
+.tname{font-weight:900;font-size:14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
+.tname small{color:var(--muted);font-size:11px}
+.tnode{display:grid;grid-template-columns:1fr auto;gap:0 6px;align-items:center;padding:6px;border-radius:8px;background:#fffaf0;margin-bottom:5px;border:1px solid #ecd8b0}
+.tnode.has{border-color:#f0a828;background:#fff4d8}
+.tnode.locked{opacity:.5}
+.tnode b{font-size:12px}
+.tnode small{margin-left:4px;font-size:11px;color:var(--muted);font-weight:700}
+.tnode p{grid-column:1;margin:2px 0 0;font-size:11px;color:var(--muted)}
+.tnode p em{color:var(--good);font-style:normal;font-weight:800}
+.tnode button{grid-row:1/3;grid-column:2;width:30px;height:30px;border-radius:8px;border:2px solid #b07818;background:linear-gradient(180deg,#ffe38a,#f0a828);color:#4a2a00;font-weight:900;font-size:15px;padding:0}
+.tnode button:disabled{background:#e4d6b8;border-color:#cdb88e;color:#a08a68;cursor:not-allowed;font-size:10px}
+.jobs{margin-top:10px;padding:10px;border-radius:10px;background:#0000000a}
+.jobs>b{font-size:14px}
+.jobrow{display:flex;gap:8px;margin-top:6px}
+.jobbtn{flex:1;display:flex;flex-direction:column;gap:2px;padding:8px;border-radius:10px;border:2px solid var(--wood);background:linear-gradient(180deg,#fffaf0,#f0dcb0);text-align:left}
+.jobbtn b{font-size:14px;color:#5a3418}
+.jobbtn small{font-size:11px;color:var(--muted)}
+.jobbtn:disabled{opacity:.45;cursor:not-allowed}
+.jobbtn:not(:disabled):hover{filter:brightness(1.05)}
 /* 팝업 */
 #modal{position:fixed;inset:0;background:#2a1a0c99;display:flex;align-items:center;justify-content:center;z-index:5}
 .mbox{width:min(520px,92vw);max-height:85vh;display:flex;flex-direction:column;background:linear-gradient(180deg,#fffaf0,#f8ebcc);border:3px solid var(--wood);border-radius:16px;padding:14px;box-shadow:0 6px 0 #7a4f2a,0 12px 30px #0006;color:var(--text)}
@@ -242,7 +270,7 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
         <button class="stone" data-open="shop"><canvas class="picon" width="48" height="48"></canvas>상점</button>
         <button class="stone" data-open="up"><b>⚒</b>강화</button>
         <button class="stone" data-open="gear"><b>🛡</b>장비</button>
-        <button class="stone lock" title="챕터 1 클리어 + Lv 20"><b>✦</b>특성<small>잠김</small></button>
+        <button class="stone lock" id="traitBtn" data-open="traits"><b>✦</b>특성<small>잠김</small></button>
         <button class="stone" data-open="allies"><b>♣</b>동료</button>
         <button class="stone" data-open="skill"><b>✧</b>스킬</button>
       </div>
@@ -287,9 +315,9 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261011l"></script>
-<script src="scenery.js?v=20261011l"></script>
-<script src="game.js?v=20261011l"></script>
-<script type="module" src="cloud.js?v=20261011l"></script>
+<script src="sprites.js?v=20261011m"></script>
+<script src="scenery.js?v=20261011m"></script>
+<script src="game.js?v=20261011m"></script>
+<script type="module" src="cloud.js?v=20261011m"></script>
 </body>
 </html>

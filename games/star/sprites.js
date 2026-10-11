@@ -418,6 +418,146 @@ function drawTreant() {
   });
 }
 
+// ── 동료: 카이 (사격형 보물 사냥꾼, 소년) ──
+function drawKai() {
+  return chibi({
+    iris: '#c8701a', legs: '#6b5a3a', boots: '#5a3820',
+    body: '#d8a868', bodyD: '#9a6a38', sleeveD: '#8a5a30',
+    outfit: g => {
+      // 가죽 조끼와 멜빵 가방끈
+      shape(g, () => { g.moveTo(36, 54); g.lineTo(40, 78); g.lineTo(46, 78); g.lineTo(44, 55); g.closePath(); }, '#7a4a2a', 2);
+      shape(g, () => { g.moveTo(60, 54); g.lineTo(56, 78); g.lineTo(50, 78); g.lineTo(52, 55); g.closePath(); }, '#7a4a2a', 2);
+      g.strokeStyle = '#5a3418'; g.lineWidth = 3; g.beginPath(); g.moveTo(38, 54); g.lineTo(62, 76); g.stroke();
+      shape(g, () => g.roundRect(33, 70, 30, 5, 2), '#5a3418', 2);
+    },
+    hair: g => {
+      const hc = lin(g, 0, 8, 0, 36, [[0, '#3a2a22'], [1, '#1e1410']]);
+      shape(g, () => {
+        g.moveTo(23, 32); g.quadraticCurveTo(20, 6, 48, 7); g.quadraticCurveTo(76, 7, 73, 30);
+        g.lineTo(69, 23); g.lineTo(63, 29); g.lineTo(58, 21); g.lineTo(51, 28); g.lineTo(45, 20); g.lineTo(39, 28); g.lineTo(33, 21); g.lineTo(28, 31); g.closePath();
+      }, hc, 2.5);
+    },
+    hat: g => {
+      // 주황 두건과 고글
+      shape(g, () => { g.moveTo(24, 20); g.quadraticCurveTo(48, 4, 72, 18); g.lineTo(72, 24); g.quadraticCurveTo(48, 12, 24, 26); g.closePath(); }, lin(g, 0, 6, 0, 26, [[0, '#ff9a4a'], [1, '#d0602a']]), 2.5);
+      shape(g, () => { g.moveTo(25, 22); g.quadraticCurveTo(14, 26, 12, 36); g.lineTo(18, 34); g.quadraticCurveTo(22, 28, 28, 25); g.closePath(); }, '#d0602a', 2);
+      oval(g, 44, 16, 6, 5, rad(g, 44, 16, 6, [[0, '#e0f8ff'], [1, '#5ab0d0']]), 2.5);
+      oval(g, 57, 15, 6, 5, rad(g, 57, 15, 6, [[0, '#e0f8ff'], [1, '#5ab0d0']]), 2.5);
+    },
+    front: g => {
+      // 석궁
+      shape(g, () => g.roundRect(60, 58, 24, 6, 2), '#8a5a34', 2);
+      g.strokeStyle = OUT; g.lineWidth = 3; g.beginPath(); g.moveTo(80, 48); g.quadraticCurveTo(88, 61, 80, 74); g.stroke();
+      g.strokeStyle = '#e8e0d0'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(80, 48); g.lineTo(70, 61); g.lineTo(80, 74); g.stroke();
+      shape(g, () => { g.moveTo(82, 59); g.lineTo(92, 61); g.lineTo(82, 63); g.closePath(); }, '#c8d0dc', 1.5);
+      oval(g, 64, 64, 4.6, 4.6, '#ffd6b8', 2);
+    },
+  });
+}
+
+// ── 챕터 3 몬스터 (왼쪽을 봄) ──
+function drawCactus() {
+  return vs(96, 96, g => {
+    oval(g, 38, 88, 8, 4, '#8a6a3a'); oval(g, 58, 88, 8, 4, '#8a6a3a');
+    // 팔
+    shape(g, () => g.roundRect(14, 44, 14, 26, 7), lin(g, 0, 40, 0, 70, [[0, '#7ad070'], [1, '#3f9a48']]));
+    shape(g, () => g.roundRect(68, 36, 14, 24, 7), lin(g, 0, 36, 0, 60, [[0, '#7ad070'], [1, '#3f9a48']]));
+    shape(g, () => g.roundRect(24, 60, 10, 9, 4), '#5aaa52'); shape(g, () => g.roundRect(62, 52, 10, 9, 4), '#5aaa52');
+    // 몸통
+    shape(g, () => g.roundRect(30, 22, 36, 66, 18), lin(g, 30, 0, 66, 0, [[0, '#5aaa52'], [0.45, '#8ae070'], [1, '#3f8a44']]));
+    g.strokeStyle = 'rgba(40,90,40,0.5)'; g.lineWidth = 2;
+    [40, 48, 56].forEach(x => { g.beginPath(); g.moveTo(x, 28); g.lineTo(x, 84); g.stroke(); });
+    // 가시
+    g.strokeStyle = '#fff6d0'; g.lineWidth = 1.5;
+    [[30, 40], [30, 66], [66, 34], [66, 60], [20, 48], [76, 42]].forEach(([x, y]) => { g.beginPath(); g.moveTo(x, y); g.lineTo(x + (x < 48 ? -5 : 5), y - 3); g.stroke(); });
+    // 얼굴과 머리띠
+    shape(g, () => g.roundRect(30, 38, 36, 6, 3), '#d0443c', 2);
+    eye(g, 40, 54, '#2a4a1a', 0.85); eye(g, 54, 54, '#2a4a1a', 0.85);
+    g.strokeStyle = OUT; g.lineWidth = 2.5; g.beginPath(); g.moveTo(35, 46); g.lineTo(44, 48); g.moveTo(59, 46); g.lineTo(50, 48); g.stroke();
+    g.beginPath(); g.moveTo(43, 66); g.lineTo(51, 66); g.stroke();
+    // 머리 위 꽃
+    for (let i = 0; i < 5; i++) { const a = i * TAU / 5; oval(g, 48 + Math.cos(a) * 4, 20 + Math.sin(a) * 4, 3, 3, '#ff7ab0', 1.5); }
+    oval(g, 48, 20, 2.2, 2.2, '#ffe27a', 1);
+  });
+}
+
+function drawScorpion() {
+  return vs(96, 96, g => {
+    // 꼬리 (등 위로 휘어짐)
+    g.lineCap = 'round';
+    g.strokeStyle = OUT; g.lineWidth = 13; g.beginPath(); g.moveTo(66, 70); g.quadraticCurveTo(88, 52, 76, 28); g.quadraticCurveTo(68, 18, 58, 24); g.stroke();
+    g.strokeStyle = '#d8843a'; g.lineWidth = 8; g.beginPath(); g.moveTo(66, 70); g.quadraticCurveTo(88, 52, 76, 28); g.quadraticCurveTo(68, 18, 58, 24); g.stroke();
+    shape(g, () => { g.moveTo(58, 20); g.lineTo(48, 26); g.lineTo(58, 30); g.closePath(); }, '#7a3a8a', 2);
+    // 다리
+    g.strokeStyle = OUT; g.lineWidth = 3;
+    [[36, 78, 28, 88], [46, 80, 42, 90], [58, 80, 62, 90], [68, 78, 76, 88]].forEach(([a, b, c, d]) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); });
+    // 몸통
+    oval(g, 52, 70, 24, 14, lin(g, 0, 56, 0, 84, [[0, '#f0a858'], [1, '#b0602a']]), 3);
+    shine(g, 46, 63, 8, 3, 0.4, -0.1);
+    // 집게
+    oval(g, 16, 64, 9, 7, '#e09a4a', 2.5, -0.3); oval(g, 22, 78, 8, 6, '#e09a4a', 2.5, 0.3);
+    g.strokeStyle = OUT; g.lineWidth = 2; g.beginPath(); g.moveTo(10, 62); g.lineTo(18, 65); g.stroke();
+    // 얼굴
+    eye(g, 34, 66, '#5a2a1a', 0.7); eye(g, 44, 66, '#5a2a1a', 0.7);
+    smile(g, 39, 75, 2.4);
+  });
+}
+
+function drawMummy() {
+  return vs(96, 96, g => {
+    glowAt(g, 48, 56, 40, 'rgba(255,240,200,0.35)');
+    // 흐릿한 꼬리 (유령)
+    shape(g, () => { g.moveTo(26, 56); g.quadraticCurveTo(24, 82, 40, 90); g.quadraticCurveTo(46, 82, 52, 90); g.quadraticCurveTo(58, 82, 64, 90); g.quadraticCurveTo(74, 80, 70, 56); g.closePath(); },
+      lin(g, 0, 50, 0, 90, [[0, '#f2e8d4'], [1, 'rgba(242,232,212,0.4)']]), 2.5);
+    oval(g, 48, 46, 24, 24, lin(g, 0, 22, 0, 70, [[0, '#fbf4e4'], [1, '#e0d2b4']]), 3);
+    // 붕대 줄
+    g.strokeStyle = 'rgba(160,130,90,0.6)'; g.lineWidth = 2;
+    [[26, 36, 70, 30], [24, 50, 72, 46], [28, 62, 70, 66], [36, 76, 64, 80]].forEach(([a, b, c, d]) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); });
+    // 눈 틈
+    shape(g, () => g.roundRect(28, 40, 34, 12, 6), '#3a2a2a', 2);
+    oval(g, 38, 46, 3.5, 3.5, '#ffe27a', 0); oval(g, 52, 46, 3.5, 3.5, '#ffe27a', 0);
+    glowAt(g, 38, 46, 6, 'rgba(255,230,120,0.8)'); glowAt(g, 52, 46, 6, 'rgba(255,230,120,0.8)');
+    // 흘러내린 붕대 끝
+    shape(g, () => { g.moveTo(68, 34); g.quadraticCurveTo(84, 36, 86, 50); g.lineTo(80, 48); g.quadraticCurveTo(76, 40, 66, 40); g.closePath(); }, '#efe4cc', 2);
+  });
+}
+
+// ── 챕터 3 보스: 사막 전갈 여왕 (192×192) ──
+function drawScorpionQueen() {
+  return vs(192, 192, g => {
+    // 꼬리
+    g.lineCap = 'round';
+    g.strokeStyle = OUT; g.lineWidth = 26; g.beginPath(); g.moveTo(130, 140); g.quadraticCurveTo(184, 104, 158, 48); g.quadraticCurveTo(140, 22, 116, 34); g.stroke();
+    g.strokeStyle = '#c8602a'; g.lineWidth = 18; g.beginPath(); g.moveTo(130, 140); g.quadraticCurveTo(184, 104, 158, 48); g.quadraticCurveTo(140, 22, 116, 34); g.stroke();
+    g.strokeStyle = 'rgba(255,200,140,0.6)'; g.lineWidth = 5; g.beginPath(); g.moveTo(150, 120); g.quadraticCurveTo(172, 96, 160, 60); g.stroke();
+    shape(g, () => { g.moveTo(118, 26); g.lineTo(92, 40); g.lineTo(118, 48); g.closePath(); }, lin(g, 92, 30, 118, 48, [[0, '#d070ff'], [1, '#6a2a9a']]), 3);
+    glowAt(g, 100, 40, 18, 'rgba(200,120,255,0.6)');
+    // 다리
+    g.strokeStyle = OUT; g.lineWidth = 6;
+    [[70, 156, 52, 180], [92, 160, 84, 184], [116, 160, 124, 184], [138, 156, 156, 180]].forEach(([a, b, c, d]) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); });
+    // 몸통
+    oval(g, 104, 140, 50, 28, lin(g, 0, 112, 0, 168, [[0, '#ff9a4a'], [1, '#a04a1a']]), 4);
+    g.strokeStyle = 'rgba(90,40,10,0.5)'; g.lineWidth = 3;
+    [96, 116, 136].forEach(x => { g.beginPath(); g.moveTo(x, 116); g.quadraticCurveTo(x + 4, 140, x, 164); g.stroke(); });
+    shine(g, 88, 126, 16, 6, 0.4, -0.1);
+    // 몸의 별조각
+    glowAt(g, 124, 132, 20, 'rgba(210,245,255,0.8)');
+    shape(g, () => { g.moveTo(120, 142); g.lineTo(122, 124); g.lineTo(128, 118); g.lineTo(132, 130); g.lineTo(130, 142); g.closePath(); }, '#e0f8ff', 2);
+    // 큰 집게
+    oval(g, 30, 120, 22, 15, lin(g, 0, 104, 0, 136, [[0, '#ffa860'], [1, '#c0602a']]), 3.5, -0.3);
+    oval(g, 40, 156, 20, 13, lin(g, 0, 142, 0, 170, [[0, '#ffa860'], [1, '#c0602a']]), 3.5, 0.3);
+    g.strokeStyle = OUT; g.lineWidth = 4; g.beginPath(); g.moveTo(10, 114); g.lineTo(32, 122); g.moveTo(22, 156); g.lineTo(42, 158); g.stroke();
+    // 얼굴과 왕관
+    eye(g, 66, 128, '#6a1a2a', 1.6); eye(g, 88, 128, '#6a1a2a', 1.6);
+    g.strokeStyle = OUT; g.lineWidth = 5; g.beginPath(); g.moveTo(54, 110); g.lineTo(72, 116); g.moveTo(100, 110); g.lineTo(84, 116); g.stroke();
+    shape(g, () => { g.moveTo(68, 150); g.quadraticCurveTo(78, 144, 88, 150); }, null, 0);
+    g.strokeStyle = OUT; g.lineWidth = 3.5; g.beginPath(); g.moveTo(68, 151); g.quadraticCurveTo(78, 145, 88, 151); g.stroke();
+    shape(g, () => { g.moveTo(58, 106); g.lineTo(56, 84); g.lineTo(68, 96); g.lineTo(77, 78); g.lineTo(86, 96); g.lineTo(98, 84); g.lineTo(96, 106); g.quadraticCurveTo(77, 112, 58, 106); },
+      lin(g, 0, 78, 0, 110, [[0, '#fff0a0'], [1, '#c08a20']]), 3);
+    oval(g, 77, 100, 5, 5, '#d070ff', 2);
+  });
+}
+
 // ── 캠프 소품 ──
 function drawTent() {
   return vs(144, 120, g => {
@@ -505,6 +645,11 @@ function loadSprites() {
     sprout: drawSprout(),
     slime_king: drawSlimeKing(),
     treant: drawTreant(),
+    kai: drawKai(),
+    cactus: drawCactus(),
+    scorpion: drawScorpion(),
+    mummy: drawMummy(),
+    scorpion_queen: drawScorpionQueen(),
     tent: drawTent(),
     chest: drawChest(false),
     chest_full: drawChest(true),
@@ -515,7 +660,7 @@ function loadSprites() {
   };
   Object.assign(SPR, built);
   // 이스터에그용 표정 그림: 이름_m1 (일자 입), 이름_m2 (거꾸로 미소)
-  const moody = { hero_m: drawBoy, hero_f: drawGirl, miru: drawMiru, serin: drawSerin, slime: drawSlime, mushroom: drawMushroom, bee: drawBee, wisp: drawWisp };
+  const moody = { hero_m: drawBoy, hero_f: drawGirl, miru: drawMiru, serin: drawSerin, kai: drawKai, scorpion: drawScorpion, slime: drawSlime, mushroom: drawMushroom, bee: drawBee, wisp: drawWisp };
   for (const m of [1, 2]) {
     MOOD = m;
     for (const [k, f] of Object.entries(moody)) SPR[k + '_m' + m] = f();

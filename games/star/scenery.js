@@ -453,12 +453,151 @@ const Scenery = (() => {
     });
   }
 
+  // ════════ 챕터 3: 붉은 사막 ════════
+  function dSky() {
+    return canvas(W, H, g => {
+      g.fillStyle = vgrad(g, 0, GY, [[0, '#3a5aa8'], [0.45, '#d8806a'], [0.72, '#ffc078'], [1, '#ffe6b0']]);
+      g.fillRect(0, 0, W, H);
+      glow(g, 720, 250, 260, 'rgba(255,220,150,0.55)');
+      glow(g, 720, 250, 100, 'rgba(255,240,200,0.9)');
+      blob(g, 720, 250, 58, '#fff1c8');
+      g.save(); g.translate(250, 80); g.scale(0.75, 0.75); drawCrackedStar(g, 0, 0); g.restore();
+    });
+  }
+
+  function mesa(g, x, top, w, base, col, hi) {
+    wrap(x, w, X => {
+      g.fillStyle = col;
+      g.beginPath();
+      g.moveTo(X - w / 2 - 30, base); g.lineTo(X - w / 2, top + 8); g.quadraticCurveTo(X - w / 2 + 4, top, X - w / 2 + 14, top);
+      g.lineTo(X + w / 2 - 14, top); g.quadraticCurveTo(X + w / 2 - 4, top, X + w / 2, top + 8); g.lineTo(X + w / 2 + 30, base);
+      g.closePath(); g.fill();
+      g.fillStyle = hi; g.fillRect(X - w / 2 + 6, top + 2, w - 12, 5);
+      g.strokeStyle = 'rgba(80,30,40,0.25)'; g.lineWidth = 3;
+      for (let k = 1; k < 4; k++) { g.beginPath(); g.moveTo(X - w / 2 + k * w / 4, top + 10); g.lineTo(X - w / 2 + k * w / 4 + 6, base); g.stroke(); }
+    });
+  }
+
+  function dFar() {
+    return canvas(W, H, g => {
+      mesa(g, 120, 200, 160, 330, '#b0607a', 'rgba(255,190,170,0.5)');
+      mesa(g, 470, 230, 120, 330, '#b8687e', 'rgba(255,190,170,0.5)');
+      mesa(g, 820, 185, 190, 330, '#a85874', 'rgba(255,190,170,0.5)');
+      ridge(g, x => 300 + wave(x, [[3, 10, 0.5], [7, 4, 1.4]]), vgrad(g, 280, 380, [[0, '#d0907a'], [1, '#e8b08a']]));
+      g.fillStyle = vgrad(g, 220, 380, [[0, 'rgba(255,230,190,0)'], [1, 'rgba(255,230,190,0.6)']]);
+      g.fillRect(0, 220, W, 160);
+    });
+  }
+
+  function dMid() {
+    return canvas(W, H, g => {
+      const dy = x => 336 + wave(x, [[2, 16, 1.2], [5, 7, 0.4]]);
+      ridge(g, dy, vgrad(g, 300, 400, [[0, '#eaa868'], [1, '#d08850']]));
+      g.strokeStyle = 'rgba(255,220,170,0.7)'; g.lineWidth = 3;
+      g.beginPath(); for (let x = 0; x <= W; x += 3) x ? g.lineTo(x, dy(x)) : g.moveTo(x, dy(x)); g.stroke();
+      // 무너진 기둥들
+      seed = 71;
+      [180, 260, 610, 700].forEach((x, i) => {
+        const h = [110, 70, 90, 50][i], y = dy(x) + 6;
+        g.fillStyle = vgrad(g, y - h, y, [[0, '#e8c8a0'], [1, '#b8906a']]);
+        g.fillRect(x - 13, y - h, 26, h);
+        g.fillStyle = 'rgba(120,80,50,0.35)'; g.fillRect(x + 5, y - h, 8, h);
+        g.fillStyle = '#f0d8b0'; g.fillRect(x - 17, y - h - 8, 34, 9);
+        if (i % 2) { g.fillStyle = '#c8a07a'; g.beginPath(); g.ellipse(x + 30, y - 4, 16, 7, 0.2, 0, TAU); g.fill(); }
+      });
+      g.fillStyle = vgrad(g, 300, 380, [[0, 'rgba(255,230,190,0)'], [0.5, 'rgba(255,230,190,0.3)'], [1, 'rgba(255,230,190,0)']]);
+      g.fillRect(0, 300, W, 80);
+    });
+  }
+
+  function cactusSil(g, x, y, h, col) {
+    g.fillStyle = col;
+    g.beginPath(); g.roundRect(x - 7, y - h, 14, h, 7); g.fill();
+    g.beginPath(); g.roundRect(x - 22, y - h * 0.7, 10, h * 0.35, 5); g.fill();
+    g.fillRect(x - 17, y - h * 0.4, 12, 8);
+    g.beginPath(); g.roundRect(x + 12, y - h * 0.8, 10, h * 0.4, 5); g.fill();
+    g.fillRect(x + 5, y - h * 0.48, 12, 8);
+  }
+
+  function drawStatue(g, x, baseY) {
+    // 모래에 반쯤 묻힌 거대한 석상 머리
+    const st = g.createLinearGradient(x - 120, 0, x + 120, 0);
+    st.addColorStop(0, '#a87a52'); st.addColorStop(0.5, '#e8c498'); st.addColorStop(1, '#9a6a44');
+    g.fillStyle = st;
+    g.beginPath(); g.ellipse(x, baseY - 40, 120, 150, 0, Math.PI, TAU); g.fill();
+    g.strokeStyle = 'rgba(90,50,30,0.5)'; g.lineWidth = 4;
+    g.beginPath(); g.ellipse(x - 40, baseY - 90, 22, 10, 0, 0, Math.PI); g.stroke();          // 감은 눈
+    g.beginPath(); g.ellipse(x + 40, baseY - 90, 22, 10, 0, 0, Math.PI); g.stroke();
+    g.beginPath(); g.moveTo(x, baseY - 80); g.lineTo(x - 6, baseY - 40); g.lineTo(x + 8, baseY - 40); g.stroke();
+    g.beginPath(); g.moveTo(x + 70, baseY - 170); g.lineTo(x + 50, baseY - 130); g.lineTo(x + 66, baseY - 100); g.stroke();   // 금
+    // 이마의 별조각
+    glow(g, x, baseY - 150, 70, 'rgba(180,240,255,0.55)');
+    g.fillStyle = '#e0f8ff';
+    g.beginPath(); g.moveTo(x - 7, baseY - 136); g.lineTo(x - 3, baseY - 160); g.lineTo(x + 3, baseY - 168); g.lineTo(x + 8, baseY - 146); g.lineTo(x + 5, baseY - 134); g.closePath(); g.fill();
+    cur.lights.push({ x, y: baseY - 150, ph: 0, layer: 'near', rgb: '180,240,255', r: 24 });
+    // 덮인 모래
+    g.fillStyle = '#eeb878';
+    g.beginPath(); g.ellipse(x, baseY - 6, 150, 30, 0, Math.PI, TAU); g.fill();
+  }
+
+  function dNear() {
+    return canvas(W, H, g => {
+      const hy = x => 376 + wave(x, [[2, 12, 0.3], [4, 6, 2.1]]);
+      // 석상은 언덕 뒤에서 솟아 있다
+      drawStatue(g, 700, hy(700) + 10);
+      ridge(g, hy, vgrad(g, 350, 430, [[0, '#f4c080'], [1, '#e0a060']]));
+      g.strokeStyle = 'rgba(255,235,190,0.8)'; g.lineWidth = 3;
+      g.beginPath(); for (let x = 0; x <= W; x += 3) x ? g.lineTo(x, hy(x)) : g.moveTo(x, hy(x)); g.stroke();
+      // 돌 아치
+      const ax = 200, ay = hy(200) + 8;
+      g.fillStyle = vgrad(g, ay - 130, ay, [[0, '#e0b888'], [1, '#b08860']]);
+      g.fillRect(ax - 60, ay - 120, 26, 120); g.fillRect(ax + 34, ay - 100, 26, 100);
+      g.beginPath(); g.moveTo(ax - 64, ay - 120); g.quadraticCurveTo(ax, ay - 160, ax + 40, ay - 104); g.lineTo(ax + 34, ay - 96); g.quadraticCurveTo(ax, ay - 140, ax - 34, ay - 112); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(100,60,30,0.3)'; g.fillRect(ax - 42, ay - 120, 8, 120); g.fillRect(ax + 52, ay - 100, 8, 100);
+      seed = 83;
+      [70, 400, 520, 900].forEach(x => cactusSil(g, x, hy(x) + 4, rr(40, 64), 'rgba(90,140,80,0.9)'));
+    });
+  }
+
+  function dGround() {
+    return canvas(W, H, g => {
+      const gy = x => GY - 4 + wave(x, [[4, 2, 0.2], [11, 1.5, 1.6]]);
+      ridge(g, gy, vgrad(g, GY - 8, H, [[0, '#ffd8a0'], [0.2, '#f4c084'], [0.7, '#e4a868'], [1, '#d09050']]));
+      seed = 95;
+      // 모래 물결
+      g.strokeStyle = 'rgba(190,120,60,0.35)'; g.lineWidth = 2;
+      for (let i = 0; i < 22; i++) {
+        const x = rr(0, W), y = rr(GY + 14, H - 8), w = rr(40, 90);
+        g.beginPath(); g.moveTo(x - w / 2, y); g.quadraticCurveTo(x, y - 6, x + w / 2, y); g.stroke();
+      }
+      g.strokeStyle = 'rgba(255,240,210,0.5)';
+      for (let i = 0; i < 14; i++) {
+        const x = rr(0, W), y = rr(GY + 14, H - 8), w = rr(30, 70);
+        g.beginPath(); g.moveTo(x - w / 2, y); g.quadraticCurveTo(x, y - 5, x + w / 2, y); g.stroke();
+      }
+      // 돌과 마른 풀
+      for (let i = 0; i < 10; i++) {
+        const x = rr(0, W), y = rr(GY + 24, H - 10);
+        g.fillStyle = '#b08868'; g.beginPath(); g.ellipse(x, y, rr(6, 11), rr(4, 6), 0, 0, TAU); g.fill();
+        g.fillStyle = '#d8b898'; g.beginPath(); g.ellipse(x - 2, y - 2, 3, 2, 0, 0, TAU); g.fill();
+      }
+      g.strokeStyle = 'rgba(170,120,50,0.8)'; g.lineWidth = 1.5;
+      for (let i = 0; i < 16; i++) {
+        const x = rr(0, W), y = rr(GY + 10, H - 6);
+        for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + k * 3, y - rr(6, 12)); g.stroke(); }
+      }
+      [[160, GY + 70], [480, GY + 40], [790, GY + 86]].forEach(([x, y]) => drawShard(g, x, y));
+    });
+  }
+
   // ── 준비 ──
   const BUILD = {
     meadow: () => ({ sky: drawSky(), far: drawFar(), mid: drawMid(), near: drawNear(), ground: drawGround(),
       fall: FALL_X, clouds: true, mote: 'petal', rayX: 760, rayDir: -1, rayRgb: '255,240,200', front: ['rgba(70,150,60,0.9)', 'rgba(95,175,75,0.9)'] }),
     forest: () => ({ sky: fSky(), far: fFar(), mid: fMid(), near: fNear(), ground: fGround(),
       fall: null, clouds: false, mote: 'firefly', rayX: 160, rayDir: 1, rayRgb: '220,255,190', front: ['rgba(40,100,50,0.92)', 'rgba(60,125,60,0.92)'] }),
+    desert: () => ({ sky: dSky(), far: dFar(), mid: dMid(), near: dNear(), ground: dGround(),
+      fall: null, clouds: false, mote: 'sand', rayX: 760, rayDir: -1, rayRgb: '255,220,160', front: ['rgba(190,140,70,0.85)', 'rgba(215,165,90,0.85)'] }),
   };
   const themes = {};
   let T = null;                 // 지금 보이는 테마
@@ -482,10 +621,13 @@ const Scenery = (() => {
     if (T === themes[name]) return;
     T = themes[name];
     motes.length = 0;
-    for (let i = 0; i < (T.mote === 'petal' ? 28 : 22); i++) motes.push(newMote(true));
+    for (let i = 0; i < ({ petal: 28, firefly: 22, sand: 40 }[T.mote]); i++) motes.push(newMote(true));
   }
 
   function newMote(anywhere) {
+    if (T.mote === 'sand') {
+      return { kind: 'sand', x: anywhere ? rr(0, W) : W + rr(0, 60), y: rr(200, H), vx: rr(-180, -90), ph: rr(0, TAU), r: rr(1.2, 2.6), a: rr(0.3, 0.7) };
+    }
     if (T.mote === 'firefly') {
       return { kind: 'firefly', x: rr(0, W), y: rr(180, H - 40), vx: rr(-10, 10), vy: rr(-8, 8), ph: rr(0, TAU), r: rr(2, 3.2), life: rr(6, 14) };
     }
@@ -567,6 +709,14 @@ const Scenery = (() => {
     }
     ctx.restore();
     motes.forEach((p, i) => {
+      if (p.kind === 'sand') {
+        p.x += p.vx * dt; p.ph += dt * 3;
+        const y = p.y + Math.sin(p.ph) * 6;
+        if (p.x < -10) motes[i] = newMote(false);
+        ctx.fillStyle = `rgba(255,230,180,${p.a})`;
+        ctx.beginPath(); ctx.ellipse(p.x, y, p.r * 2.2, p.r, 0, 0, TAU); ctx.fill();
+        return;
+      }
       if (p.kind === 'firefly') {
         p.ph += dt * 1.5; p.life -= dt;
         p.x += (p.vx + Math.sin(p.ph) * 12) * dt; p.y += (p.vy + Math.cos(p.ph * 0.8) * 8) * dt;
