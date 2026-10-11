@@ -232,6 +232,20 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 #toBattle{animation:bglow 1.6s infinite}
 @keyframes bglow{50%{box-shadow:inset 0 2px 0 #ffd0c0,inset 0 -3px 0 #a83028,0 .35cqw 0 #6a2018,0 0 2.2cqw #ffd25e,0 0 .8cqw #fff3b0}}
 #toBattle:hover{transform:scale(1.04)}
+/* 동료 */
+.adet{display:flex;gap:12px;background:#fff7e6;border:2px solid var(--wood);border-radius:12px;padding:10px}
+.abig{width:120px;height:120px;flex:none}
+.ainfo{flex:1}.ainfo h3{margin:2px 0;font-size:20px;color:#4a2a10}.ainfo p{margin:4px 0;font-size:13px}
+.astars i{font-style:normal;color:#d8cbb0;font-size:18px}.astars i.on{color:#ffb020;text-shadow:0 0 4px #ffd25e}
+.anext{display:flex;align-items:center;gap:6px;font-size:13px}.anext img{width:52px;height:52px}.anext small{color:var(--muted);font-size:11px}
+button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4a2a00!important}
+.agrid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px}
+.acard{position:relative;display:flex;flex-direction:column;align-items:center;padding:4px 2px;border-radius:10px;border:2px solid var(--rc);background:#fffdf6;font:inherit;cursor:pointer;overflow:visible}
+.acard img{width:52px;height:52px}.acard b{font-size:11px;color:#4a2a10;white-space:nowrap;overflow:hidden;max-width:100%}.acard small{font-size:10px;color:#e0902a}
+.acard.locked{opacity:.4;filter:grayscale(1);cursor:default}.acard.inparty{background:#e6f8e6}.acard.sel{box-shadow:0 0 0 3px #ffd25e}
+.acard .rdot{top:2px;right:2px;width:12px;height:12px;min-width:0}
+.gtabs{display:flex;gap:6px;margin-bottom:8px}.gtabs button{flex:1;padding:8px;border-radius:10px;border:2px solid var(--wood);background:#fff7e6;font:inherit;font-weight:900}.gtabs button.on{background:var(--wood);color:#fff}
+.gcard img.aimg{width:7cqw;height:7cqw}.newb{color:#ff3a4a;font-style:normal;font-weight:900}
 /* 팝업 */
 #modal{position:fixed;inset:0;background:#2a1a0c99;display:flex;align-items:center;justify-content:center;z-index:5}
 .mbox{width:min(520px,92vw);max-height:85vh;display:flex;flex-direction:column;background:linear-gradient(180deg,#fffaf0,#f8ebcc);border:3px solid var(--wood);border-radius:16px;padding:14px;box-shadow:0 6px 0 #7a4f2a,0 12px 30px #0006;color:var(--text)}
@@ -335,7 +349,7 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
   <div class="stagebox">
     <canvas id="cv" width="960" height="540"></canvas>
 
-    <div id="gacha" hidden><div class="gbox"><h2>장비 뽑기</h2><div class="gcards" id="gCards"></div><button class="stone" id="gOk" onclick="document.getElementById('gacha').hidden=true">확인</button></div></div>
+    <div id="gacha" hidden><div class="gbox"><h2 id="gTitle">장비 뽑기</h2><div class="gcards" id="gCards"></div><button class="stone" id="gOk" onclick="document.getElementById('gacha').hidden=true">확인</button></div></div>
     <div id="fanfare" hidden><b id="ffTitle"></b><span id="ffSub"></span></div>
     <!-- 로비 (캠프) -->
     <div class="ui" id="lobbyUI">
@@ -406,10 +420,10 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">✕</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261011t"></script>
-<script src="scenery.js?v=20261011t"></script>
-<script src="audio.js?v=20261011t"></script>
-<script src="game.js?v=20261011t"></script>
-<script type="module" src="cloud.js?v=20261011t"></script>
+<script src="sprites.js?v=20261011v"></script>
+<script src="scenery.js?v=20261011v"></script>
+<script src="audio.js?v=20261011v"></script>
+<script src="game.js?v=20261011v"></script>
+<script type="module" src="cloud.js?v=20261011v"></script>
 </body>
 </html>

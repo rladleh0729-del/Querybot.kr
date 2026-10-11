@@ -70,9 +70,12 @@ function power(s) {
   let sustain = s.regen + dps * (m.drain || 0) / 100;
   if (save && save.party) for (const id of save.party) {
     const A = allyById(id), lv = save.allies[id] || 1;
-    if (A.type === 'magic') dps += s.atk * (0.5 + lv * 0.1) * 2 / A.every;
-    if (A.type === 'shot') dps += s.atk * (1 + lv * 0.2) / A.every;
-    if (A.type === 'heal') sustain += s.maxHp * (6 + lv) / 100 / A.every;
+    if (!A) continue;
+    const p = allyPow(id);
+    if (A.type === 'magic') dps += s.atk * (0.5 + lv * 0.1) * p * 2 / A.every;
+    if (A.type === 'shot') dps += s.atk * (1 + lv * 0.2) * p / A.every;
+    if (A.type === 'warrior') dps += s.atk * (1.2 + lv * 0.2) * p / A.every;
+    if (A.type === 'heal') sustain += s.maxHp * (6 + lv) * p / 100 / A.every;
   }
   const ehp = (s.maxHp + sustain * 20) / (1 - (m.guard || 0) / 100) / (1 - (m.dodge || 0) / 100);
   return Math.floor(Math.sqrt(dps * ehp) / 10);
@@ -189,10 +192,20 @@ function fullStats(lv) {
   if (a) { s.maxHp = Math.floor(s.maxHp * (1 + a.value / 100)); s.regen *= 1 + a.value / 100; }
   if (c) s.critDmg += c.value / 100;
   s.pierce = c ? c.pierce : 0;
-  if (partyHas('magic')) s.atk = Math.floor(s.atk * 1.1);
-  if (partyHas('heal')) s.regen += s.maxHp * 0.02;
-  if (partyHas('shot')) s.crit += 5;
+  const ok = save && save.party;
+  const tc = t => ok ? typeCount(t) : 0;
+  const cx = ok ? codexBonus() : 0;
+  s.atk = Math.floor(s.atk * (1 + cx / 100)); s.maxHp = Math.floor(s.maxHp * (1 + cx / 100));
+  if (tc('magic')) s.atk = Math.floor(s.atk * (tc('magic') >= 2 ? 1.2 : 1.1));
+  if (tc('support')) s.maxHp = Math.floor(s.maxHp * (tc('support') >= 2 ? 1.2 : 1.1));
+  if (tc('heal')) s.regen += s.maxHp * (tc('heal') >= 2 ? 0.04 : 0.02);
+  if (tc('shot')) s.crit += tc('shot') >= 2 ? 10 : 5;
+  for (const id of ok ? save.party : []) {
+    const A = allyById(id);
+    if (A && A.type === 'support') { const lv = save.allies[id] || 1, p = allyPow(id); s.atk = Math.floor(s.atk * (1 + (4 + lv) * p / 100)); s.aspd *= 1 + (2 + lv * 0.5) * p / 100; }
+  }
   const m = traitMods();
+  if (tc('warrior')) m.guard = Math.min(60, m.guard + (tc('warrior') >= 2 ? 10 : 5));
   s.atk = Math.floor(s.atk * (1 + m.atk / 100));
   s.maxHp = Math.floor(s.maxHp * (1 + m.hp / 100));
   s.crit += m.crit;
@@ -392,8 +405,10 @@ function doGacha(n) {
   closeModal();
   showGacha(got);
 }
+let gachaTab = 'ally';
 function showGacha(items) {
   $('gacha').hidden = false;
+  $('gTitle').textContent = '장비 뽑기';
   $('gCards').innerHTML = items.map((it, i) => `<div class="gcard g${it.grade}" style="--d:${i * 0.18}s">
     <div class="gbeam"></div><img src="${ICON_URL[it.slot]}"><b style="color:${GRADES[it.grade].color}">${GRADES[it.grade].name}</b>
     <span>${itemName(it)}</span><small>${itemText(it)}${it.sold ? ' · 가방 꽉 참, 자동 판매' : ''}</small></div>`).join('');
@@ -468,27 +483,136 @@ function fanfare(title, sub, sound) {
 }
 
 // ── 동료 ─────────────────────────────────────
+// r: 등급 (1 일반 · 2 희귀 · 3 전설). 스토리 동료는 보스를 깨면 합류하고 뽑기에서도 나온다(조각)
+const ALLY_TYPES = {
+  heal:    { role: '치유형', every: 5,   desc: (lv, p) => `5초마다 주인공 체력 ${Math.round((6 + lv) * p)}% 회복` },
+  magic:   { role: '마법형', every: 4,   desc: (lv, p) => `4초마다 앞의 적 3마리에게 공격력 ${Math.round((50 + lv * 10) * p)}% 마법 피해` },
+  shot:    { role: '사격형', every: 2.5, desc: (lv, p) => `2.5초마다 앞의 적에게 공격력 ${Math.round((100 + lv * 20) * p)}% 피해` },
+  warrior: { role: '전사형', every: 3,   desc: (lv, p) => `3초마다 가까운 적에게 공격력 ${Math.round((120 + lv * 20) * p)}% 피해` },
+  support: { role: '지원형', every: 0,   desc: (lv, p) => `주인공 공격력 +${Math.round((4 + lv) * p)}% · 공격 속도 +${Math.round((2 + lv * 0.5) * p)}%` },
+};
 const ALLIES = [
-  { id: 'miru',  name: '미르', role: '치유형', type: 'heal',  sprite: 'miru',  from: '챕터 1 보스 처치', every: 5,
-    desc: lv => `5초마다 주인공 체력 ${6 + lv}% 회복` },
-  { id: 'serin', name: '세린', role: '마법형', type: 'magic', sprite: 'serin', from: '챕터 2 보스 처치', every: 4,
-    desc: lv => `4초마다 앞의 적 3마리에게 공격력 ${50 + lv * 10}% 마법 피해` },
-  { id: 'luka', name: '루카', role: '전사형', soon: true },
-  { id: 'kai',   name: '카이', role: '사격형', type: 'shot',  sprite: 'kai',   from: '챕터 3 보스 처치', every: 2.5,
-    desc: lv => `2.5초마다 앞의 적에게 공격력 ${100 + lv * 20}% 피해` },
-  { id: 'bron', name: '브론', role: '전사형', soon: true },
-  { id: 'pio',  name: '피오', role: '마법형', soon: true },
+  { id: 'miru',  name: '미르', type: 'heal',    r: 2, from: '챕터 1 보스' },
+  { id: 'serin', name: '세린', type: 'magic',   r: 2, from: '챕터 2 보스' },
+  { id: 'kai',   name: '카이', type: 'shot',    r: 2, from: '챕터 3 보스' },
+  { id: 'pio',   name: '피오', type: 'magic',   r: 3 },
+  { id: 'lea',   name: '레아', type: 'warrior', r: 3 },
+  { id: 'noeul', name: '노을', type: 'shot',    r: 3 },
+  { id: 'luka',  name: '루카', type: 'warrior', r: 2 },
+  { id: 'bron',  name: '브론', type: 'warrior', r: 2 },
+  { id: 'arin',  name: '아린', type: 'magic',   r: 2 },
+  { id: 'eunho', name: '은호', type: 'shot',    r: 2 },
+  { id: 'sea',   name: '세아', type: 'heal',    r: 2 },
+  { id: 'baram', name: '바람', type: 'support', r: 2 },
+  { id: 'tobi',  name: '토비', type: 'warrior', r: 1 },
+  { id: 'jun',   name: '준',   type: 'warrior', r: 1 },
+  { id: 'danbi', name: '단비', type: 'magic',   r: 1 },
+  { id: 'rio',   name: '리오', type: 'shot',    r: 1 },
+  { id: 'sora',  name: '소라', type: 'shot',    r: 1 },
+  { id: 'hana',  name: '하나', type: 'heal',    r: 1 },
+  { id: 'momo',  name: '모모', type: 'support', r: 1 },
+  { id: 'yuri',  name: '유리', type: 'support', r: 1 },
 ];
-const PARTY_MAX = 3;
+ALLIES.forEach(A => { const T = ALLY_TYPES[A.type]; A.role = T.role; A.every = T.every; A.desc = T.desc; A.sprite = A.id; });
+const RARITY = [null, { name: '일반', stars: '★', color: '#8a7a6a', mul: 1 }, { name: '희귀', stars: '★★', color: '#3a7ad0', mul: 1.3 }, { name: '전설', stars: '★★★', color: '#e0902a', mul: 1.7 }];
+const PREFIX = {
+  heal:    ['', '꽃잎', '축복의', '성녀', '천사'],
+  magic:   ['', '견습', '원소의', '대마법사', '별의 현자'],
+  shot:    ['', '날쌘', '매의 눈', '명사수', '유성'],
+  warrior: ['', '용감한', '강철', '영웅', '전설의'],
+  support: ['', '노래하는', '바람의', '수호', '여신의'],
+};
+const AWAKEN_COST = [0, 1, 2, 3, 5];          // ★n → ★n+1 에 필요한 조각
+const STAR_MAX = 5;
 const allyById = id => ALLIES.find(a => a.id === id);
+const allyStar = id => (save.astar && save.astar[id]) || 1;
+const allyName = id => { const A = allyById(id), p = PREFIX[A.type][allyStar(id) - 1]; return (p ? p + ' ' : '') + A.name; };
+const allyPow = id => RARITY[allyById(id).r].mul * (1 + 0.25 * (allyStar(id) - 1));
 function allyCost(lv) { return Math.floor(400 * Math.pow(1.45, lv)); }
-// 시너지: 파티에 이 유형이 있으면 효과
+// 배치 칸: 3칸, 챕터 2·3 보스를 깨면 1칸씩
+const partyMax = () => 3 + (save.bosses && save.bosses[2] ? 1 : 0) + (save.bosses && save.bosses[3] ? 1 : 0);
+const PARTY_MAX = 5;
+function allyImg(id) { return allySprite(id, allyStar(id), allyById(id).type, mood); }
+const ALLY_ICON = {};
+function allyIcon(id, st) {
+  st = st || allyStar(id);
+  const k = id + st;
+  return ALLY_ICON[k] || (ALLY_ICON[k] = allySprite(id, st, allyById(id).type, 0).toDataURL());
+}
+// 시너지: 같은 유형 1명 / 2명 이상
 const SYNERGY = [
-  { type: 'heal',  text: '치유형 동료 · 초당 체력 회복 +최대 체력 2%' },
-  { type: 'magic', text: '마법형 동료 · 공격력 +10% (검사 영웅과 조합)' },
-  { type: 'shot',  text: '사격형 동료 · 치명타 확률 +5%' },
+  { type: 'heal',    text: n => `치유형 ${n} · 초당 체력 회복 +최대 체력 ${n >= 2 ? 4 : 2}%` },
+  { type: 'magic',   text: n => `마법형 ${n} · 공격력 +${n >= 2 ? 20 : 10}%` },
+  { type: 'shot',    text: n => `사격형 ${n} · 치명타 확률 +${n >= 2 ? 10 : 5}%` },
+  { type: 'warrior', text: n => `전사형 ${n} · 받는 피해 -${n >= 2 ? 10 : 5}%` },
+  { type: 'support', text: n => `지원형 ${n} · 체력 +${n >= 2 ? 20 : 10}%` },
 ];
-const partyHas = type => (save.party || []).some(id => allyById(id).type === type);
+const typeCount = type => (save.party || []).filter(id => allyById(id) && allyById(id).type === type).length;
+const partyHas = type => typeCount(type) > 0;
+// 도감: 모은 동료 1명당 공격력·체력 +1%, 각성 별 1개당 +0.5%
+function codexBonus() {
+  const own = Object.keys(save.allies || {}).filter(allyById);
+  return own.length + own.reduce((a, id) => a + (allyStar(id) - 1) * 0.5, 0);
+}
+
+// ── 동료 뽑기 ──
+const AGACHA_COST = 50, AGACHA10_COST = 450, APITY = 80;
+const AGACHA_W = [0, 72, 25, 3];
+function allyRoll(minR = 1) {
+  let r;
+  if ((save.apity || 0) + 1 >= APITY) r = 3;
+  else { const w = AGACHA_W.map((x, i) => i >= minR ? x : 0); let x = Math.random() * w.reduce((a, b) => a + b, 0); r = 0; while (x >= w[r]) { x -= w[r]; r++; } }
+  save.apity = r === 3 ? 0 : (save.apity || 0) + 1;
+  const pool = ALLIES.filter(A => A.r === r);
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+// 남은 각성에 조각이 더 필요한가
+function needCopies(id) {
+  let need = 0;
+  for (let s = allyStar(id); s < STAR_MAX; s++) need += AWAKEN_COST[s];
+  return need > (save.acopy[id] || 0);
+}
+function gainAlly(id) {
+  if (!save.allies[id]) {
+    save.allies[id] = 1; save.astar[id] = 1;
+    if (save.party.length < partyMax()) save.party.push(id);
+    return 'new';
+  }
+  if (!needCopies(id)) { save.dust += 10; return 'dust'; }
+  save.acopy[id] = (save.acopy[id] || 0) + 1;
+  return 'copy';
+}
+function doAllyGacha(n) {
+  const cost = n === 10 ? AGACHA10_COST : AGACHA_COST;
+  if (save.dust < cost) return alert('별가루 부족');
+  save.dust -= cost;
+  const got = [];
+  for (let i = 0; i < n; i++) got.push(allyRoll());
+  if (n === 10 && !got.some(id => allyById(id).r >= 2)) got[9] = allyRoll(2);
+  const res = got.map(id => ({ id, kind: gainAlly(id) }));
+  track('gacha', n);
+  refreshStats(); writeSave(); updateHud();
+  closeModal();
+  $('gacha').hidden = false;
+  $('gTitle').textContent = '동료 뽑기';
+  $('gCards').innerHTML = res.map((x, i) => {
+    const A = allyById(x.id), R = RARITY[A.r];
+    return `<div class="gcard g${A.r * 2 - 1}" style="--d:${i * 0.18}s"><div class="gbeam"></div><img class="aimg" src="${allyIcon(x.id)}">
+      <b style="color:${R.color}">${R.stars}</b><span>${allyName(x.id)}</span><small>${A.role} · ${x.kind === 'new' ? '<em class="newb">NEW!</em>' : x.kind === 'copy' ? '조각 +1' : '최대 각성 · 별가루 +10'}</small></div>`;
+  }).join('');
+  res.forEach((x, i) => setTimeout(() => Sound.reveal(allyById(x.id).r * 2 - 1), i * 180));
+  $('gacha').classList.toggle('flash', res.some(x => allyById(x.id).r === 3));
+}
+function awaken(id) {
+  const st = allyStar(id), need = AWAKEN_COST[st];
+  if (st >= STAR_MAX || (save.acopy[id] || 0) < need) return;
+  save.acopy[id] -= need;
+  save.astar[id] = st + 1;
+  refreshStats(); writeSave(); updateHud();
+  closeModal();
+  fanfare('각성!', `${allyName(id)} · ${'★'.repeat(st + 1)}`, Sound.levelUp);
+  setTimeout(() => openAllies(id), 1900);
+}
 
 // ── 대사 ─────────────────────────────────────
 const LINES = {
@@ -684,9 +808,11 @@ function migrateSave(s) {
     if (s.shards === undefined) s.shards = 0;
     if (!s.bosses) { s.bosses = s.bossDone ? { 1: true } : {}; delete s.bossDone; }
     if (!s.allies) { s.allies = {}; s.party = []; }
+    if (!s.astar) { s.astar = {}; s.acopy = {}; s.apity = 0; }
+    s.party = s.party.filter(id => allyById(id));
     for (const [c, ok] of Object.entries(s.bosses)) {            // 보스를 깼으면 그 챕터 동료가 있어야 한다
       const id = CHAPTERS[c - 1] && CHAPTERS[c - 1].boss.ally;
-      if (ok && id && !s.allies[id]) { s.allies[id] = 1; if (s.party.length < PARTY_MAX) s.party.push(id); }
+      if (ok && id && !s.allies[id]) { s.allies[id] = 1; if (s.party.length < 3) s.party.push(id); }
     }
     if (!s.seenCh) s.seenCh = 1;
     if (!s.traits) { s.traits = {}; s.job = null; s.adv = null; }
@@ -742,7 +868,7 @@ let floatsLobby = [];   // 로비 상자 위에 떠오르는 숫자
 const hero = { hp: 0, cd: 0, lunge: 0, hurt: 0, x: 70 };
 let battle = null;      // { stage, wave, queue, earned, state, delay, potionCd }
 
-function refreshStats() { stats = fullStats(save.lv); }
+function refreshStats() { stats = fullStats(save.lv); hero.x = 70 + Math.max(0, (save.party || []).length - 3) * 18; }
 
 // ── 전투 ────────────────────────────────────
 // stage: 도전할 스테이지 (깬 곳 또는 다음 곳)
@@ -976,29 +1102,36 @@ function updateAllies(dt, q) {
   battle.fx = battle.fx.filter(f => (f.t += dt) < 0.3);
   (save.party || []).forEach((id, i) => {
     const A = allyById(id), lv = save.allies[id] || 1;
+    if (!A || !A.every) return;
+    const p = allyPow(id);
     battle.allyCd[id] = (battle.allyCd[id] ?? A.every * 0.5) - dt;
     if (battle.allyCd[id] > 0) return;
     if (A.type === 'heal') {
       if (hero.hp >= stats.maxHp * 0.95) return;
-      const heal = Math.floor(stats.maxHp * (6 + lv) / 100 * (1 + stats.mods.healAlly / 100) * (1 + stats.mods.healMul / 100));
+      const heal = Math.floor(stats.maxHp * (6 + lv) * p / 100 * (1 + stats.mods.healAlly / 100) * (1 + stats.mods.healMul / 100));
       hero.hp = Math.min(stats.maxHp, hero.hp + heal);
       addFloat('+' + fmt(heal), hero.x + 16, GROUND - 50, '#6fe39a');
       battle.fx.push({ kind: 'heal', i, t: 0 });
     } else if (A.type === 'magic') {
       const targets = q.filter(m => m.dead <= 0 && m.x <= hero.x + 120).slice(0, 3);
       if (!targets.length) return;
-      targets.forEach(m => { hit(m, (50 + lv * 10) / 100 * (1 + stats.mods.magicAlly / 100), '#d6b0ff', 'ally'); battle.fx.push({ kind: 'bolt', i, x: m.x + (m.size || 32) / 2, t: 0 }); });
+      targets.forEach(m => { hit(m, (50 + lv * 10) * p / 100 * (1 + stats.mods.magicAlly / 100), '#d6b0ff', 'ally'); battle.fx.push({ kind: 'bolt', i, x: m.x + (m.size || 32) / 2, t: 0 }); });
     } else if (A.type === 'shot') {
       const t = q.find(m => m.dead <= 0 && m.x <= hero.x + 160);
       if (!t) return;
-      hit(t, (100 + lv * 20) / 100 * (1 + stats.mods.shotAlly / 100), '#ffd27a', 'ally');
+      hit(t, (100 + lv * 20) * p / 100 * (1 + stats.mods.shotAlly / 100), '#ffd27a', 'ally');
       battle.fx.push({ kind: 'arrow', i, x: t.x + (t.size || 32) / 2, t: 0 });
+    } else if (A.type === 'warrior') {
+      const t = q.find(m => m.dead <= 0 && m.x <= hero.x + 70);
+      if (!t) return;
+      hit(t, (120 + lv * 20) * p / 100, '#ff9a7a', 'ally');
+      battle.fx.push({ kind: 'slash', i, x: t.x + (t.size || 32) / 2, t: 0 });
     }
     battle.allyCd[id] = A.every;
   });
 }
 
-function allyX(i) { return hero.x - 26 - i * 22; }
+function allyX(i) { return hero.x - 24 - i * 18; }
 
 // ── 전투 중 스킬 ──
 function castSkill(slot, auto) {
@@ -1112,12 +1245,12 @@ function endBoss(result) {
     save.dust += 50;
     save.bosses[c] = true;
     save.shards = (save.shards || 0) + 1;
-    if (!save.allies[ally.id]) { save.allies[ally.id] = 1; if (save.party.length < PARTY_MAX) save.party.push(ally.id); }
+    gainAlly(ally.id);
   }
   writeSave();
   cloudUpload();
   let text = `획득 골드 ${fmt(r.earned)} G`
-    + (first ? `<br>✦ 별조각 +1 · 공격력·체력 영구 +10% · 별가루 +50<br>레벨 +3 · 특성 포인트 +3<br>${ally.name} 합류 · 동료 탭에서 확인`
+    + (first ? `<br>✦ 별조각 +1 · 공격력·체력 영구 +10% · 별가루 +50<br>레벨 +3 · 특성 포인트 +3<br>${ally.name} 합류 · 동료 탭에서 확인${c >= 2 ? ' · 동료 배치 칸 +1' : ''}`
       + (c < CHAPTERS.length ? `<br>챕터 ${c + 1} · ${chapter(c + 1).name} 해금` : '<br>다음 챕터는 업데이트 예정') : ' (재도전 보상 30%)');
   if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
   const btns = [['캠프로', () => showScreen('lobby'), !(first && c < CHAPTERS.length)]];
@@ -1389,9 +1522,12 @@ function refreshTraits() {
 }
 
 // ── 동료 탭 ──────────────────────────────────
-function openAllies() {
+let allySel = null;
+function openAllies(sel) {
   modalKind = 'allies';
+  if (typeof sel === 'string') allySel = sel;
   $('mTitle').textContent = '동료';
+  document.querySelector('.mbox').classList.add('wide');
   $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div id="allyList"></div>';
   $('modal').hidden = false;
   refreshModal();
@@ -1399,40 +1535,46 @@ function openAllies() {
 
 function refreshAllies() {
   const party = save.party || [];
-  let html = `<p class="note" style="margin:0 0 8px">배치 ${party.length} / ${PARTY_MAX} · 배치한 동료는 전투에서 함께 싸우고 캠프에 머문다</p>`;
-  for (const A of ALLIES) {
-    const lv = save.allies[A.id] || 0;
-    if (A.soon) {
-      html += `<div class="up ally locked"><div class="nm"><span class="aq">?</span>${A.name}<small>${A.role}</small></div><div class="val">준비 중 · 다음 업데이트에서 합류</div></div>`;
-      continue;
-    }
-    if (!lv) {
-      html += `<div class="up ally locked"><div class="nm"><img class="gicon" src="${ICON_URL[A.sprite]}">${A.name}<small>${A.role}</small></div><div class="val">획득: ${A.from}</div></div>`;
-      continue;
-    }
-    const inParty = party.includes(A.id), cost = allyCost(lv);
-    html += `<div class="up ally${inParty ? ' inparty' : ''}">
-      <div class="nm"><img class="gicon" src="${ICON_URL[A.sprite]}">${A.name}<small>${A.role} · Lv ${lv}${inParty ? ' · 배치 중' : ''}</small></div>
-      <div class="val">${A.desc(lv)} → <em>${A.desc(lv + 1).match(/\d+%/)[0]}</em></div>
-      <div class="skbtns"><button class="equip${inParty ? ' on' : ''}" data-party="${A.id}">${inParty ? '해제' : '배치'}</button>
-      <button data-ally="${A.id}" ${save.gold < cost ? 'disabled' : ''}>강화 ${fmt(cost)} G</button></div></div>`;
+  const own = ALLIES.filter(A => save.allies[A.id]);
+  if (!allySel || !save.allies[allySel]) allySel = party[0] || (own[0] && own[0].id) || null;
+  let html = '';
+  if (allySel) {
+    const A = allyById(allySel), id = A.id, lv = save.allies[id], st = allyStar(id), R = RARITY[A.r];
+    const inParty = party.includes(id), cost = allyCost(lv), have = save.acopy[id] || 0, need = AWAKEN_COST[st];
+    html += `<div class="adet"><img src="${allyIcon(id)}" class="abig">
+      <div class="ainfo"><b style="color:${R.color}">${R.stars} ${R.name} · ${A.role}</b><h3>${allyName(id)}</h3>
+      <div class="astars">${[1, 2, 3, 4, 5].map(n => `<i class="${n <= st ? 'on' : ''}">★</i>`).join('')} <small>각성 ${st} / ${STAR_MAX} · Lv ${lv}</small></div>
+      <p>${A.desc(lv, allyPow(id))}</p>
+      ${st < STAR_MAX ? `<div class="anext"><img src="${allyIcon(id, st + 1)}"><div><small>다음 각성</small><br><b>${PREFIX[A.type][st]} ${A.name}</b><br><small>조각 ${have} / ${need}</small></div></div>` : '<p class="note">최대 각성 · 중복은 별가루 +10</p>'}
+      <div class="skbtns"><button class="equip${inParty ? ' on' : ''}" id="aParty" ${!inParty && party.length >= partyMax() ? 'disabled' : ''}>${inParty ? '해제' : '배치'}</button>
+      <button id="aUp" ${save.gold < cost ? 'disabled' : ''}>강화 ${fmt(cost)} G</button>
+      <button id="aAwk" class="awk" ${st >= STAR_MAX || have < need ? 'disabled' : ''}>각성</button></div></div></div>`;
   }
-  html += '<div class="syn"><b>시너지</b>' + SYNERGY.map(s => `<div class="${partyHas(s.type) ? 'on' : ''}">${partyHas(s.type) ? '✓' : '·'} ${s.text}</div>`).join('') + '</div>';
+  html += `<p class="note" style="margin:8px 0">배치 ${party.length} / ${partyMax()}${partyMax() < PARTY_MAX ? ' · 챕터 보스 처치로 칸 추가' : ''} · 도감 ${own.length} / ${ALLIES.length} (공격력·체력 +${codexBonus()}%) · 새 동료는 뽑기에서 획득</p><div class="agrid">`;
+  for (const A of ALLIES) {
+    const has = save.allies[A.id], R = RARITY[A.r], st = allyStar(A.id);
+    const canAwk = has && st < STAR_MAX && (save.acopy[A.id] || 0) >= AWAKEN_COST[st];
+    html += `<button class="acard${has ? '' : ' locked'}${party.includes(A.id) ? ' inparty' : ''}${A.id === allySel ? ' sel' : ''}" style="--rc:${R.color}" ${has ? `data-asel="${A.id}"` : 'disabled'}>
+      <img src="${allyIcon(A.id, has ? st : 1)}"><b>${has ? allyName(A.id) : A.name}</b><small>${has ? '★'.repeat(st) : R.stars}</small>${canAwk ? '<em class="rdot"></em>' : ''}</button>`;
+  }
+  html += '</div><div class="syn"><b>시너지</b>' + SYNERGY.map(s => { const n = typeCount(s.type); return `<div class="${n ? 'on' : ''}">${n ? '✓' : '·'} ${s.text(n || 1)}</div>`; }).join('') + '</div>';
   $('allyList').innerHTML = html;
-  $('allyList').querySelectorAll('[data-ally]').forEach(b => b.onclick = () => {
-    const id = b.dataset.ally, cost = allyCost(save.allies[id]);
+  $('allyList').querySelectorAll('[data-asel]').forEach(b => b.onclick = () => { allySel = b.dataset.asel; refreshAllies(); });
+  if (!allySel) return;
+  const id = allySel;
+  $('aUp').onclick = () => {
+    const cost = allyCost(save.allies[id]);
     if (save.gold < cost) return;
-    save.gold -= cost;
-    save.allies[id]++;
-    updateHud();
-  });
-  $('allyList').querySelectorAll('[data-party]').forEach(b => b.onclick = () => {
-    const id = b.dataset.party, at = save.party.indexOf(id);
+    save.gold -= cost; save.allies[id]++;
+    refreshStats(); updateHud();
+  };
+  $('aParty').onclick = () => {
+    const at = save.party.indexOf(id);
     if (at >= 0) save.party.splice(at, 1);
-    else if (save.party.length < PARTY_MAX) save.party.push(id);
-    refreshStats();
-    updateHud();
-  });
+    else if (save.party.length < partyMax()) save.party.push(id);
+    refreshStats(); updateHud();
+  };
+  $('aAwk').onclick = () => awaken(id);
 }
 
 function usePotion() {
@@ -1562,7 +1704,7 @@ function setDot(sel, on, num) {
 function updateDots() {
   setDot('[data-open=up]', UPGRADES.some(u => save.lv[u.id] < u.max && save.gold >= upgradeCost(u, save.lv[u.id])));
   setDot('[data-open=traits]', traitsOpen() && pointsLeft() > 0, pointsLeft());
-  setDot('[data-open=allies]', Object.entries(save.allies || {}).some(([, lv]) => save.gold >= allyCost(lv)));
+  setDot('[data-open=allies]', Object.entries(save.allies || {}).some(([id, lv]) => allyById(id) && (save.gold >= allyCost(lv) || (allyStar(id) < STAR_MAX && (save.acopy[id] || 0) >= AWAKEN_COST[allyStar(id)]))));
   setDot('[data-open=skill]', SKILLS.some(sk => save.stage - 1 >= sk.unlock && save.gold >= skillCost(sk, save.skills[sk.id] || 0)));
   setDot('[data-open=gear]', save.items.some(it => !Object.values(save.gear).includes(it.id) && itemScore(it) > itemScore(equipped(it.slot))));
   setDot('[data-open=gacha]', save.dust >= GACHA_COST);
@@ -1599,12 +1741,12 @@ function renderLobby() {
   drawImg(SPR.tent, 50, GROUND - 38, 48);
   drawCampfire(104);
   const bob = Math.round(Math.sin(time * 3) * 0.8);
-  const spots = [18, 186, 214];             // 배치한 동료가 캠프에 머무는 자리
+  const spots = [18, 186, 214, 242, 270];             // 배치한 동료가 캠프에 머무는 자리
   const pos = { hero: [138, GROUND - 32] };
   (save.party || []).forEach((id, i) => {
     const x = spots[i];
     shadow(x + 16);
-    drawImg(face(allyById(id).sprite), x, GROUND - 31 + Math.round(Math.sin(time * 3 + 1 + i) * 0.8));
+    drawImg(allyImg(id), x, GROUND - 31 + Math.round(Math.sin(time * 3 + 1 + i) * 0.8));
     pos[id] = [x + 16, GROUND - 32];
   });
   shadow(138);
@@ -1652,7 +1794,7 @@ function renderBattle() {
     const x = allyX(i);
     const act = battle.fx.find(f => f.i === i);
     shadow(x + 16);
-    drawImg(face(allyById(id).sprite), x + (act ? 3 : 0), GROUND - 31 + (walking ? bob : Math.round(Math.sin(time * 4 + i + 1) * 0.8)));
+    drawImg(allyImg(id), x + (act ? 3 : 0), GROUND - 31 + (walking ? bob : Math.round(Math.sin(time * 4 + i + 1) * 0.8)));
   });
   for (const f of battle.fx) {
     const ax = (allyX(f.i) + 22) * SCALE, ay = (GROUND - 20) * SCALE;
@@ -1661,6 +1803,9 @@ function renderBattle() {
     if (f.kind === 'arrow') {
       ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(f.x * SCALE, (GROUND - 16) * SCALE); ctx.stroke();
+    } else if (f.kind === 'slash') {
+      ctx.strokeStyle = '#fff0e0'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(f.x * SCALE, (GROUND - 16) * SCALE, 40, -1.2 + f.t * 6, 0.2 + f.t * 6); ctx.stroke();
     } else if (f.kind === 'bolt') {
       ctx.strokeStyle = '#d6b0ff'; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(f.x * SCALE, (GROUND - 16) * SCALE); ctx.stroke();
@@ -1805,7 +1950,7 @@ function openModal(kind) {
   if (kind === 'allies') return openAllies();
   if (kind === 'traits') return openTraits();
   if (kind === 'missions') return openPanel('missions', '미션');
-  if (kind === 'gacha') return openPanel('gacha', '장비 뽑기');
+  if (kind === 'gacha') return openPanel('gacha', '뽑기');
   if (kind === 'dungeon') return openPanel('dungeon', '일일 던전');
   if (kind === 'up') powerGain = 0;
   modalKind = kind;
@@ -1870,14 +2015,24 @@ function refreshModal() {
     });
   } else if (modalKind === 'missions') {
     refreshMissions();
+  } else if (modalKind === 'gacha' && gachaTab === 'ally') {
+    $('pBody').innerHTML = `<div class="gtabs"><button data-gt="gear">장비</button><button class="on">동료</button></div><div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
+      <div class="grates">${[1, 2, 3].map(r => `<span style="color:${RARITY[r].color}">${RARITY[r].stars} ${RARITY[r].name} ${AGACHA_W[r]}%</span>`).join('')}</div>
+      <div class="gbtns"><button id="a1" ${save.dust < AGACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${AGACHA_COST}</small></button>
+      <button id="a10" ${save.dust < AGACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${AGACHA10_COST} · 희귀 이상 1명 보장</small></button></div>
+      <p class="note">전설 확정까지 ${APITY - (save.apity || 0)}회 · 중복은 각성 조각</p>`;
+    $('a1').onclick = () => doAllyGacha(1);
+    $('a10').onclick = () => doAllyGacha(10);
+    $('pBody').querySelector('[data-gt]').onclick = () => { gachaTab = 'gear'; refreshModal(); };
   } else if (modalKind === 'gacha') {
-    $('pBody').innerHTML = `<div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
+    $('pBody').innerHTML = `<div class="gtabs"><button class="on">장비</button><button data-gt="ally">동료</button></div><div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
       <div class="grates">${GRADES.map((G, i) => GACHA_W[i] ? `<span style="color:${G.color}">${G.name} ${(GACHA_W[i] / 10).toFixed(1)}%</span>` : '').join('')}</div>
       <div class="gbtns"><button id="g1" ${save.dust < GACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${GACHA_COST}</small></button>
       <button id="g10" ${save.dust < GACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${GACHA10_COST} · 희귀 이상 1개 보장</small></button></div>
       <p class="note">지금 스테이지 수준의 장비 · 별가루는 미션, 일일 던전, 챕터 보스에서 획득</p>`;
     $('g1').onclick = () => doGacha(1);
     $('g10').onclick = () => doGacha(10);
+    $('pBody').querySelector('[data-gt]').onclick = () => { gachaTab = 'ally'; refreshModal(); };
   } else if (modalKind === 'dungeon') {
     $('pBody').innerHTML = DUNGEONS.map(D => `<div class="up dun"><div class="nm"><img class="gicon" src="${ICON_URL[D.sprite]}">${D.name}<small>남은 횟수 ${dunLeft(D.id)} / ${DUNGEON_TRIES}</small></div>
       <div class="val">${D.desc} · 하루 ${DUNGEON_TRIES}번</div><button data-dun="${D.id}" ${dunLeft(D.id) <= 0 ? 'disabled' : ''}>입장</button></div>`).join('')

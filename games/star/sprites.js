@@ -669,14 +669,318 @@ function drawRingIcon() {
   });
 }
 
+// ── 동료 생성기 ─────────────────────────────────
+// 머리·모자·옷·무기를 조합해 2등신 동료를 그린다. 각성(★1~5)마다 모습이 바뀐다.
+// ★2 옷 색 변경 · ★3 머리색 변경과 망토 · ★4 금장식과 빛 · ★5 날개와 천사 고리
+const ALLY_LOOKS = {
+  miru:  { hairStyle: 'bob',   hair: ['#5ad0c0', '#2a9a8a'], hair3: ['#ffd0e8', '#e090b8'], iris: '#2a9a7a', body: ['#5fb06a', '#3d7a47'], body2: ['#7ac8e0', '#3a88a8'], legs: '#ffdcc2', boots: '#6b4a2b', hat: 'hood',     hatColor: '#5fb06a', outfit: 'apron', weapon: 'staff_leaf' },
+  serin: { hairStyle: 'bangs', hair: ['#eae4ff', '#a8a0d8'], hair3: ['#ffe9a0', '#d0a040'], iris: '#7a5ad0', skin: '#ffdcc8', ear: true, body: ['#7a5ad0', '#40288a'], body2: ['#3a5ad0', '#1a2a8a'], legs: '#3a2a5a', boots: '#2a1a40', hat: 'wizard', hatColor: '#6a4ac0', outfit: 'robe', weapon: 'staff_orb' },
+  kai:   { hairStyle: 'spiky', hair: ['#3a2a22', '#1e1410'], hair3: ['#d0602a', '#8a3010'], iris: '#c8701a', body: ['#d8a868', '#9a6a38'], body2: ['#6a8a5a', '#3a5a30'], legs: '#6b5a3a', boots: '#5a3820', hat: 'bandana',  hatColor: '#ff9a4a', outfit: 'vest',  weapon: 'crossbow' },
+  pio:   { hairStyle: 'twin',  hair: ['#fff3a0', '#e0b030'], hair3: ['#b0e8ff', '#5aa8e0'], iris: '#e0a020', body: ['#ffe9a0', '#e0b040'], body2: ['#c8e0ff', '#7aa0e0'], legs: '#ffdcc2', boots: '#e0a030', hat: 'star',     hatColor: '#ffe27a', outfit: 'dress', weapon: 'staff_star' },
+  lea:   { hairStyle: 'long',  hair: ['#ff8a6a', '#c04a2a'], hair3: ['#ffffff', '#c8c8e0'], iris: '#c04a2a', body: ['#e0e4f0', '#9aa4c0'], body2: ['#ffd27a', '#c8902a'], legs: '#6a6a80', boots: '#5a5a70', hat: 'circlet',  hatColor: '#f0c95a', outfit: 'armor', weapon: 'spear' },
+  noeul: { hairStyle: 'spiky', hair: ['#ff9a5a', '#c8502a'], hair3: ['#c890ff', '#7a40c0'], iris: '#e06a2a', body: ['#4a5a8a', '#2a3460'], body2: ['#8a3a5a', '#5a1a3a'], legs: '#3a3a50', boots: '#2a2a3a', hat: 'none',     outfit: 'tunic', weapon: 'bow' },
+  luka:  { hairStyle: 'spiky', hair: ['#ffd25e', '#c8902a'], hair3: ['#ff6a4a', '#a83020'], iris: '#3a8ad0', body: ['#c8443c', '#8a2a24'], body2: ['#3a6ad0', '#1a3a8a'], legs: '#4a3b2a', boots: '#5a3a20', hat: 'headband', hatColor: '#ffffff', outfit: 'tunic', weapon: 'greatsword' },
+  bron:  { hairStyle: 'short', hair: ['#8a7a6a', '#4a3e34'], hair3: ['#e8e8f0', '#a8a8b8'], iris: '#4a6a3a', body: ['#8a96b0', '#5a6478'], body2: ['#c8a040', '#8a6a20'], legs: '#4a4a5a', boots: '#3a3a48', hat: 'helm',     hatColor: '#a8b0c8', outfit: 'armor', weapon: 'shield' },
+  arin:  { hairStyle: 'long',  hair: ['#ff5a4a', '#a02a2a'], hair3: ['#ffb03a', '#d0601a'], iris: '#d03a2a', body: ['#ff7a5a', '#c0402a'], body2: ['#5a3a5a', '#2a1a2a'], legs: '#ffdcc2', boots: '#8a2a2a', hat: 'witch',    hatColor: '#3a2a3a', outfit: 'robe',  weapon: 'staff_fire' },
+  eunho: { hairStyle: 'bangs', hair: ['#e8eef8', '#a0aac0'], hair3: ['#5ab0ff', '#2a6ad0'], iris: '#3a7ad0', body: ['#3a5a8a', '#1a3060'], body2: ['#e0e8f0', '#a0aac0'], legs: '#2a3a50', boots: '#1a2638', hat: 'none',     outfit: 'vest',  weapon: 'bow' },
+  sea:   { hairStyle: 'long',  hair: ['#ffe0a0', '#d0a050'], hair3: ['#ffc0d8', '#e080a8'], iris: '#4a8ad0', body: ['#ffffff', '#c8d0e8'], body2: ['#ffd0e0', '#e090b0'], legs: '#ffdcc2', boots: '#c8b088', hat: 'veil',     hatColor: '#ffffff', outfit: 'dress', weapon: 'book' },
+  baram: { hairStyle: 'bangs', hair: ['#7ad0a0', '#2a8a5a'], hair3: ['#a0c8ff', '#4a7ad0'], iris: '#2a8a5a', body: ['#e0c890', '#a88a50'], body2: ['#7ac8b0', '#3a8a70'], legs: '#5a4a3a', boots: '#4a3a2a', hat: 'beret',    hatColor: '#3a8a5a', outfit: 'tunic', weapon: 'lute' },
+  tobi:  { hairStyle: 'spiky', hair: ['#c87a3a', '#7a4420'], hair3: ['#8ad0ff', '#3a7ab0'], iris: '#7a4420', body: ['#8aa050', '#5a7030'], body2: ['#c8a070', '#8a6a40'], legs: '#5a4a3a', boots: '#4a3020', hat: 'none',     outfit: 'vest',  weapon: 'axe' },
+  jun:   { hairStyle: 'short', hair: ['#3a3a4a', '#101018'], hair3: ['#d0d8e8', '#8890a8'], iris: '#2a2a3a', body: ['#3a8ad0', '#2a5aa0'], body2: ['#d04a4a', '#8a2a2a'], legs: '#3a3a4a', boots: '#2a2a38', hat: 'headband', hatColor: '#d04a4a', outfit: 'tunic', weapon: 'spear' },
+  danbi: { hairStyle: 'bob',   hair: ['#7ab0ff', '#3a6ad0'], hair3: ['#c8f0ff', '#7ac0e0'], iris: '#3a6ad0', body: ['#a0d0ff', '#5a90d0'], body2: ['#c8a0ff', '#8a60d0'], legs: '#ffdcc2', boots: '#3a5a90', hat: 'raincap',  hatColor: '#ffe27a', outfit: 'dress', weapon: 'staff_orb' },
+  rio:   { hairStyle: 'spiky', hair: ['#e0b060', '#a87830'], hair3: ['#80e0a0', '#3a9a5a'], iris: '#6a8a2a', body: ['#e07a3a', '#a84a1a'], body2: ['#3a8a8a', '#1a5a5a'], legs: '#4a4a3a', boots: '#5a3a20', hat: 'cap',      hatColor: '#3a6ad0', outfit: 'tunic', weapon: 'sling' },
+  sora:  { hairStyle: 'twin',  hair: ['#a0c8ff', '#5a88d0'], hair3: ['#ffffff', '#c0d0f0'], iris: '#3a6ad0', body: ['#e8f4ff', '#a8c0e0'], body2: ['#7ad0c0', '#3a9a8a'], legs: '#ffdcc2', boots: '#5a88d0', hat: 'none',     outfit: 'dress', weapon: 'bow' },
+  hana:  { hairStyle: 'bob',   hair: ['#ffb0c8', '#d06a90'], hair3: ['#fff0a0', '#e0c050'], iris: '#d06a90', body: ['#ffffff', '#d0d8e8'], body2: ['#c8f0d0', '#7ac08a'], legs: '#ffdcc2', boots: '#d06a90', hat: 'nurse',    hatColor: '#ffffff', outfit: 'apron', weapon: 'bandage' },
+  momo:  { hairStyle: 'twin',  hair: ['#ffc0a0', '#e08060'], hair3: ['#d0a0ff', '#9a60e0'], iris: '#e06a3a', body: ['#ffd25e', '#e0a020'], body2: ['#ff9ac0', '#d05a8a'], legs: '#ffdcc2', boots: '#e06a3a', hat: 'ribbon',   hatColor: '#ff6a8a', outfit: 'dress', weapon: 'tambourine' },
+  yuri:  { hairStyle: 'long',  hair: ['#4a4a6a', '#1a1a2a'], hair3: ['#ffd0e0', '#d090b0'], iris: '#5a4ad0', body: ['#e8e0ff', '#a8a0d0'], body2: ['#3a4a8a', '#1a2a5a'], legs: '#ffdcc2', boots: '#3a3a5a', hat: 'ribbon',   hatColor: '#5a4ad0', outfit: 'dress', weapon: 'flag' },
+};
+
+// 흰색과 섞어 밝게 (★5 천사 옷)
+function lighten(hex, k) {
+  const n = parseInt(hex.slice(1), 16), r = n >> 16, gg = (n >> 8) & 255, b = n & 255;
+  const f = v => Math.round(v + (255 - v) * k).toString(16).padStart(2, '0');
+  return '#' + f(r) + f(gg) + f(b);
+}
+
+// ── 머리 모양 ──
+function hairFront(style, c1, c2) {
+  return g => {
+    const hc = lin(g, 0, 8, 0, 40, [[0, c1], [1, c2]]);
+    if (style === 'spiky') {
+      shape(g, () => {
+        g.moveTo(22, 34); g.lineTo(18, 18); g.lineTo(28, 20); g.lineTo(26, 6); g.lineTo(38, 12); g.lineTo(44, 0); g.lineTo(52, 10); g.lineTo(62, 2);
+        g.lineTo(64, 14); g.lineTo(76, 10); g.lineTo(72, 22); g.lineTo(78, 30);
+        g.lineTo(68, 26); g.lineTo(62, 32); g.lineTo(56, 24); g.lineTo(50, 31); g.lineTo(44, 23); g.lineTo(37, 31); g.lineTo(31, 24); g.lineTo(27, 34); g.closePath();
+      }, hc, 2.5);
+    } else if (style === 'short') {
+      shape(g, () => {
+        g.moveTo(23, 30); g.quadraticCurveTo(22, 6, 48, 6); g.quadraticCurveTo(74, 6, 73, 30);
+        g.lineTo(66, 22); g.lineTo(56, 26); g.lineTo(46, 20); g.lineTo(36, 26); g.lineTo(28, 22); g.closePath();
+      }, hc, 2.5);
+    } else {
+      bangs(c1, c2, style !== 'bob')(g);
+      if (style === 'bob') {
+        shape(g, () => { g.moveTo(24, 24); g.quadraticCurveTo(16, 42, 26, 52); g.lineTo(30, 34); g.closePath(); }, hc, 2.5);
+        shape(g, () => { g.moveTo(71, 24); g.quadraticCurveTo(80, 42, 70, 52); g.lineTo(66, 34); g.closePath(); }, hc, 2.5);
+      }
+    }
+    shine(g, 40, 12, 8, 3, 0.35, -0.15);
+  };
+}
+function hairBack(style, c1, c2) {
+  if (style === 'long') return longHair(c1, c2);
+  if (style === 'twin') return g => {
+    const hc = lin(g, 0, 20, 0, 70, [[0, c1], [1, c2]]);
+    shape(g, () => { g.moveTo(24, 22); g.quadraticCurveTo(6, 40, 14, 66); g.quadraticCurveTo(22, 60, 28, 40); g.closePath(); }, hc, 2.5);
+    shape(g, () => { g.moveTo(72, 22); g.quadraticCurveTo(90, 40, 82, 66); g.quadraticCurveTo(74, 60, 68, 40); g.closePath(); }, hc, 2.5);
+  };
+  return null;
+}
+
+// ── 모자·머리 장식 ──
+const HATS = {
+  none: null,
+  hood: c => g => {},                                      // 뒤쪽은 hoodBack에서
+  wizard: c => g => {
+    oval(g, 46, 16, 30, 6, lin(g, 0, 10, 0, 22, [[0, c], [1, '#2a1a5a']]), 2.5, -0.08);
+    shape(g, () => { g.moveTo(28, 15); g.quadraticCurveTo(40, -2, 70, -3); g.quadraticCurveTo(58, 4, 64, 14); g.quadraticCurveTo(46, 19, 28, 15); }, lin(g, 30, -2, 60, 16, [[0, lighten(c, 0.2)], [1, c]]), 2.5);
+    shape(g, () => { g.moveTo(30, 12); g.quadraticCurveTo(46, 16, 63, 11); g.lineTo(64, 15); g.quadraticCurveTo(46, 20, 29, 16); g.closePath(); }, '#f0c95a', 2);
+    star(g, 54, 8, 4, '#ffe27a');
+  },
+  witch: c => g => {
+    oval(g, 48, 15, 34, 6.5, c, 2.5, -0.06);
+    shape(g, () => { g.moveTo(30, 14); g.lineTo(52, -2); g.lineTo(66, 13); g.quadraticCurveTo(48, 18, 30, 14); }, lin(g, 0, -2, 0, 16, [[0, lighten(c, 0.25)], [1, c]]), 2.5);
+    shape(g, () => { g.moveTo(32, 11); g.quadraticCurveTo(48, 15, 64, 10); g.lineTo(65, 14); g.quadraticCurveTo(48, 19, 31, 15); g.closePath(); }, '#ff5a4a', 2);
+  },
+  bandana: c => g => {
+    shape(g, () => { g.moveTo(24, 20); g.quadraticCurveTo(48, 4, 72, 18); g.lineTo(72, 24); g.quadraticCurveTo(48, 12, 24, 26); g.closePath(); }, lin(g, 0, 6, 0, 26, [[0, lighten(c, 0.2)], [1, c]]), 2.5);
+    shape(g, () => { g.moveTo(25, 22); g.quadraticCurveTo(14, 26, 12, 36); g.lineTo(18, 34); g.quadraticCurveTo(22, 28, 28, 25); g.closePath(); }, c, 2);
+    oval(g, 44, 16, 6, 5, rad(g, 44, 16, 6, [[0, '#e0f8ff'], [1, '#5ab0d0']]), 2.5);
+    oval(g, 57, 15, 6, 5, rad(g, 57, 15, 6, [[0, '#e0f8ff'], [1, '#5ab0d0']]), 2.5);
+  },
+  star: c => g => { star(g, 30, 14, 8, c); star(g, 66, 12, 5, c); },
+  circlet: c => g => {
+    g.strokeStyle = OUT; g.lineWidth = 5; g.beginPath(); g.moveTo(26, 22); g.quadraticCurveTo(48, 14, 72, 21); g.stroke();
+    g.strokeStyle = c; g.lineWidth = 3; g.beginPath(); g.moveTo(26, 22); g.quadraticCurveTo(48, 14, 72, 21); g.stroke();
+    oval(g, 49, 17, 3.5, 3.5, '#5ab0ff', 2);
+  },
+  headband: c => g => {
+    shape(g, () => { g.moveTo(24, 22); g.quadraticCurveTo(48, 15, 73, 21); g.lineTo(73, 26); g.quadraticCurveTo(48, 20, 24, 27); g.closePath(); }, c, 2);
+    shape(g, () => { g.moveTo(25, 24); g.lineTo(14, 22); g.lineTo(16, 30); g.closePath(); }, c, 2);
+  },
+  helm: c => g => {
+    shape(g, () => { g.moveTo(22, 26); g.quadraticCurveTo(22, 2, 48, 2); g.quadraticCurveTo(74, 2, 74, 26); g.lineTo(66, 26); g.lineTo(66, 20); g.lineTo(30, 20); g.lineTo(30, 26); g.closePath(); },
+      lin(g, 0, 2, 0, 26, [[0, '#ffffff'], [0.4, c], [1, '#6a7490']]), 2.5);
+    shape(g, () => g.roundRect(44, 0, 8, 22, 3), '#d0443c', 2);
+  },
+  beret: c => g => { oval(g, 50, 12, 26, 9, lin(g, 0, 3, 0, 21, [[0, lighten(c, 0.2)], [1, c]]), 2.5, -0.1); oval(g, 52, 4, 3, 3, c, 2); },
+  raincap: c => g => {
+    oval(g, 48, 18, 32, 7, lin(g, 0, 11, 0, 25, [[0, lighten(c, 0.2)], [1, '#d0a020']]), 2.5, -0.05);
+    shape(g, () => { g.moveTo(28, 17); g.quadraticCurveTo(30, 2, 48, 2); g.quadraticCurveTo(66, 2, 68, 16); g.quadraticCurveTo(48, 21, 28, 17); }, c, 2.5);
+  },
+  cap: c => g => {
+    shape(g, () => { g.moveTo(25, 20); g.quadraticCurveTo(26, 3, 48, 3); g.quadraticCurveTo(70, 3, 71, 20); g.quadraticCurveTo(48, 15, 25, 20); }, lin(g, 0, 3, 0, 20, [[0, lighten(c, 0.2)], [1, c]]), 2.5);
+    shape(g, () => { g.moveTo(66, 17); g.quadraticCurveTo(82, 16, 86, 22); g.quadraticCurveTo(76, 23, 64, 21); g.closePath(); }, c, 2.5);
+  },
+  veil: c => g => {
+    shape(g, () => { g.moveTo(26, 18); g.quadraticCurveTo(48, 10, 70, 18); g.lineTo(70, 23); g.quadraticCurveTo(48, 16, 26, 23); g.closePath(); }, '#f0c95a', 2);
+    oval(g, 48, 15, 4, 4, '#ff9ac0', 2);
+  },
+  nurse: c => g => {
+    shape(g, () => { g.moveTo(34, 12); g.lineTo(62, 12); g.lineTo(58, 2); g.lineTo(38, 2); g.closePath(); }, c, 2.5);
+    g.fillStyle = '#e0405a'; g.fillRect(46, 4, 4, 7); g.fillRect(44.5, 5.5, 7, 4);
+  },
+  ribbon: c => g => {
+    shape(g, () => { g.moveTo(30, 12); g.quadraticCurveTo(16, 2, 18, 16); g.quadraticCurveTo(22, 22, 30, 14); }, c, 2);
+    shape(g, () => { g.moveTo(32, 12); g.quadraticCurveTo(40, -2, 44, 10); g.quadraticCurveTo(42, 18, 32, 14); }, c, 2);
+    oval(g, 31, 13, 3.5, 3.5, lighten(c, -0.0), 2);
+  },
+};
+function hoodBack(c) {
+  return g => shape(g, () => { g.moveTo(22, 30); g.quadraticCurveTo(18, 56, 30, 58); g.lineTo(66, 58); g.quadraticCurveTo(80, 50, 74, 26); g.quadraticCurveTo(48, 0, 22, 30); },
+    lin(g, 0, 10, 0, 60, [[0, lighten(c, 0.15)], [1, c]]), 2.5);
+}
+function veilBack() {
+  return g => shape(g, () => { g.moveTo(24, 18); g.quadraticCurveTo(10, 50, 20, 76); g.lineTo(40, 70); g.lineTo(40, 30); g.closePath(); }, 'rgba(255,255,255,0.85)', 2);
+}
+
+// ── 옷 ──
+const OUTFITS = {
+  tunic: (L, gold) => g => { shape(g, () => g.roundRect(33, 70, 30, 5, 2), gold ? '#f0c95a' : '#6b4a2b', 2); shape(g, () => g.roundRect(45, 69, 7, 7, 2), gold ? '#fff3a0' : '#f0c95a', 1.5); },
+  apron: (L, gold) => g => { shape(g, () => g.roundRect(39, 57, 18, 20, 5), gold ? '#fff3c8' : '#f6ecd2', 2); oval(g, 48, 70, 4, 3.5, '#e0405a', 1.5); },
+  vest: (L, gold) => g => {
+    shape(g, () => { g.moveTo(36, 54); g.lineTo(40, 78); g.lineTo(46, 78); g.lineTo(44, 55); g.closePath(); }, gold ? '#c8902a' : '#7a4a2a', 2);
+    shape(g, () => { g.moveTo(60, 54); g.lineTo(56, 78); g.lineTo(50, 78); g.lineTo(52, 55); g.closePath(); }, gold ? '#c8902a' : '#7a4a2a', 2);
+  },
+  robe: (L, gold) => g => {
+    shape(g, () => { g.moveTo(32, 64); g.lineTo(28, 84); g.quadraticCurveTo(48, 89, 68, 84); g.lineTo(64, 64); g.closePath(); }, lin(g, 0, 64, 0, 86, [[0, L.body[0]], [1, L.body[1]]]), 2.5);
+    g.strokeStyle = '#f0c95a'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(29, 82); g.quadraticCurveTo(48, 87, 67, 82); g.stroke();
+    g.lineWidth = 2; g.beginPath(); g.moveTo(48, 54); g.lineTo(48, 84); g.stroke();
+  },
+  dress: (L, gold) => g => {
+    shape(g, () => { g.moveTo(32, 66); g.quadraticCurveTo(26, 80, 24, 82); g.quadraticCurveTo(48, 88, 72, 82); g.quadraticCurveTo(70, 78, 64, 66); g.closePath(); },
+      lin(g, 0, 66, 0, 84, [[0, lighten(L.body[0], 0.15)], [1, L.body[1]]]), 2.5);
+    g.strokeStyle = gold ? '#f0c95a' : '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(27, 79); g.quadraticCurveTo(48, 85, 69, 79); g.stroke();
+    shape(g, () => { g.moveTo(37, 51); g.quadraticCurveTo(48, 60, 59, 51); g.quadraticCurveTo(48, 55, 37, 51); }, '#ffffff', 2);
+  },
+  armor: (L, gold) => g => {
+    shape(g, () => g.roundRect(37, 55, 22, 16, 6), lin(g, 0, 55, 0, 71, [[0, '#ffffff'], [0.5, gold ? '#f0d070' : '#c8d0e0'], [1, gold ? '#b08020' : '#7a849a']]), 2);
+    oval(g, 33, 55, 7, 5, gold ? '#f0c95a' : '#a8b0c8', 2); oval(g, 62, 55, 7, 5, gold ? '#f0c95a' : '#a8b0c8', 2);
+    shape(g, () => g.roundRect(33, 70, 30, 5, 2), '#6b4a2b', 2);
+  },
+};
+
+// ── 무기 (오른손) ──
+const WEAPONS = {
+  sword: g => sword(g),
+  greatsword: g => {
+    g.save(); g.translate(70, 68); g.rotate(-0.3);
+    shape(g, () => g.roundRect(-3, 0, 6, 12, 2), '#5a3418', 2);
+    shape(g, () => g.roundRect(-12, -4, 24, 6, 3), '#d0443c', 2);
+    shape(g, () => { g.moveTo(-6, -4); g.lineTo(-6, -46); g.lineTo(0, -56); g.lineTo(6, -46); g.lineTo(6, -4); g.closePath(); }, lin(g, -6, 0, 6, 0, [[0, '#ffffff'], [1, '#8a98b4']]), 2.5);
+    g.restore(); oval(g, 67, 66, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  axe: g => {
+    shape(g, () => g.roundRect(67, 30, 4.5, 50, 2), '#7a4a2a', 2);
+    shape(g, () => { g.moveTo(71, 34); g.quadraticCurveTo(92, 30, 90, 50); g.quadraticCurveTo(82, 44, 71, 48); g.closePath(); }, lin(g, 70, 0, 92, 0, [[0, '#8a98b4'], [1, '#ffffff']]), 2.5);
+    oval(g, 69, 64, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  spear: g => {
+    shape(g, () => g.roundRect(68, 10, 4, 80, 2), '#8a5a34', 2);
+    shape(g, () => { g.moveTo(70, -2); g.lineTo(76, 14); g.lineTo(64, 14); g.closePath(); }, lin(g, 64, 0, 76, 0, [[0, '#ffffff'], [1, '#9aa8c0']]), 2);
+    shape(g, () => { g.moveTo(66, 16); g.lineTo(74, 16); g.lineTo(70, 22); g.closePath(); }, '#d0443c', 1.5);
+    oval(g, 69, 64, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  shield: g => {
+    sword(g);
+    oval(g, 30, 64, 13, 15, lin(g, 0, 50, 0, 80, [[0, '#e0e8f4'], [1, '#7a849a']]), 3);
+    star(g, 30, 64, 6, '#f0c95a');
+  },
+  bow: g => {
+    g.strokeStyle = OUT; g.lineWidth = 4.5; g.beginPath(); g.moveTo(70, 34); g.quadraticCurveTo(88, 62, 70, 90); g.stroke();
+    g.strokeStyle = '#a8703e'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(70, 34); g.quadraticCurveTo(88, 62, 70, 90); g.stroke();
+    g.strokeStyle = '#f0f0f0'; g.lineWidth = 1; g.beginPath(); g.moveTo(70, 34); g.lineTo(70, 90); g.stroke();
+    oval(g, 74, 62, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  crossbow: g => {
+    shape(g, () => g.roundRect(60, 58, 24, 6, 2), '#8a5a34', 2);
+    g.strokeStyle = OUT; g.lineWidth = 3; g.beginPath(); g.moveTo(80, 48); g.quadraticCurveTo(88, 61, 80, 74); g.stroke();
+    g.strokeStyle = '#e8e0d0'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(80, 48); g.lineTo(70, 61); g.lineTo(80, 74); g.stroke();
+    shape(g, () => { g.moveTo(82, 59); g.lineTo(92, 61); g.lineTo(82, 63); g.closePath(); }, '#c8d0dc', 1.5);
+    oval(g, 64, 64, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  sling: g => {
+    g.strokeStyle = '#8a5a34'; g.lineWidth = 4; g.beginPath(); g.moveTo(70, 70); g.lineTo(70, 54); g.lineTo(64, 44); g.moveTo(70, 54); g.lineTo(78, 44); g.stroke();
+    g.strokeStyle = '#d04a4a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(64, 44); g.quadraticCurveTo(71, 52, 78, 44); g.stroke();
+    oval(g, 70, 66, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  staff_leaf: g => staff(g, '#9a6a3a', g => { oval(g, 64, 16, 7, 4, '#7ad070', 2, -0.6); oval(g, 78, 15, 7, 4, '#7ad070', 2, 0.6); oval(g, 71, 9, 4, 7, '#9ae890', 2); }),
+  staff_orb: g => staff(g, '#8a6aa0', g => { glowAt(g, 70, 14, 16, 'rgba(140,220,255,0.7)'); oval(g, 70, 14, 7, 7, rad(g, 70, 14, 8, [[0, '#ffffff'], [0.5, '#9adcff'], [1, '#3a8ad0']]), 2); }),
+  staff_fire: g => staff(g, '#5a3418', g => {
+    glowAt(g, 70, 12, 18, 'rgba(255,150,60,0.7)');
+    shape(g, () => { g.moveTo(62, 18); g.quadraticCurveTo(60, 6, 70, -2); g.quadraticCurveTo(72, 8, 78, 6); g.quadraticCurveTo(82, 16, 74, 20); g.closePath(); }, lin(g, 0, -2, 0, 20, [[0, '#ffe27a'], [1, '#ff5a2a']]), 2);
+  }),
+  staff_star: g => staff(g, '#e0b040', g => { glowAt(g, 70, 12, 18, 'rgba(255,240,160,0.8)'); star(g, 70, 12, 10, '#fff3a0'); }),
+  book: g => {
+    shape(g, () => g.roundRect(60, 56, 20, 16, 2), lin(g, 0, 56, 0, 72, [[0, '#8a3a5a'], [1, '#5a1a3a']]), 2.5);
+    shape(g, () => g.rect(62, 58, 16, 3), '#f0c95a', 1);
+    oval(g, 63, 66, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  lute: g => {
+    oval(g, 66, 70, 11, 9, lin(g, 0, 60, 0, 80, [[0, '#d8a060'], [1, '#9a6030']]), 2.5, 0.4);
+    shape(g, () => { g.moveTo(70, 64); g.lineTo(84, 42); g.lineTo(87, 45); g.lineTo(73, 67); g.closePath(); }, '#7a4a2a', 2);
+    oval(g, 66, 70, 3, 3, '#3a2010', 0);
+    oval(g, 62, 64, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  flag: g => {
+    shape(g, () => g.roundRect(68, 10, 4, 80, 2), '#8a5a34', 2);
+    shape(g, () => { g.moveTo(72, 12); g.quadraticCurveTo(84, 8, 94, 14); g.lineTo(92, 32); g.quadraticCurveTo(82, 26, 72, 30); g.closePath(); }, lin(g, 72, 0, 94, 0, [[0, '#5a4ad0'], [1, '#9a8aff']]), 2);
+    star(g, 83, 21, 4, '#ffe27a');
+    oval(g, 69, 64, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  tambourine: g => {
+    oval(g, 70, 62, 11, 11, '#ffe9c8', 3); oval(g, 70, 62, 7, 7, '#ffd25e', 0);
+    [[60, 56], [80, 56], [62, 70], [78, 70]].forEach(([x, y]) => oval(g, x, y, 2.5, 2.5, '#c8c8d8', 1.5));
+    oval(g, 66, 66, 4.6, 4.6, '#ffd6b8', 2);
+  },
+  bandage: g => {
+    oval(g, 68, 64, 8, 8, '#ffffff', 2.5); oval(g, 68, 64, 3, 3, '#e0d8c8', 1.5);
+    g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.beginPath(); g.moveTo(74, 68); g.quadraticCurveTo(82, 76, 78, 84); g.stroke();
+    oval(g, 63, 68, 4.6, 4.6, '#ffd6b8', 2);
+  },
+};
+
+// 각성 단계별 꾸밈 (몸 뒤)
+function wings(g) {
+  for (const s of [-1, 1]) {
+    g.save(); g.translate(48, 56); g.scale(s, 1);
+    shape(g, () => { g.moveTo(8, 0); g.quadraticCurveTo(30, -26, 44, -18); g.quadraticCurveTo(40, -6, 34, -4); g.quadraticCurveTo(40, 4, 30, 8); g.quadraticCurveTo(22, 12, 8, 6); g.closePath(); },
+      lin(g, 0, -20, 0, 10, [[0, '#ffffff'], [1, '#d8e4ff']]), 2.5);
+    g.strokeStyle = 'rgba(150,170,220,0.6)'; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(14, 0); g.quadraticCurveTo(28, -10, 38, -14); g.moveTo(14, 4); g.quadraticCurveTo(26, 0, 32, 2); g.stroke();
+    g.restore();
+  }
+}
+function cape(g, c) {
+  shape(g, () => { g.moveTo(34, 52); g.quadraticCurveTo(18, 70, 20, 84); g.quadraticCurveTo(34, 88, 46, 84); g.lineTo(46, 56); g.closePath(); }, lin(g, 0, 52, 0, 88, [[0, c], [1, lighten(c, -0.0)]]), 2.5);
+}
+
+const ALLY_GLOW = { heal: '150,255,180', magic: '190,150,255', shot: '255,210,120', warrior: '255,140,120', support: '140,220,255' };
+
+// 동료 그림 하나: id, 별(1~5), 유형(빛 색)
+function drawAlly(id, starN, type) {
+  const L = ALLY_LOOKS[id];
+  const s = starN || 1;
+  const body = s >= 5 ? [lighten(L.body2[0], 0.55), lighten(L.body2[1], 0.35)] : s >= 2 ? L.body2 : L.body;
+  const hair = s >= 3 ? L.hair3 : L.hair;
+  const look = { ...L, body };
+  const hatFn = L.hat && HATS[L.hat] ? HATS[L.hat](s >= 4 ? '#f0c95a' : L.hatColor || '#888') : null;
+  const backs = [];
+  if (s >= 4) backs.push(g => { glowAt(g, 48, 50, 46, `rgba(${ALLY_GLOW[type] || '255,240,180'},0.55)`); });
+  if (s >= 5) backs.push(wings);
+  if (s >= 3) backs.push(g => cape(g, body[1]));
+  if (L.hat === 'hood') backs.push(hoodBack(s >= 4 ? '#f0e0a0' : body[0]));
+  if (L.hat === 'veil') backs.push(veilBack());
+  const hb = hairBack(L.hairStyle, hair[0], hair[1]);
+  if (hb) backs.push(hb);
+  return chibi({
+    iris: L.iris, legs: L.legs, boots: s >= 4 ? '#c8902a' : L.boots, skin: L.skin, ear: L.ear,
+    body: body[0], bodyD: body[1], sleeveD: body[1],
+    backHair: g => backs.forEach(f => f(g)),
+    outfit: OUTFITS[L.outfit] ? OUTFITS[L.outfit](look, s >= 4) : null,
+    hair: hairFront(L.hairStyle, hair[0], hair[1]),
+    hat: g => {
+      if (hatFn) hatFn(g);
+      if (s >= 5) {            // 천사 고리
+        g.strokeStyle = 'rgba(255,230,120,0.5)'; g.lineWidth = 7; g.beginPath(); g.ellipse(48, -1 + 4, 15, 4, 0, 0, TAU); g.stroke();
+        g.strokeStyle = '#ffe27a'; g.lineWidth = 3; g.beginPath(); g.ellipse(48, 3, 15, 4, 0, 0, TAU); g.stroke();
+      }
+    },
+    front: WEAPONS[L.weapon] || sword,
+  });
+}
+
+// 표정까지 포함해 캐시 (이스터에그용 MOOD 반영)
+const ALLY_CACHE = {};
+function allySprite(id, starN, type, mood) {
+  const key = id + ':' + starN + ':' + (mood || 0);
+  if (!ALLY_CACHE[key]) {
+    const keep = MOOD;
+    MOOD = mood || 0;
+    ALLY_CACHE[key] = drawAlly(id, starN, type);
+    MOOD = keep;
+  }
+  return ALLY_CACHE[key];
+}
+
 // 모든 그림 준비. sprites/이름.png 파일이 있으면 그것을 우선 사용한다.
 const SPR = {};
 function loadSprites() {
   const built = {
     hero_m: drawBoy(),
     hero_f: drawGirl(),
-    miru: drawMiru(),
-    serin: drawSerin(),
+    miru: drawAlly('miru', 1),
+    serin: drawAlly('serin', 1),
     slime: drawSlime(),
     mushroom: drawMushroom(),
     bee: drawBee(),
@@ -685,7 +989,7 @@ function loadSprites() {
     sprout: drawSprout(),
     slime_king: drawSlimeKing(),
     treant: drawTreant(),
-    kai: drawKai(),
+    kai: drawAlly('kai', 1),
     cactus: drawCactus(),
     scorpion: drawScorpion(),
     mummy: drawMummy(),
@@ -702,7 +1006,7 @@ function loadSprites() {
   };
   Object.assign(SPR, built);
   // 이스터에그용 표정 그림: 이름_m1 (일자 입), 이름_m2 (거꾸로 미소)
-  const moody = { hero_m: drawBoy, hero_f: drawGirl, miru: drawMiru, serin: drawSerin, kai: drawKai, scorpion: drawScorpion, slime: drawSlime, mushroom: drawMushroom, bee: drawBee, wisp: drawWisp };
+  const moody = { hero_m: drawBoy, hero_f: drawGirl, miru: () => drawAlly('miru', 1), serin: () => drawAlly('serin', 1), kai: () => drawAlly('kai', 1), scorpion: drawScorpion, slime: drawSlime, mushroom: drawMushroom, bee: drawBee, wisp: drawWisp };
   for (const m of [1, 2]) {
     MOOD = m;
     for (const [k, f] of Object.entries(moody)) SPR[k + '_m' + m] = f();
