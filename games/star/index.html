@@ -241,7 +241,17 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .g4 .gbeam{background:linear-gradient(0deg,transparent,#ffb84a);opacity:.7}
 .g5 .gbeam{background:linear-gradient(0deg,#ff5a6e,#ffd25e,#7ad0ff);opacity:.8}
 .g4,.g5{box-shadow:0 0 2cqw #ffd25e}
-#gOk{padding:1cqw 4cqw;font-size:1.8cqw}
+#gOk{padding:.8cqw 3cqw;font-size:1.5cqw;opacity:.85}
+#gAgain{margin:0 auto 1.4cqw;opacity:0}
+#gAgain.show{animation:againin .4s 1.2s forwards}
+@keyframes againin{from{opacity:0;transform:translateY(1cqw)}to{opacity:1;transform:none}}
+.gstreak{color:#fff3c8;font-size:1.3cqw;font-weight:800;margin-bottom:.8cqw}
+.gstreak b{color:#ffd25e;font-size:1.6cqw}.gstreak em{font-style:normal;color:#7dffa0;font-size:1.6cqw}
+.againrow{display:flex;gap:1.2cqw;justify-content:center}
+.again{padding:1cqw 2.6cqw;border-radius:1.2cqw;border:3px solid #ffe27a;background:linear-gradient(180deg,#ffd25e,#f0902a);color:#4a2a00;font-weight:900;font-size:1.8cqw;box-shadow:0 0 1.6cqw #ffd25e99;animation:againglow 1.2s infinite}
+.again small{display:block;font-size:1.1cqw;font-weight:800}.again s{opacity:.6}
+.again:disabled{filter:grayscale(1);opacity:.5;animation:none;cursor:not-allowed}
+@keyframes againglow{50%{box-shadow:0 0 2.6cqw #ffe27a;transform:scale(1.04)}}
 /* 성장 연출 */
 #fanfare{position:absolute;left:0;right:0;top:30%;z-index:7;display:flex;flex-direction:column;align-items:center;pointer-events:none}
 #fanfare b{font-size:6cqw;font-weight:900;color:#fff3a0;text-shadow:0 .3cqw 0 #c8800a,0 0 2cqw #ffc83a,0 0 4cqw #fff}
@@ -281,6 +291,9 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 #pageToast{position:fixed;left:50%;top:76px;transform:translateX(-50%);background:#5a3418e6;padding:10px 22px;border-radius:12px;font-weight:900;font-size:18px;opacity:0;pointer-events:none;z-index:9}
 #pageToast.show{animation:ptoast 1.6s ease-out}
 @keyframes ptoast{0%{opacity:0;transform:translate(-50%,8px)}12%,75%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+/* 리더 */
+.lead{background:#fff3c8;border:2px solid #f0c95a;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;color:#6a4a10;margin:6px 0}
+.acard .crown{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-style:normal;font-size:18px}
 /* 상성표 */
 .aff{margin-top:12px;background:#fff7e6;border:2px solid var(--wood);border-radius:12px;padding:10px 14px}
 .aff table{border-collapse:collapse;margin:6px 0;font-size:13px}
@@ -357,10 +370,12 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 #start .box{text-align:center;padding:20px;margin:auto}
 #start h1{margin:0 0 4px;font-size:52px;letter-spacing:-.03em;color:#ffd25e;text-shadow:0 0 24px #ffd25e66}
 #start p{margin:0 0 28px;color:#c8cde0}
-.pick{display:flex;gap:18px;justify-content:center;margin-bottom:22px}
+.pick{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-bottom:22px}
+@media (max-width:600px){.pick{gap:8px}.pick button{width:30vw;padding:8px}.pick canvas{width:24vw;height:24vw}}
 .pick button{width:170px;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--panel);font-weight:800}
 .pick button.on{border-color:#ffc83a;background:#fff1c8;box-shadow:0 0 18px #ffd25e66}
 .pick canvas{display:block;width:128px;height:128px;margin:0 auto 8px}
+.pick small{display:block;font-size:12px;color:var(--muted)}
 #nameIn{width:300px;max-width:80vw;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:#fffdf6;color:var(--text);font:inherit;font-size:16px;text-align:center}
 #go{display:block;margin:16px auto 0;padding:12px 40px;border-radius:12px;border:0;background:linear-gradient(180deg,#ffdf7e,#e8ad2e);color:#2a1c00;font-weight:900;font-size:17px}
 .msg{min-height:20px;margin-top:10px;color:#ff8a96;font-size:13px}
@@ -391,11 +406,8 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
       <p class="small">무료 · 설치 없이 브라우저에서 바로 플레이하는 방치형 판타지 RPG<br>로그인 후 시작 · 진행 상황은 계정에 저장되어 어느 기기에서든 이어서 플레이<br><a href="privacy.html" target="_blank">개인정보처리방침</a></p>
     </div>
     <div id="createBox" hidden>
-    <div class="pick">
-      <button data-g="m"><canvas width="96" height="96" id="pm"></canvas>소년</button>
-      <button data-g="f"><canvas width="96" height="96" id="pf"></canvas>소녀</button>
-    </div>
-    <input id="nameIn" maxlength="8" placeholder="이름 입력 (최대 8자)">
+    <p class="small">함께 떠날 첫 동료를 고르면 그 동료가 리더가 됨</p>
+    <div class="pick" id="starterPick"></div>
     <button id="go">모험 시작</button>
     <div class="msg" id="startMsg"></div>
     </div>
@@ -406,7 +418,7 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
   <div class="stagebox">
     <canvas id="cv" width="960" height="540"></canvas>
 
-    <div id="gacha" hidden><div class="gbox"><h2 id="gTitle">장비 뽑기</h2><div class="gcards" id="gCards"></div><button class="stone" id="gOk" onclick="document.getElementById('gacha').hidden=true">확인</button></div></div>
+    <div id="gacha" hidden><div class="gbox"><h2 id="gTitle">장비 뽑기</h2><div class="gcards" id="gCards"></div><div id="gAgain"></div><button class="stone" id="gOk">나가기</button></div></div>
     <div id="fanfare" hidden><b id="ffTitle"></b><span id="ffSub"></span></div>
     <!-- 로비 (캠프) -->
     <div class="ui" id="lobbyUI">
@@ -477,10 +489,10 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">◀ 돌아가기</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261012c"></script>
-<script src="scenery.js?v=20261012c"></script>
-<script src="audio.js?v=20261012c"></script>
-<script src="game.js?v=20261012c"></script>
-<script type="module" src="cloud.js?v=20261012c"></script>
+<script src="sprites.js?v=20261012f"></script>
+<script src="scenery.js?v=20261012f"></script>
+<script src="audio.js?v=20261012f"></script>
+<script src="game.js?v=20261012f"></script>
+<script type="module" src="cloud.js?v=20261012f"></script>
 </body>
 </html>

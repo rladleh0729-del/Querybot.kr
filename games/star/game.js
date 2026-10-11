@@ -68,7 +68,7 @@ function power(s) {
   const crit = Math.min(100, Math.max(0, s.crit - res)) / 100;
   let dps = s.atk * (1 + crit * (s.critDmg - 1)) * s.aspd * (1 + (m.double || 0) / 100);
   let sustain = s.regen + dps * (m.drain || 0) / 100;
-  if (save && save.party) for (const id of save.party) {
+  if (save && save.party) for (const id of team()) {
     const A = allyById(id), lv = save.allies[id] || 1;
     if (!A) continue;
     const p = allyPow(id);
@@ -187,6 +187,7 @@ function fullStats(lv) {
   s.atk = Math.floor(s.atk * sh);
   s.maxHp = Math.floor(s.maxHp * sh);
   s.regen *= sh;
+  if (save && save.allies) { const lm = leaderMul(); s.atk = Math.floor(s.atk * lm); s.maxHp = Math.floor(s.maxHp * lm); s.regen *= lm; }
   const w = equipped('weapon'), a = equipped('armor'), c = equipped('acc');
   if (w) s.atk = Math.floor(s.atk * (1 + w.value / 100));
   if (a) { s.maxHp = Math.floor(s.maxHp * (1 + a.value / 100)); s.regen *= 1 + a.value / 100; }
@@ -200,7 +201,7 @@ function fullStats(lv) {
   if (tc('support')) s.maxHp = Math.floor(s.maxHp * (tc('support') >= 2 ? 1.2 : 1.1));
   if (tc('heal')) s.regen += s.maxHp * (tc('heal') >= 2 ? 0.04 : 0.02);
   if (tc('shot')) s.crit += tc('shot') >= 2 ? 10 : 5;
-  for (const id of ok ? save.party : []) {
+  for (const id of ok ? team() : []) {
     const A = allyById(id);
     if (A && A.type === 'support') { const lv = save.allies[id] || 1, p = allyPow(id); s.atk = Math.floor(s.atk * (1 + (4 + lv) * p / 100)); s.aspd *= 1 + (2 + lv * 0.5) * p / 100; }
   }
@@ -411,10 +412,38 @@ function addItem(it) {
   it.sold = true;
   return false;
 }
-function doGacha(n) {
-  const cost = n === 10 ? GACHA10_COST : GACHA_COST * n;
-  if (save.dust < cost) return alert('별가루 부족');
+// ── 다시 뽑기 ──
+// 결과 화면에서 바로 다시 뽑으면 연속 횟수마다 5%씩 할인 (최대 30%). 결과 화면을 나가면 할인이 사라진다
+let gStreak = { kind: null, n: 0 };
+const AGAIN_STEP = 5, AGAIN_MAX = 30;
+const againDisc = k => Math.min(AGAIN_MAX, k * AGAIN_STEP);
+const againPrice = (base, k) => Math.ceil(base * (1 - againDisc(k) / 100));
+// again: 결과 화면의 '다시 뽑기'로 눌렀는지. 아니면 연속 기록을 새로 시작
+function payGacha(kind, base, again) {
+  const k = again && gStreak.kind === kind ? gStreak.n + 1 : 0;
+  const cost = againPrice(base, k);
+  if (save.dust < cost) { alert('별가루 부족'); return false; }
   save.dust -= cost;
+  gStreak = { kind, n: k };
+  return true;
+}
+function showAgain(kind) {
+  const b1 = kind === 'ally' ? AGACHA_COST : GACHA_COST, b10 = kind === 'ally' ? AGACHA10_COST : GACHA10_COST;
+  const k = gStreak.n + 1, d = againDisc(k);
+  const btn = (cnt, base) => { const c = againPrice(base, k); return `<button class="again" data-again="${cnt}" ${save.dust < c ? 'disabled' : ''}>다시 ${cnt}회 뽑기<small><s>${base}</s> → 별가루 ${c}</small></button>`; };
+  const el = $('gAgain');
+  el.innerHTML = `<div class="gstreak">${gStreak.n ? `<b>${gStreak.n}연속!</b> · ` : ''}지금 다시 뽑으면 <em>-${d}%</em>${d < AGAIN_MAX ? ` · 다음엔 -${againDisc(k + 1)}%` : ' · 최대 할인'} · 나가면 할인 사라짐 · 보유 별가루 ${fmt(save.dust)}</div>
+    <div class="againrow">${btn(1, b1)}${btn(10, b10)}</div>`;
+  el.querySelectorAll('[data-again]').forEach(b => b.onclick = () => (kind === 'ally' ? doAllyGacha : doGacha)(+b.dataset.again, true));
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+function closeGacha() {
+  $('gacha').hidden = true;
+  gStreak = { kind: null, n: 0 };
+}
+
+function doGacha(n, again) {
+  if (!payGacha('gear', n === 10 ? GACHA10_COST : GACHA_COST * n, again)) return;
   const got = [];
   for (let i = 0; i < n; i++) got.push(makeItem(topStage(), gachaGrade()));
   if (n === 10 && !got.some(it => it.grade >= 2)) got[9] = makeItem(topStage(), gachaGrade(2));   // 10회는 희귀 이상 1개 보장
@@ -423,6 +452,7 @@ function doGacha(n) {
   writeSave(); updateHud();
   closeModal();
   showGacha(got);
+  showAgain('gear');
 }
 let gachaTab = 'ally';
 function showGacha(items) {
@@ -506,11 +536,11 @@ function fanfare(title, sub, sound) {
 // ── 동료 ─────────────────────────────────────
 // r: 등급 (1 일반 · 2 희귀 · 3 전설). 스토리 동료는 보스를 깨면 합류하고 뽑기에서도 나온다(조각)
 const ALLY_TYPES = {
-  heal:    { role: '치유형', every: 5,   desc: (lv, p) => `5초마다 주인공 체력 ${Math.round((6 + lv) * p)}% 회복` },
+  heal:    { role: '치유형', every: 5,   desc: (lv, p) => `5초마다 체력이 가장 낮은 아군 체력 ${Math.round((6 + lv) * p)}% 회복` },
   magic:   { role: '마법형', every: 4,   desc: (lv, p) => `4초마다 앞의 적 3마리에게 공격력 ${Math.round((50 + lv * 10) * p)}% 마법 피해` },
   shot:    { role: '사격형', every: 2.5, desc: (lv, p) => `2.5초마다 앞의 적에게 공격력 ${Math.round((100 + lv * 20) * p)}% 피해` },
   warrior: { role: '전사형', every: 3,   desc: (lv, p) => `3초마다 가까운 적에게 공격력 ${Math.round((120 + lv * 20) * p)}% 피해` },
-  support: { role: '지원형', every: 0,   desc: (lv, p) => `주인공 공격력 +${Math.round((4 + lv) * p)}% · 공격 속도 +${Math.round((2 + lv * 0.5) * p)}%` },
+  support: { role: '지원형', every: 0,   desc: (lv, p) => `리더 공격력 +${Math.round((4 + lv) * p)}% · 공격 속도 +${Math.round((2 + lv * 0.5) * p)}%` },
 };
 const ALLIES = [
   { id: 'miru',  name: '미르', type: 'heal',    r: 2, from: '챕터 1 보스' },
@@ -550,6 +580,25 @@ const allyStar = id => (save.astar && save.astar[id]) || 1;
 const allyName = id => { const A = allyById(id), p = PREFIX[A.type][allyStar(id) - 1]; return (p ? p + ' ' : '') + A.name; };
 const allyPow = id => RARITY[allyById(id).r].mul * (1 + 0.25 * (allyStar(id) - 1));
 function allyCost(lv) { return Math.floor(400 * Math.pow(1.45, lv)); }
+
+// ── 리더: 주인공 없이 동료 1명이 맨 앞에서 싸운다 ──
+// 강화·장비·특성·전직·스킬·물약은 리더에게 적용. 리더가 쓰러져도 동료가 남아 있으면 계속, 모두 쓰러지면 패배
+const STARTERS = ['tobi', 'rio', 'danbi'];
+const leaderId = () => (save && save.leader && allyById(save.leader)) ? save.leader : 'tobi';
+const team = () => [save.leader].concat(save.party || []).filter(id => id && allyById(id));
+const leaderMul = () => 1 + (allyPow(leaderId()) - 1) * 0.25;        // 등급·각성이 높은 리더일수록 강함
+function leaderStyle() {
+  const k = MOTION[ALLY_LOOKS[leaderId()].weapon] || 'dash';
+  return k === 'cast' || k === 'play' ? 'cast' : k === 'shoot' ? 'shoot' : 'melee';
+}
+function setLeader(id) {
+  const old = save.leader;
+  if (!save.allies[id] || id === old) return;
+  save.party = (save.party || []).filter(x => x !== id);
+  save.leader = id;
+  if (old && save.allies[old] && save.party.length < partyMax()) save.party.unshift(old);
+}
+const partyWiped = () => hero.hp <= 0 && (save.party || []).every(id => allyDown(id));
 // 배치 칸: 3칸, 챕터 2·3 보스를 깨면 1칸씩
 const partyMax = () => 3 + (save.bosses && save.bosses[2] ? 1 : 0) + (save.bosses && save.bosses[3] ? 1 : 0);
 const PARTY_MAX = 5;
@@ -568,7 +617,7 @@ const SYNERGY = [
   { type: 'warrior', text: n => `전사형 ${n} · 받는 피해 -${n >= 2 ? 10 : 5}%` },
   { type: 'support', text: n => `지원형 ${n} · 체력 +${n >= 2 ? 20 : 10}%` },
 ];
-const typeCount = type => (save.party || []).filter(id => allyById(id) && allyById(id).type === type).length;
+const typeCount = type => team().filter(id => allyById(id).type === type).length;
 const partyHas = type => typeCount(type) > 0;
 // 도감: 모은 동료 1명당 공격력·체력 +1%, 각성 별 1개당 +0.5%
 function codexBonus() {
@@ -603,10 +652,8 @@ function gainAlly(id) {
   save.acopy[id] = (save.acopy[id] || 0) + 1;
   return 'copy';
 }
-function doAllyGacha(n) {
-  const cost = n === 10 ? AGACHA10_COST : AGACHA_COST;
-  if (save.dust < cost) return alert('별가루 부족');
-  save.dust -= cost;
+function doAllyGacha(n, again) {
+  if (!payGacha('ally', n === 10 ? AGACHA10_COST : AGACHA_COST, again)) return;
   const got = [];
   for (let i = 0; i < n; i++) got.push(allyRoll());
   if (n === 10 && !got.some(id => allyById(id).r >= 2)) got[9] = allyRoll(2);
@@ -623,6 +670,7 @@ function doAllyGacha(n) {
   }).join('');
   res.forEach((x, i) => setTimeout(() => Sound.reveal(allyById(x.id).r * 2 - 1), i * 180));
   $('gacha').classList.toggle('flash', res.some(x => allyById(x.id).r === 3));
+  showAgain('ally');
 }
 function awaken(id) {
   const st = allyStar(id), need = AWAKEN_COST[st];
@@ -630,6 +678,7 @@ function awaken(id) {
   save.acopy[id] -= need;
   save.astar[id] = st + 1;
   refreshStats(); writeSave(); updateHud();
+  if (id === save.leader) drawBattleIcon();
   closeModal();
   fanfare('각성!', `${allyName(id)} · ${'★'.repeat(st + 1)}`, Sound.levelUp);
   setTimeout(() => openAllies(id), 1900);
@@ -654,7 +703,7 @@ const LINES = {
 };
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-// 대화: who = hero | boss | miru | serin | kai | narr, {name}은 주인공 이름으로 바뀜
+// 대화: who = hero(리더) | boss | miru | serin | kai | narr, {name}은 리더 이름으로 바뀜
 const TALK = {
   1: {
     intro: [
@@ -767,7 +816,7 @@ function elemMul(body, el) {
 }
 // 여러 속성이 섞인 공격은 가장 잘 통하는 속성으로
 const affinity = (mon, els) => Math.max(...els.map(el => elemMul(mon.body, el)));
-const heroEls = () => [save.gender === 'f' ? 'magic' : 'slash'].concat(stats.mods.smite > 0 ? ['holy'] : []);
+const heroEls = () => { const A = allyById(leaderId()); return [A.type === 'heal' || A.type === 'support' ? 'magic' : allyEl(leaderId())].concat(stats.mods.smite > 0 ? ['holy'] : []); };
 function allyEl(id) {
   const A = allyById(id), w = ALLY_LOOKS[id].weapon;
   if (A.type === 'shot' || w === 'spear') return 'pierce';
@@ -826,9 +875,9 @@ function fmt(n) {
 // ── 저장 ────────────────────────────────────
 let save = null;
 
-function newSave(name, gender) {
-  return { name, gender, gold: 0, stage: 1, lv: { atk: 0, hp: 0, regen: 0, crit: 0, aspd: 0 },
-    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: {}, party: [], seenCh: 1, traits: {}, job: null, adv: null, traitsV: 2, astar: {}, acopy: {}, apity: 0, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
+function newSave(starter) {
+  return { name: '모험단', gender: 'm', leader: starter, gold: 0, stage: 1, lv: { atk: 0, hp: 0, regen: 0, crit: 0, aspd: 0 },
+    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: { [starter]: 1 }, party: [], seenCh: 1, traits: {}, job: null, adv: null, traitsV: 2, astar: { [starter]: 1 }, acopy: {}, apity: 0, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
 }
 
 // 탭이 여러 개면 서로 저장을 덮어쓰므로, 가장 나중에 연 탭만 저장한다
@@ -1032,8 +1081,13 @@ function giveShield() {
 
 function addFloat(text, x, y, color, big) { floats.push({ text, x, y, color, big, t: 0 }); }
 
-// 주인공이 피해를 받는다. 쓰러지면 true (부활하면 false)
+// 리더가 피해를 받는다. 리더가 이미 쓰러졌으면 맨 앞 동료가 대신 맞는다. 파티 전멸이면 true
 function takeHit(raw, color, big, noDodge) {
+  if (hero.hp <= 0) {
+    const front = (save.party || []).find(id => !allyDown(id));
+    if (front) hurtAlly(front, raw);
+    return partyWiped();
+  }
   const m = stats.mods;
   if (!noDodge && Math.random() * 100 < m.dodge) { addFloat('회피', hero.x + 16, GROUND - 40, '#9fd0ff'); return false; }
   let dmg = Math.floor(raw * (1 - m.guard / 100));
@@ -1055,7 +1109,9 @@ function takeHit(raw, color, big, noDodge) {
     return false;
   }
   hero.hp = 0;
-  return true;
+  addFloat(allyName(leaderId()) + ' 쓰러짐', hero.x + 16, GROUND - 56, '#ff9aa0', true);
+  if (!partyWiped()) say((save.party || []).find(id => !allyDown(id)), '아직 끝나지 않았어!', 2);
+  return partyWiped();
 }
 
 function notify(text, color) {
@@ -1089,8 +1145,9 @@ function updateBattle(dt) {
   hero.hurt = Math.max(0, hero.hurt - dt * 4);
   if (!battle || battle.state !== 'fight') return;
 
+  if (partyWiped()) return endBattle('lost');                // 모두 쓰러지면 패배
   battle.potionCd = Math.max(0, battle.potionCd - dt);
-  hero.hp = Math.min(stats.maxHp, hero.hp + stats.regen * dt);
+  if (hero.hp > 0) hero.hp = Math.min(stats.maxHp, hero.hp + stats.regen * dt);
   for (const a of Object.values(battle.ahp || {})) if (a.hp > 0) a.hp = Math.min(a.max, a.hp + a.max * stats.regen / stats.maxHp * dt);
   battle.curse = Math.max(0, (battle.curse || 0) - dt);
   if (battle.cleanse && (battle.cleanse.t -= dt) <= 0) {
@@ -1147,7 +1204,7 @@ function updateBattle(dt) {
       if (!battle.phase2) { battle.phase2 = true; battle.rbCd = 1.5; shake = 0.4; addFloat('폭주!', k.x + 32, GROUND - 80, '#ff5a6e', true); say('boss', '감히… 내 사막의 법칙을 따르거라!', 2.5); }
       if ((battle.rbCd -= dt) <= 0) {
         battle.rbCd = 14;
-        const singer = (save.party || []).find(id => allyById(id).type === 'support' && !allyDown(id));
+        const singer = team().find(id => allyById(id).type === 'support' && !allyDown(id));
         battle.seal = singer ? 3 : 6;
         if (singer) addFloat(allyName(singer) + '의 노래 · 봉인 약화', hero.x - 10, GROUND - 82, '#9fe0ff', true);
         SEALED = true; refreshStats(); hero.hp = Math.min(hero.hp, stats.maxHp);
@@ -1190,7 +1247,7 @@ function updateBattle(dt) {
   if (battle.sneak && battle.sneak.dead <= 0) {
     const s = battle.sneak;
     s.hurt = Math.max(0, s.hurt - dt * 4);
-    if (s.target !== 'hero' && allyDown(s.target)) { s.target = sneakTarget(); s.x = s.target === 'hero' ? hero.x - 30 : allyX(save.party.indexOf(s.target)) - 22; }
+    if (s.target === 'hero' ? hero.hp <= 0 && (save.party || []).some(id => !allyDown(id)) : allyDown(s.target)) { s.target = sneakTarget(); s.x = s.target === 'hero' ? hero.x - 30 : allyX(save.party.indexOf(s.target)) - 22; }
     if (!isWarrior(s.target)) {
       const w = readyTaunter();
       if (w) {
@@ -1240,15 +1297,17 @@ function updateBattle(dt) {
 
   // 주인공 공격 (뿌리에 묶여 있으면 못 함). 암살자가 있으면 먼저 처리
   const tgt = sneakOn ? battle.sneak : mon;
-  hero.cd -= dt;
-  if (hero.cd <= 0 && !battle.bound) {
+  if (hero.hp > 0) hero.cd -= dt; else hero.cd = Math.max(hero.cd, 0);
+  if (hero.cd <= 0 && !battle.bound && hero.hp > 0) {
     const m = stats.mods;
     const spd = (battle.cryT > 0 ? 1 + battle.cryPower : 1) * (battle.curse > 0 ? 0.5 : 1) * (tgt.align === 'evil' ? 1 + m.smiteSpd / 100 : 1);
     hero.cd += 1 / (stats.aspd * spd);
     hero.lunge = 1;
     hero.back = sneakOn;
     hero.atk = { t: 0, dur: Math.min(0.3, 0.9 / (stats.aspd * spd)), kind: 'basic' };
-    if (save.gender === 'f') battle.fx.push({ kind: 'star', from: hero.x + (sneakOn ? 10 : 22), x: tgt.x + (tgt.size || 32) / 2, t: 0, dur: 0.26 });
+    const style = leaderStyle(), tx0 = tgt.x + (tgt.size || 32) / 2;
+    if (style === 'cast') battle.fx.push({ kind: 'star', from: hero.x + (sneakOn ? 10 : 22), x: tx0, t: 0, dur: 0.26 });
+    else if (style === 'shoot') battle.fx.push({ kind: 'arrow', i: -1, x: tx0, t: 0, dur: 0.3, color: allyColor(leaderId()) });
     else battle.fx.push({ kind: 'hslash', x: tgt.x + (tgt.size || 32) / 2, t: 0.04, dur: 0.24, dash: true, dir: sneakOn ? -1 : 1 });
     const killed = hit(tgt, 1, null, 'basic', heroEls());
     battle.hits = (battle.hits || 0) + 1;
@@ -1302,7 +1361,7 @@ function updateMonsterRoles(dt) {
       if (pur >= 3) { addFloat('정화! 저주 무효', hero.x + 16, GROUND - 62, '#ffe27a', true); continue; }
       battle.curse = 4 * (1 - pur / 3);
       addFloat('저주! 공격 속도 -50%', hero.x + 16, GROUND - 62, '#c070ff', true);
-      const healer = (save.party || []).find(id => allyById(id).type === 'heal' && !allyDown(id));
+      const healer = team().find(id => allyById(id).type === 'heal' && !allyDown(id));
       if (healer) battle.cleanse = { id: healer, t: 0.8 };      // 치유형 동료가 저주를 풀어 준다
     } else if (m.role === 'necro') {
       const body = (battle.corpses || []).shift();
@@ -1392,7 +1451,7 @@ function hit(mon, mult, color, kind, els) {
   const crit = Math.random() * 100 < stats.crit - Math.max(0, mon.critRes - stats.pierce);
   const dmg = Math.floor(stats.atk * mult * (crit ? stats.critDmg : 1) * (0.9 + Math.random() * 0.2));
   if (aff < 0.99 && !crit) color = '#b8b8c0';
-  if (m.drain && kind !== 'ally') hero.hp = Math.min(stats.maxHp, hero.hp + dmg * m.drain / 100);
+  if (m.drain && kind !== 'ally' && hero.hp > 0) hero.hp = Math.min(stats.maxHp, hero.hp + dmg * m.drain / 100);
   mon.hp -= dmg;
   if (battle.dungeon) battle.dealt += dmg;
   mon.hurt = 1;
@@ -1402,7 +1461,7 @@ function hit(mon, mult, color, kind, els) {
   }
   if (repel && !m.noReflect && kind === 'basic') {
     const back = Math.floor(dmg * m.reflect / 100);
-    if (back > 0) { hero.hp = Math.max(1, hero.hp - back); addFloat('반발 -' + fmt(back), hero.x + 16, GROUND - 44, '#ff7aa8'); }
+    if (back > 0 && hero.hp > 0) { hero.hp = Math.max(1, hero.hp - back); addFloat('반발 -' + fmt(back), hero.x + 16, GROUND - 44, '#ff7aa8'); }
   }
   if (kind === 'basic' && m.fear && !mon.king && mon.hp > 0 && Math.random() * 100 < m.fear) { mon.stun = 1.5; addFloat('공포!', mon.x + 16, GROUND - 56, '#c070ff'); }
   if (m.exec && !mon.king && !battle.dungeon && mon.hp > 0 && mon.hp < mon.maxHp * 0.15) { mon.hp = 0; addFloat('처형!', mon.x + 16, GROUND - 60, '#ff5a6e', true); }
@@ -1438,11 +1497,12 @@ function dropItem(mon) {
 function updateAllies(dt, q) {
   const sn = battle.sneak && battle.sneak.dead <= 0 ? battle.sneak : null;
   const cx = t => t.x + (t.size || 32) / 2;
-  (save.party || []).forEach((id, i) => {
+  team().forEach(id => {
+    const i = id === save.leader ? -1 : save.party.indexOf(id);
     const A = allyById(id), lv = save.allies[id] || 1;
     if (!A || !A.every || allyDown(id)) return;
     const p = allyPow(id), big = allyStar(id) >= 3;
-    if (A.type === 'warrior') {
+    if (A.type === 'warrior' && i >= 0) {
       battle.tauntCd[id] = (battle.tauntCd[id] ?? 2) - dt;
       const front = q.find(m => m.dead <= 0 && m.x <= hero.x + 45);
       if (battle.tauntCd[id] <= 0 && front && !tauntOn(front) && !(sn && !isWarrior(sn.target))) {
@@ -1454,7 +1514,7 @@ function updateAllies(dt, q) {
     if (battle.allyCd[id] > 0) return;
     if (A.type === 'heal') {
       // 체력 비율이 가장 낮은 아군(주인공 또는 동료)을 치유
-      let who = 'hero', low = hero.hp / stats.maxHp;
+      let who = hero.hp > 0 ? 'hero' : null, low = hero.hp > 0 ? hero.hp / stats.maxHp : 1;
       for (const [aid, a] of Object.entries(battle.ahp || {})) if (a.hp > 0 && a.hp / a.max < low) { low = a.hp / a.max; who = aid; }
       if (low >= 0.95) return;
       const k = (6 + lv) * p / 100 * (1 + stats.mods.healAlly / 100) * (1 + stats.mods.healMul / 100);
@@ -1485,7 +1545,7 @@ function updateAllies(dt, q) {
   });
 }
 
-function allyX(i) { return hero.x - 24 - i * 18; }
+function allyX(i) { return i < 0 ? hero.x : hero.x - 24 - i * 18; }   // -1 = 리더 자리
 
 // 동료 체력: 주인공 체력의 45~85% (각성할수록 단단)
 function allyMaxHp(id) { return Math.floor(stats.maxHp * (0.35 + 0.1 * allyStar(id)) * (1 + stats.mods.allyHp / 100)); }
@@ -1493,7 +1553,7 @@ function initAllyHp() {
   battle.ahp = {}; battle.anim = {}; battle.tauntCd = {};
   for (const id of save.party || []) { const mx = allyMaxHp(id); battle.ahp[id] = { hp: mx, max: mx, hurt: 0 }; }
 }
-const allyDown = id => !battle.ahp || !battle.ahp[id] || battle.ahp[id].hp <= 0;
+const allyDown = id => id === save.leader ? hero.hp <= 0 : (!battle.ahp || !battle.ahp[id] || battle.ahp[id].hp <= 0);
 function hurtAlly(id, raw) {
   const a = battle.ahp && battle.ahp[id];
   if (!a || a.hp <= 0) return;
@@ -1531,13 +1591,13 @@ const allyColor = id => 'rgb(' + ALLY_GLOW[allyById(id).type] + ')';
 // ── 전투 중 스킬 ──
 function castSkill(slot, auto) {
   const id = save.slots[slot];
-  if (!id || !battle || battle.state !== 'fight' || battle.delay > 0) return false;
+  if (!id || !battle || battle.state !== 'fight' || battle.delay > 0 || hero.hp <= 0) return false;
   const sk = skillById(id), lv = save.skills[id];
   if (!lv || (battle.skillCd[id] || 0) > 0) return false;
   const q = battle.queue.filter(m => m.dead <= 0);
   const inRange = q.length && q[0].x <= hero.x + 40;
   const p = skillPower(sk, lv);
-  const girl = save.gender === 'f', mx = m => m.x + (m.size || 32) / 2;
+  const girl = leaderStyle() !== 'melee', mx = m => m.x + (m.size || 32) / 2;
   if (id === 'strike') {
     if (!inRange) return false;
     hero.lunge = 1.5;
@@ -1579,7 +1639,7 @@ function waveCleared() {
   if (battle.king) return endBattle('won');
   if (battle.wave < WAVES.length - 1) {
     const heal = Math.floor(stats.maxHp * WAVE_HEAL);
-    hero.hp = Math.min(stats.maxHp, hero.hp + heal);
+    hero.hp = hero.hp <= 0 ? Math.floor(stats.maxHp * 0.3) : Math.min(stats.maxHp, hero.hp + heal);   // 쓰러진 리더는 30%로 일어남
     addFloat('+' + fmt(heal), hero.x + 16, GROUND - 46, '#6fe39a', true);
     for (const a of Object.values(battle.ahp || {})) a.hp = a.hp <= 0 ? Math.floor(a.max * 0.3) : Math.min(a.max, a.hp + a.max * WAVE_HEAL);
     battle.shadows = (battle.shadows || []).filter(s => s.t === Infinity);
@@ -1662,7 +1722,8 @@ function endBoss(result) {
   const btns = [['캠프로', () => showScreen('lobby'), !(first && c < CHAPTERS.length)]];
   if (first && c < CHAPTERS.length) btns.unshift([`챕터 ${c + 1} 시작 ▶`, () => startBattle(c * STAGES_PER + 1), true]);
   const finish = () => showResult(first ? `챕터 ${c} 클리어!` : `${B.name} 처치!`, '#ffd25e', text, btns);
-  if (first) playDialog(TALK[c].outro, finish); else finish();
+  const outro = TALK[c].outro.filter(L => !(B.ally === leaderId() && (L.who === B.ally || (L.who === 'narr' && L.text.includes('동료가 되었다')))));
+  if (first) playDialog(outro, finish); else finish();
   updateHud();
 }
 
@@ -1684,7 +1745,7 @@ function showResult(title, color, text, btns) {
 
 // ── 대화창 ───────────────────────────────────
 const SPEAKERS = {
-  hero: () => ({ name: save.name, img: SPR['hero_' + save.gender] }),
+  hero: () => ({ name: allyName(leaderId()), img: allyImg(leaderId()) }),
   boss: () => ({ name: chapter(talkCh).boss.name, img: SPR[chapter(talkCh).boss.sprite] }),
   miru: () => ({ name: '미르', img: SPR.miru }),
   serin: () => ({ name: '세린', img: SPR.serin }),
@@ -1693,7 +1754,7 @@ const SPEAKERS = {
 };
 let dlg = null;   // { lines, i, chars, onDone }
 
-function lineText(L) { return L.text.replace('{name}', save.name); }
+function lineText(L) { return L.text.replace('{name}', allyName(leaderId())); }
 
 function playDialog(lines, onDone) {
   dlg = { lines, i: 0, chars: 0, onDone };
@@ -1743,6 +1804,7 @@ let lobbyTalk = 8;         // 로비 혼잣말까지 남은 시간
 let shake = 0;
 
 function say(who, text, dur) {
+  if (who === 'hero' && screen === 'battle' && battle && hero.hp <= 0) { who = (save.party || []).find(id => !allyDown(id)); if (!who) return; }
   bubbles = bubbles.filter(b => b.who !== who);
   bubbles.push({ who, text, t: 0, dur: dur || 3.2 });
 }
@@ -1932,9 +1994,9 @@ function refreshTraits() {
 function affinityChart() {
   const rows = Object.values(BODY).map(B => `<tr><th>${B.name}</th><td class="w">${B.weak.map(e => ELEM_NAME[e]).join('·')}</td><td class="r">${B.resist.map(e => ELEM_NAME[e]).join('·')}</td></tr>`).join('');
   return `<div class="aff"><b>상성</b>
-    <p class="note">공격 속성 · 베기: 소년 주인공, 검·도끼 전사형 / 관통: 사격형, 창 전사형 / 마법: 소녀 주인공, 마법형, 그림자 병사 / 화염: 불 지팡이, 삼색 마법의 불 (마법 약점에도 통함) / 신성: 심판의 빛 특성</p>
+    <p class="note">공격 속성 · 베기: 검·도끼 전사형 / 관통: 사격형, 창 전사형 / 마법: 마법형, 그림자 병사, 치유·지원형 리더 / 화염: 불 지팡이, 삼색 마법의 불 (마법 약점에도 통함) / 신성: 심판의 빛 특성</p>
     <table><tr><th>몸 종류</th><th>약점 ×1.5</th><th>저항 ×0.7</th></tr>${rows}</table>
-    <p class="note">주인공 공격은 상성 효과 절반 (×1.25 / ×0.85)</p>
+    <p class="note">리더의 기본 공격·스킬은 상성 효과 절반 (×1.25 / ×0.85)</p>
     <ul>
       <li><b>암살자 → 치유형</b> 치유형 동료에게 피해 2배</li>
       <li><b>전사형 → 암살자</b> 도발로 뒤를 지킴 · 암살자에게 피해 1.5배, 받는 피해 절반</li>
@@ -1961,27 +2023,28 @@ function openAllies(sel) {
 function refreshAllies() {
   const party = save.party || [];
   const own = ALLIES.filter(A => save.allies[A.id]);
-  if (!allySel || !save.allies[allySel]) allySel = party[0] || (own[0] && own[0].id) || null;
+  if (!allySel || !save.allies[allySel]) allySel = save.leader || party[0] || (own[0] && own[0].id) || null;
   let html = '';
   if (allySel) {
     const A = allyById(allySel), id = A.id, lv = save.allies[id], st = allyStar(id), R = RARITY[A.r];
-    const inParty = party.includes(id), cost = allyCost(lv), have = save.acopy[id] || 0, need = AWAKEN_COST[st];
+    const inParty = party.includes(id), cost = allyCost(lv), have = save.acopy[id] || 0, need = AWAKEN_COST[st], isLead = id === save.leader;
     html += `<div class="adet"><img src="${allyIcon(id)}" class="abig">
-      <div class="ainfo"><b style="color:${R.color}">${R.stars} ${R.name} · ${A.role}</b><h3>${allyName(id)}</h3>
+      <div class="ainfo"><b style="color:${R.color}">${R.stars} ${R.name} · ${A.role}</b><h3>${isLead ? '👑 ' : ''}${allyName(id)}</h3>
+      ${isLead ? `<p class="lead">리더 · 맨 앞에서 싸움 · 강화·장비·특성·전직·스킬·물약 적용 · 등급·각성 보정 ×${leaderMul().toFixed(2)}</p>` : ''}
       <div class="astars">${[1, 2, 3, 4, 5].map(n => `<i class="${n <= st ? 'on' : ''}">★</i>`).join('')} <small>각성 ${st} / ${STAR_MAX} · Lv ${lv}</small></div>
-      <p>${A.desc(lv, allyPow(id))}${A.type === 'warrior' ? ` · 도발: 10초마다 적의 공격을 4초 동안 대신 받음 (피해 -${Math.round(tauntGuard(id) * 100)}%)` : ''}</p>
+      <p>${A.desc(lv, allyPow(id))}${A.type === 'warrior' && !isLead ? ` · 도발: 10초마다 적의 공격을 4초 동안 대신 받음 (피해 -${Math.round(tauntGuard(id) * 100)}%)` : ''}</p>
       <p class="note">공격 속성 · ${A.type === 'heal' ? '없음 (치유)' : A.type === 'support' ? '없음 (지원)' : ELEM_NAME[allyEl(id)]}</p>
       ${st < STAR_MAX ? `<div class="anext"><img src="${allyIcon(id, st + 1)}"><div><small>다음 각성</small><br><b>${PREFIX[A.type][st]} ${A.name}</b><br><small>조각 ${have} / ${need}</small></div></div>` : '<p class="note">최대 각성 · 중복은 별가루 +10</p>'}
-      <div class="skbtns"><button class="equip${inParty ? ' on' : ''}" id="aParty" ${!inParty && party.length >= partyMax() ? 'disabled' : ''}>${inParty ? '해제' : '배치'}</button>
+      <div class="skbtns">${isLead ? '<button class="equip on" disabled>리더</button>' : `<button class="equip${inParty ? ' on' : ''}" id="aParty" ${!inParty && party.length >= partyMax() ? 'disabled' : ''}>${inParty ? '해제' : '배치'}</button><button id="aLead" class="plain">리더로</button>`}
       <button id="aUp" ${save.gold < cost ? 'disabled' : ''}>강화 ${fmt(cost)} G</button>
       <button id="aAwk" class="awk" ${st >= STAR_MAX || have < need ? 'disabled' : ''}>각성</button></div></div></div>`;
   }
-  html += `<p class="note" style="margin:8px 0">배치 ${party.length} / ${partyMax()}${partyMax() < PARTY_MAX ? ' · 챕터 보스 처치로 칸 추가' : ''} · 도감 ${own.length} / ${ALLIES.length} (공격력·체력 +${codexBonus()}%) · 새 동료는 뽑기에서 획득</p><div class="agrid">`;
+  html += `<p class="note" style="margin:8px 0">리더 1명 + 배치 ${party.length} / ${partyMax()}${partyMax() < PARTY_MAX ? ' · 챕터 보스 처치로 칸 추가' : ''} · 도감 ${own.length} / ${ALLIES.length} (공격력·체력 +${codexBonus()}%) · 새 동료는 뽑기에서 획득</p><div class="agrid">`;
   for (const A of ALLIES) {
     const has = save.allies[A.id], R = RARITY[A.r], st = allyStar(A.id);
     const canAwk = has && st < STAR_MAX && (save.acopy[A.id] || 0) >= AWAKEN_COST[st];
-    html += `<button class="acard${has ? '' : ' locked'}${party.includes(A.id) ? ' inparty' : ''}${A.id === allySel ? ' sel' : ''}" style="--rc:${R.color}" ${has ? `data-asel="${A.id}"` : 'disabled'}>
-      <img src="${allyIcon(A.id, has ? st : 1)}"><b>${has ? allyName(A.id) : A.name}</b><small>${has ? '★'.repeat(st) : R.stars}</small>${canAwk ? '<em class="rdot"></em>' : ''}</button>`;
+    html += `<button class="acard${has ? '' : ' locked'}${party.includes(A.id) || A.id === save.leader ? ' inparty' : ''}${A.id === allySel ? ' sel' : ''}" style="--rc:${R.color}" ${has ? `data-asel="${A.id}"` : 'disabled'}>
+      ${A.id === save.leader ? '<i class="crown">👑</i>' : ''}<img src="${allyIcon(A.id, has ? st : 1)}"><b>${has ? allyName(A.id) : A.name}</b><small>${has ? '★'.repeat(st) : R.stars}</small>${canAwk ? '<em class="rdot"></em>' : ''}</button>`;
   }
   html += '</div>' + affinityChart() + '<div class="syn"><b>시너지</b>' + SYNERGY.map(s => { const n = typeCount(s.type); return `<div class="${n ? 'on' : ''}">${n ? '✓' : '·'} ${s.text(n || 1)}</div>`; }).join('') + '</div>';
   $('allyList').innerHTML = html;
@@ -1994,7 +2057,8 @@ function refreshAllies() {
     save.gold -= cost; save.allies[id]++;
     refreshStats(); updateHud();
   };
-  $('aParty').onclick = () => {
+  if ($('aLead')) $('aLead').onclick = () => { setLeader(id); refreshStats(); updateHud(); drawBattleIcon(); writeSave(); notify(allyName(id) + ' 리더 지정!', '#ffe27a'); };
+  if ($('aParty')) $('aParty').onclick = () => {
     const at = save.party.indexOf(id);
     if (at >= 0) save.party.splice(at, 1);
     else if (save.party.length < partyMax()) save.party.push(id);
@@ -2007,6 +2071,7 @@ function usePotion() {
   if (!battle || battle.state !== 'fight') return;
   if (save.potions <= 0) return toast('물약 없음 · 캠프 상점에서 구매');
   if (battle.potionCd > 0) return;
+  if (hero.hp <= 0) return toast('리더 쓰러짐 · 웨이브를 깨면 일어남');
   if (hero.hp >= stats.maxHp) return toast('체력 가득 참');
   const heal = Math.floor(stats.maxHp * POTION_HEAL * (1 + stats.mods.potion / 100));
   hero.hp = Math.min(stats.maxHp, hero.hp + heal);
@@ -2176,7 +2241,9 @@ function renderLobby() {
     pos[id] = [x + 16, GROUND - 32];
   });
   shadow(138);
-  drawImg(face('hero_' + save.gender), 122, GROUND - 31 + bob);
+  drawImg(allyImg(leaderId()), 122, GROUND - 31 + bob);
+  ctx.save(); ctx.globalAlpha = 1; ctx.fillStyle = '#ffd25e'; ctx.font = `${9 * SCALE}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('👑', 138 * SCALE, (GROUND - 33 + bob) * SCALE); ctx.restore();   // 리더 표시
   drawBubbles(pos);
   drawCoins(1 / 60);
   floatsLobby.forEach(f => f.t += 1 / 60);
@@ -2205,12 +2272,16 @@ function drawMonMarks(m, size) {
 function renderBattle() {
   const walking = battle.delay > 0;
   const bob = walking ? Math.round(Math.abs(Math.sin(time * 12)) * -2) : Math.round(Math.sin(time * 4) * 0.8);
-  // 주인공 모션: 소년은 돌진 베기(잔상), 소녀는 공중에 떠서 마법진 위에서 캐스팅
-  const ha = hero.atk, hpr = ha ? Math.min(1, ha.t / ha.dur) : 0, girl = save.gender === 'f';
+  // 리더 모션: 근접 무기는 돌진 베기(잔상), 지팡이·악기는 공중 캐스팅, 활은 반동. 쓰러지면 누워 있음
+  const ha = hero.atk, hpr = ha ? Math.min(1, ha.t / ha.dur) : 0, style = leaderStyle(), girl = style === 'cast';
+  const down = hero.hp <= 0 && battle.state !== 'won';
   let hdx = 0, hdy = bob, hrot = 0;
-  if (girl) {
+  if (down) hdy = 6;
+  else if (girl) {
     if (!walking && battle.state === 'fight') hdy += -5 + Math.sin(time * 3) * 1.5;
     if (ha) hdy -= Math.sin(Math.PI * hpr) * (ha.kind === 'basic' ? 6 : 12);
+  } else if (ha && style === 'shoot') {
+    hdx = (hero.back ? 1 : -1) * 3 * Math.sin(Math.PI * hpr);           // 활 반동
   } else if (ha) {
     const reach = ha.kind === 'basic' ? 24 : 34;
     hdx = (hero.back ? -1 : 1) * reach * Math.sin(Math.PI * Math.min(1, hpr * 1.15));
@@ -2218,7 +2289,7 @@ function renderBattle() {
   }
   const hx = hero.x + hdx;
   shadow(hx + 16);
-  if (girl && !walking && battle.state === 'fight') {       // 발밑 마법진
+  if (girl && !down && !walking && battle.state === 'fight') {   // 발밑 마법진
     const cx0 = (hx + 16) * SCALE, cy0 = (GROUND + 1) * SCALE, on = ha ? 1 : 0.35;
     ctx.save();
     ctx.globalAlpha = on; ctx.strokeStyle = '#ff9ad0'; ctx.shadowColor = '#ff6ac0'; ctx.shadowBlur = ha ? 16 : 6;
@@ -2228,18 +2299,19 @@ function renderBattle() {
     for (let k = 0; k < 6; k++) { const an = time * 1.5 + k * Math.PI / 3; ctx.fillRect(cx0 + Math.cos(an) * 17 * SCALE - 3, cy0 + Math.sin(an) * 4.2 * SCALE - 3, 6, 6); }
     ctx.restore();
   }
-  const heroImg = face('hero_' + save.gender);
+  const heroImg = allyImg(leaderId());
   const drawHero = (ox, alpha, ghost) => {
     ctx.save();
     if (battle.state === 'lost') ctx.globalAlpha = 0.35;
     ctx.globalAlpha *= alpha;
     if (ghost) ctx.filter = 'brightness(1.8) saturate(0.4)';
     if (hrot) { const px = (hero.x + ox + 16) * SCALE, py = (GROUND - 15) * SCALE; ctx.translate(px, py); ctx.rotate(hrot); ctx.translate(-px, -py); }
+    if (down) { const px = (hero.x + 16) * SCALE, py = GROUND * SCALE; ctx.translate(px, py); ctx.rotate(-1.45); ctx.translate(-px, -py); ctx.filter = 'grayscale(1)'; ctx.globalAlpha *= 0.55; }
     drawImg(heroImg, hero.x + ox, GROUND - 31 + hdy, 32, ghost ? 0 : hero.hurt);
     ctx.restore();
   };
-  const heroOnTop = !girl && !!ha;                           // 돌진 중인 소년은 몬스터 앞에 보이게 나중에 그림
-  const paintHero = () => { if (!girl && ha && Math.abs(hdx) > 4) { drawHero(hdx * 0.3, 0.25, true); drawHero(hdx * 0.65, 0.4, true); } drawHero(hdx, 1, false); };
+  const heroOnTop = style === 'melee' && !!ha && !down;                           // 돌진 중인 소년은 몬스터 앞에 보이게 나중에 그림
+  const paintHero = () => { if (style === 'melee' && ha && !down && Math.abs(hdx) > 4) { drawHero(hdx * 0.3, 0.25, true); drawHero(hdx * 0.65, 0.4, true); } drawHero(hdx, 1, false); };
   if (!heroOnTop) paintHero();
   // 뿌리 감옥 경고(발밑 빛)와 묶임
   if (battle.mech === 'root' && battle.mechWarn) {
@@ -2269,7 +2341,7 @@ function renderBattle() {
     ctx.save();
     ctx.globalAlpha = 0.8 * s.rise * (s.t < 1 ? s.t : 1);
     ctx.filter = 'brightness(0.15) sepia(1) hue-rotate(230deg) saturate(4)';
-    drawImg(SPR['hero_' + save.gender], sx, sy, 28);
+    drawImg(allyImg(leaderId()), sx, sy, 28);
     ctx.filter = 'none';
     ctx.fillStyle = '#d0a0ff';
     ctx.fillRect((sx + 17) * SCALE, (sy + 11) * SCALE, 5, 5); ctx.fillRect((sx + 21) * SCALE, (sy + 11) * SCALE, 5, 5);
@@ -2531,7 +2603,7 @@ function updateHud() {
   $('dunLeft').textContent = `${dunLeft('gold') + dunLeft('gear')}/${DUNGEON_TRIES * 2}`;
   updateMissionBanner();
   $('lBattleSub').textContent = allDone ? '스테이지 선택' : atBoss ? '👑 챕터 보스 도전' : `${chapter(c).name} ${stageLabel(top)}`;
-  $('lName').textContent = `Lv ${heroLevel()} ${save.name}`;
+  $('lName').textContent = `Lv ${heroLevel()} ${allyName(leaderId())}`;
   const tb = $('traitBtn');
   tb.classList.toggle('lock', !traitsOpen());
   tb.querySelector('small').textContent = traitsOpen() ? '' : '잠김';
@@ -2569,7 +2641,7 @@ function updateBattleHud() {
   $('bGold').textContent = Math.floor(save.gold).toLocaleString('ko-KR');
   $('waves').innerHTML = WAVES.map((_, i) => `<i class="${i < battle.wave ? 'done' : i === battle.wave ? 'now' : ''}"></i>`).join('');
   $('potionCnt').textContent = save.potions + '개';
-  $('bName').textContent = save.name;
+  $('bName').textContent = '👑 ' + allyName(leaderId());
 }
 
 // 매 프레임: 체력바, 물약 쿨타임
@@ -2577,7 +2649,7 @@ function updateBattleBars() {
   const r = hero.hp / stats.maxHp;
   $('hpfill').style.width = (r * 100) + '%';
   $('hpbar').classList.toggle('low', r < 0.3);
-  $('bHp').textContent = `${fmt(hero.hp)} / ${fmt(stats.maxHp)}`;
+  $('bHp').textContent = hero.hp > 0 ? `${fmt(hero.hp)} / ${fmt(stats.maxHp)}` : `쓰러짐 · 동료 ${(save.party || []).filter(id => battle && !allyDown(id)).length}명 남음`;
   const cd = battle ? battle.potionCd : 0;
   $('potionCd').style.setProperty('--p', (cd / POTION_CD * 100) + '%');
   $('potionCdn').textContent = cd > 0 ? Math.ceil(cd) : '';
@@ -2653,7 +2725,11 @@ function openModal(kind) {
   refreshModal();
 }
 
-function closeModal() { $('modal').hidden = true; modalKind = null; document.querySelector('.mbox').classList.remove('wide'); }
+function closeModal() {
+  $('modal').hidden = true; modalKind = null; document.querySelector('.mbox').classList.remove('wide');
+  $('mClose').hidden = false;
+  if (save && !save.leader && !$('game').hidden) setTimeout(() => { if (!save.leader && $('modal').hidden) openLeaderPick(); }, 0);
+}
 
 function potionPrice() { return monGold(save.stage) * 6; }
 
@@ -2683,7 +2759,7 @@ function refreshModal() {
       <div class="grates">${[1, 2, 3].map(r => `<span style="color:${RARITY[r].color}">${RARITY[r].stars} ${RARITY[r].name} ${AGACHA_W[r]}%</span>`).join('')}</div>
       <div class="gbtns"><button id="a1" ${save.dust < AGACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${AGACHA_COST}</small></button>
       <button id="a10" ${save.dust < AGACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${AGACHA10_COST} · 희귀 이상 1명 보장</small></button></div>
-      <p class="note">전설 확정까지 ${APITY - (save.apity || 0)}회 · 중복은 각성 조각</p>`;
+      <p class="note">전설 확정까지 ${APITY - (save.apity || 0)}회 · 중복은 각성 조각 · 결과 화면에서 바로 다시 뽑으면 연속할수록 할인 (최대 ${AGAIN_MAX}%)</p>`;
     $('a1').onclick = () => doAllyGacha(1);
     $('a10').onclick = () => doAllyGacha(10);
     $('pBody').querySelector('[data-gt]').onclick = () => { gachaTab = 'gear'; refreshModal(); };
@@ -2919,41 +2995,46 @@ function openSettings() {
   modalKind = 'settings';
   $('mTitle').textContent = '설정';
   $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
-    <div class="up charset"><div class="nm">캐릭터</div>
-      <div class="val"><input id="setName" maxlength="8" value="${esc(save.name)}">
-        <span class="gpick"><button data-sg="m" class="${save.gender === 'm' ? 'on' : ''}">소년</button><button data-sg="f" class="${save.gender === 'f' ? 'on' : ''}">소녀</button></span></div>
-      <button id="saveChar">변경</button></div>
+    <div class="up"><div class="nm">리더<small>${esc(allyName(leaderId()))}</small></div><div class="val">주인공 없이 동료들이 싸움 · 강화·장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배</div>
+      <button id="toLeader">리더 바꾸기</button></div>
     <div class="up"><div class="nm">소리</div><div class="val">배경음악 · 버튼 효과음</div>
       <div class="skbtns"><button id="tBgm" class="equip${Sound.bgm ? ' on' : ''}">음악 ${Sound.bgm ? '켜짐' : '꺼짐'}</button><button id="tSfx" class="equip${Sound.sfx ? ' on' : ''}">효과음 ${Sound.sfx ? '켜짐' : '꺼짐'}</button></div></div>
     <div id="devSlot"></div><div id="setBody"></div>`;
   $('tBgm').onclick = () => { const on = Sound.toggle('bgm'); $('tBgm').textContent = '음악 ' + (on ? '켜짐' : '꺼짐'); $('tBgm').classList.toggle('on', on); };
   $('tSfx').onclick = () => { const on = Sound.toggle('sfx'); $('tSfx').textContent = '효과음 ' + (on ? '켜짐' : '꺼짐'); $('tSfx').classList.toggle('on', on); };
-  let gender = save.gender;
-  $('mBody').querySelectorAll('[data-sg]').forEach(b => b.onclick = () => {
-    gender = b.dataset.sg;
-    $('mBody').querySelectorAll('[data-sg]').forEach(x => x.classList.toggle('on', x === b));
-  });
-  $('saveChar').onclick = () => {
-    const name = $('setName').value.trim();
-    if (!name) return alert('이름 입력 필요');
-    save.name = name;
-    save.gender = gender;
-    drawBattleIcon();
-    writeSave();
-    cloudUpload();
-    updateHud();
-    notify('변경 완료!');
-  };
-  $('setName').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) $('saveChar').click(); };
+  $('toLeader').onclick = () => { closeModal(); openAllies(leaderId()); };
   $('modal').hidden = false;
   refreshSettings();
   devTools();
 }
 
+// 업데이트 후 첫 접속: 주인공 대신 리더 동료를 고른다 (가진 동료 + 시작 동료 3명)
+function openLeaderPick() {
+  modalKind = 'leader';
+  $('mTitle').textContent = '리더 선택';
+  $('mClose').hidden = true;
+  const ids = [...new Set(Object.keys(save.allies || {}).filter(allyById).concat(STARTERS))];
+  $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
+    <p class="lead">이제 주인공 없이 동료들이 싸움 · 리더는 맨 앞에서 싸우고, 지금까지의 강화·장비·특성·전직·스킬·물약이 리더에게 그대로 적용 · 리더는 동료 페이지에서 언제든 변경 · 모두 쓰러지면 패배</p>
+    <div class="agrid">${ids.map(id => { const A = allyById(id), own = save.allies[id]; return `<button class="acard" style="--rc:${RARITY[A.r].color}" data-lead="${id}"><img src="${allyIcon(id, own ? allyStar(id) : 1)}"><b>${own ? allyName(id) : A.name}</b><small>${A.role}${own ? '' : ' · 새 동료'}</small></button>`; }).join('')}</div>`;
+  $('modal').hidden = false;
+  refreshModal();
+  $('mBody').querySelectorAll('[data-lead]').forEach(b => b.onclick = () => {
+    const id = b.dataset.lead;
+    save.astar = save.astar || {};
+    if (!save.allies[id]) { save.allies[id] = 1; save.astar[id] = 1; }
+    setLeader(id);
+    $('mClose').hidden = false;
+    closeModal();
+    refreshStats(); updateHud(); drawBattleIcon(); writeSave(); cloudUpload();
+    fanfare('리더 결정!', allyName(id) + ' · 맨 앞에서 싸움');
+  });
+}
+
 function drawBattleIcon() {
   const ic = $('battleIcon').getContext('2d');
   ic.clearRect(0, 0, 96, 96);
-  ic.drawImage(SPR['hero_' + save.gender], 0, 0, 96, 96);
+  ic.drawImage(allySprite(leaderId(), allyStar(leaderId()), allyById(leaderId()).type, 0), 0, 0, 96, 96);
 }
 
 function refreshSettings() {
@@ -3133,26 +3214,21 @@ function showStart() {
   box.hidden = false;
   $('loginBox').hidden = true;
   $('createBox').hidden = false;
-  let gender = null;
-  for (const g of ['m', 'f']) {
-    const c = $('p' + g).getContext('2d');
-    c.imageSmoothingEnabled = false;
+  let pick = null;
+  $('starterPick').innerHTML = STARTERS.map(id => `<button data-st="${id}"><canvas width="96" height="96" id="st_${id}"></canvas>${allyById(id).name}<small>${allyById(id).role}</small></button>`).join('');
+  for (const id of STARTERS) {
+    const c = $('st_' + id).getContext('2d');
     c.clearRect(0, 0, 96, 96);
-    c.drawImage(SPR['hero_' + g], 0, 0, 96, 96);
+    c.drawImage(allySprite(id, 1, allyById(id).type, 0), 0, 0, 96, 96);
   }
-  box.querySelectorAll('.pick button').forEach(b => b.onclick = () => {
-    gender = b.dataset.g;
-    box.querySelectorAll('.pick button').forEach(x => x.classList.toggle('on', x === b));
+  box.querySelectorAll('[data-st]').forEach(b => b.onclick = () => {
+    pick = b.dataset.st;
+    box.querySelectorAll('[data-st]').forEach(x => x.classList.toggle('on', x === b));
     $('startMsg').textContent = '';
   });
-  $('nameIn').oninput = () => { $('startMsg').textContent = ''; };
-  $('nameIn').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) $('go').click(); };
-  // 한글 조합 중에도 눌리도록 버튼은 항상 켜 두고 누를 때 검사한다
   $('go').onclick = () => {
-    const name = $('nameIn').value.trim();
-    if (!gender) return ($('startMsg').textContent = '캐릭터 선택 필요');
-    if (!name) return ($('startMsg').textContent = '이름 입력 필요');
-    save = newSave(name, gender);
+    if (!pick) return ($('startMsg').textContent = '첫 동료 선택 필요');
+    save = newSave(pick);
     box.hidden = true;
     booted = true;
     writeSave();
@@ -3195,7 +3271,8 @@ function begin() {
   });
   document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openModal(b.dataset.open));
   $('mClose').onclick = closeModal;
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+  $('gOk').onclick = closeGacha;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden && modalKind !== 'leader') closeModal(); });
   $('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
   $('lSave').onclick = () => {
     writeSave();
@@ -3204,6 +3281,7 @@ function begin() {
   $('lReset').onclick = openSettings;
 
   showScreen('lobby');
+  if (!save.leader) openLeaderPick();
   let last = performance.now();
   let tick = 0;
   const frame = now => {
