@@ -613,18 +613,34 @@ const Scenery = (() => {
 
   // 테마는 처음 쓸 때 한 번만 그려 둔다
   function setTheme(name) {
+    if (!BUILD[name]) name = 'meadow';
     if (!themes[name]) {
       cur = { lights: [], shards: [] };
+      if (EXTRA[name]) seed = 7 + [...name].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 100000, 0);
       Object.assign(cur, BUILD[name]());
       themes[name] = cur;
     }
     if (T === themes[name]) return;
     T = themes[name];
     motes.length = 0;
-    for (let i = 0; i < ({ petal: 28, firefly: 22, sand: 40 }[T.mote]); i++) motes.push(newMote(true));
+    const n = T.moteCount || ({ petal: 28, firefly: 22, sand: 40 }[T.mote]) || 0;
+    for (let i = 0; i < n; i++) motes.push(newMote(true));
   }
 
+  // ── 챕터 4~ 배경은 scenery2.js가 addTheme으로 더한다 ──
+  // builder(K, cur) → { sky, far, mid, near, ground, fall, clouds, mote, rayX, rayDir, rayRgb, front, moteCount?, moteMake?, moteDraw? }
+  // moteMake(anywhere) → 입자 하나, moteDraw(ctx, p, dt) → false를 돌려주면 그 입자를 새로 만든다
+  const EXTRA = {};
+  function addTheme(name, builder) { EXTRA[name] = true; BUILD[name] = () => builder(K, cur); }
+  const K = {
+    W, H, GY, TAU, rnd, rr, wave, canvas, ridge, wrap, vgrad, glow, blob, drawCrackedStar, drawCloud,
+    drawShard: (g, x, y) => drawShard(g, x, y),
+    setSeed: n => { seed = n; },
+    light: (x, y, layer, rgb, r, ph) => cur.lights.push({ x, y, ph: ph ?? rnd() * TAU, layer, rgb, r }),
+  };
+
   function newMote(anywhere) {
+    if (T.moteMake) return Object.assign(T.moteMake(anywhere), { kind: 'custom' });
     if (T.mote === 'sand') {
       return { kind: 'sand', x: anywhere ? rr(0, W) : W + rr(0, 60), y: rr(200, H), vx: rr(-180, -90), ph: rr(0, TAU), r: rr(1.2, 2.6), a: rr(0.3, 0.7) };
     }
@@ -709,6 +725,12 @@ const Scenery = (() => {
     }
     ctx.restore();
     motes.forEach((p, i) => {
+      if (p.kind === 'custom') {
+        ctx.save();
+        if (T.moteDraw(ctx, p, dt) === false) motes[i] = newMote(false);
+        ctx.restore();
+        return;
+      }
       if (p.kind === 'sand') {
         p.x += p.vx * dt; p.ph += dt * 3;
         const y = p.y + Math.sin(p.ph) * 6;
@@ -750,5 +772,5 @@ const Scenery = (() => {
     }
   }
 
-  return { build, setTheme, drawBack, drawFront, GY };
+  return { build, setTheme, drawBack, drawFront, GY, addTheme, has: name => !!BUILD[name] };
 })();

@@ -24,79 +24,182 @@ const SHARD_BONUS = 0.1;    // 별조각 1개당 공격력·체력 +10%
 // 물약·스킬·장비 없이 시뮬레이션: 챕터 1 약 70분, 챕터 2 약 110분 (챕터 2부터 성장률 완만)
 const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.22, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30 };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
 
-// ── 강화 항목 ─────────────────────────────────
-const UPGRADES = [
-  { id: 'atk',   name: '공격력',    base: 10, grow: 1.075, max: Infinity },
-  { id: 'hp',    name: '체력',      base: 10, grow: 1.075, max: Infinity },
-  { id: 'regen', name: '체력 회복', base: 25, grow: 1.09,  max: Infinity },
-  { id: 'crit',  name: '치명타',    base: 30, grow: 1.1,   max: 30 },
-  { id: 'aspd',  name: '공격 속도', base: 40, grow: 1.12,  max: 40 },
+// ── 강화 항목 (캐릭터마다 따로, 비용은 그 캐릭터의 레벨 기준) ──
+// save.clv = { [동료 id]: { atk, hp, aspd, crit, agi } }
+const CHAR_UPS = [
+  { id: 'atk',  name: '공격력',    base: 10, grow: 1.075, max: Infinity },
+  { id: 'hp',   name: '체력',      base: 10, grow: 1.075, max: Infinity },
+  { id: 'aspd', name: '공격 속도', base: 40, grow: 1.12,  max: 40 },
+  { id: 'crit', name: '치명타',    base: 30, grow: 1.1,   max: 30 },
+  { id: 'agi',  name: '민첩',      base: 30, grow: 1.1,   max: 30 },   // 회피 확률
 ];
-
-function heroStats(lv) {
-  // 초반엔 고정치(+2, +12)가, 후반엔 배율(1.06배)이 성장을 이끈다
-  const maxHp = Math.floor((100 + lv.hp * 12) * Math.pow(1.06, lv.hp));
-  return {
-    atk: Math.floor((10 + lv.atk * 2) * Math.pow(1.06, lv.atk)),
-    maxHp,
-    regen: maxHp * 0.01 * (1 + lv.regen * 0.2),   // 초당 회복량
-    crit: 5 + lv.crit * 2,                        // % (5%에서 시작, 최대 65%)
-    critDmg: 2,
-    aspd: 1 + lv.aspd * 0.05,                     // 초당 공격 횟수 (최대 3회)
-  };
-}
+const ZERO_LV = Object.freeze({ atk: 0, hp: 0, aspd: 0, crit: 0, agi: 0 });
+const charLv = id => (save && save.clv && save.clv[id]) || ZERO_LV;
+function ensureLv(id) { save.clv = save.clv || {}; return save.clv[id] || (save.clv[id] = { ...ZERO_LV }); }
 
 function upgradeCost(u, level) { return Math.floor(u.base * Math.pow(u.grow, level)); }
+// 따라잡기: 보유 캐릭터(리더 포함) 중 그 항목 최고 레벨(모험단 기록)보다 낮으면 비용 75% 할인. 기록을 새로 세우는 강화는 제값
+const CATCHUP_MUL = 0.25;
+const upTop = u => Math.max(0, ...Object.keys((save && save.allies) || {}).filter(id => save.allies[id] && allyById(id)).concat([leaderId()]).map(id => charLv(id)[u.id] || 0));
+function charUpCost(id, u, lv) { const c = upgradeCost(u, lv); return lv < upTop(u) ? Math.max(1, Math.floor(c * CATCHUP_MUL)) : c; }
 
 function upgradeText(id, s) {
   switch (id) {
     case 'atk': return fmt(s.atk);
     case 'hp': return fmt(s.maxHp);
-    case 'regen': return (s.regen < 100 ? s.regen.toFixed(1) : fmt(s.regen)) + '/초';
-    case 'crit': return s.crit.toFixed(1) + '%';
     case 'aspd': return s.aspd.toFixed(2) + '회/초';
+    case 'crit': return s.crit.toFixed(1) + '%';
+    case 'agi': return '회피 ' + s.dodge.toFixed(1) + '%';
   }
 }
 
-// 전투력: 공격 × 체력을 한 숫자로 (대략적인 강함)
-// 전투력 = √(초당 피해 × 버티는 힘) ÷ 10
-// 초당 피해: 공격력·공격 속도·연속 베기, 치명타는 지금 스테이지 몬스터의 치명타 저항과 내 관통까지 반영. 동료 공격 포함.
-// 버티는 힘: 체력 + 20초치 회복·흡혈·치유 동료, 받는 피해 감소와 회피 반영.
-function power(s) {
-  const m = s.mods || {};
-  const res = save && save.stage ? Math.max(0, critRes(Math.min(save.stage, MAX_STAGE)) - (s.pierce || 0)) : 0;
-  const crit = Math.min(100, Math.max(0, s.crit - res)) / 100;
-  let dps = s.atk * (1 + crit * (s.critDmg - 1)) * s.aspd * (1 + (m.double || 0) / 100);
-  let sustain = s.regen + dps * (m.drain || 0) / 100;
-  if (save && save.party) for (const id of team()) {
-    const A = allyById(id), lv = save.allies[id] || 1;
+// ── 캐릭터 능력치 ──
+// 등급·각성 배율: 1 + (allyPow - 1) × 0.4
+const charMul = id => 1 + (allyPow(id) - 1) * 0.4;
+// 파티 공통 배율: 별조각·도감·세트·시너지·지원형 오라 (리더·동료 모두에게)
+function partyGlob() {
+  const g = { atk: 1, hp: 1, crit: 0, aspd: 1, guard: 0, gold: 0, healMul: 0 };
+  if (!save) return g;
+  const sh = 1 + (save.shards || 0) * SHARD_BONUS, cx = 1 + codexBonus() / 100, sb = setBonus();
+  g.atk *= sh * cx * (1 + sb.atk / 100); g.hp *= sh * cx * (1 + sb.hp / 100);
+  g.crit += sb.crit; g.aspd *= 1 + sb.aspd / 100; g.guard += sb.guard; g.gold += sb.gold;
+  const tc = typeCount, tm = team();
+  if (tc('magic')) g.atk *= tc('magic') >= 2 ? 1.2 : 1.1;
+  if (tc('support')) g.hp *= tc('support') >= 2 ? 1.2 : 1.1;
+  if (tc('shot')) g.crit += tc('shot') >= 2 ? 10 : 5;
+  if (tc('warrior')) g.guard += tc('warrior') >= 2 ? 10 : 5;
+  if (tc('heal')) g.healMul += tc('heal') >= 2 ? 40 : 20;
+  if (tm.includes('baram')) g.aspd *= 1 + auraPct('baram') / 100;      // 바람의 노래
+  if (tm.includes('momo')) g.atk *= 1 + auraPct('momo') / 100;         // 응원 탬버린
+  return g;
+}
+// 한 캐릭터의 능력치. L: 강화 레벨(미리보기용), g: 파티 공통 배율. aspd = 동료로서 초당 행동 횟수
+// 초반엔 고정치(+2, +12)가, 후반엔 배율(1.06배)이 성장을 이끈다
+function charStats(id, L, g) {
+  const pf = allyById(id).pf, cm = charMul(id);
+  L = L || charLv(id); g = g || partyGlob();
+  return { id,
+    atk: Math.floor((10 + 2 * L.atk) * Math.pow(1.06, L.atk) * pf.atk * cm * g.atk),
+    maxHp: Math.floor((100 + 12 * L.hp) * Math.pow(1.06, L.hp) * pf.hp * cm * g.hp),
+    aspd: pf.spd * (1 + pf.step * L.aspd) * g.aspd,
+    crit: pf.crit + 2 * L.crit + g.crit, critDmg: 2, pierce: 0,
+    dodge: Math.min(40, pf.agi + 0.8 * L.agi) };
+}
+// 동료(리더 아닌 캐릭터)로 싸울 때: 협공 공격력 ×3 · 치명타 관통 = 리더 관통(장비·특성)의 50%
+// 리더는 대신 기본 공격 + 장비·특성·전직·스킬
+const ALLY_ATK = 3, ALLY_PIERCE = 0.5;
+function allyStats(id, L, g) {
+  const c = charStats(id, L, g);
+  c.atk = Math.floor(c.atk * ALLY_ATK);
+  c.pierce = stats ? (stats.pierce || 0) * ALLY_PIERCE : 0;
+  return c;
+}
+// 전투에서 쓰는 능력치: 리더 = stats, 동료 = allyStats (refreshStats마다 새로)
+let cstats = {};
+const srcOf = id => id === save.leader ? stats : (cstats[id] || (cstats[id] = allyStats(id)));
+// 강화 화면·동료 화면에 보여 줄 능력치 (리더는 장비·특성 포함, 동료는 협공·동료 체력 보너스 포함)
+function memberStats(id, L) {
+  if (id === leaderId()) return fullStats(L);
+  const c = allyStats(id, L);
+  c.maxHp = Math.floor(c.maxHp * (1 + stats.mods.allyHp / 100));
+  return c;
+}
+
+// 전투력: 팀 전체 공격 × 체력을 한 숫자로 (대략적인 강함)
+// 전투력 = √(초당 피해 합 × 버티는 힘 합) ÷ 10
+// 초당 피해: 리더 = 기본 공격(연속 베기) + 유형 행동, 동료 = 유형 행동. 치명타는 지금 스테이지 몬스터의 치명타 저항과 관통까지 반영.
+// 버티는 힘: 캐릭터마다 체력 ÷ (1-받는 피해 감소) ÷ (1-회피) 합 + 20초치 치유·흡혈.
+const ACT_MUL = { warrior: 1, shot: 1, magic: 1.6, support: 0.6, heal: 0 };
+function critExp(s, res) { const c = Math.min(100, Math.max(0, s.crit - Math.max(0, res - (s.pierce || 0)))) / 100; return 1 + c * (s.critDmg - 1); }
+function power() {
+  if (!save || !stats) return 0;
+  const m = stats.mods, res = save.stage ? critRes(Math.min(save.stage, MAX_STAGE)) : 0, lid = leaderId();
+  let dps = 0, ehp = 0, sus = 0;
+  for (const id of [...new Set([lid].concat(save.party || []))]) {
+    const A = allyById(id);
     if (!A) continue;
-    const p = allyPow(id);
-    if (A.type === 'magic') dps += s.atk * (0.5 + lv * 0.1) * p * 2 / A.every;
-    if (A.type === 'shot') dps += s.atk * (1 + lv * 0.2) * p / A.every;
-    if (A.type === 'warrior') dps += s.atk * (1.2 + lv * 0.2) * p / A.every;
-    if (A.type === 'heal') sustain += s.maxHp * (6 + lv) * p / 100 / A.every;
+    const lead = id === lid, s = lead ? stats : allyStats(id), ce = critExp(s, res), act = lead ? s.act : s.aspd;
+    const tm = A.type === 'magic' ? 1 + m.magicAlly / 100 : A.type === 'shot' ? 1 + m.shotAlly / 100 : 1;
+    dps += s.atk * ce * act * ACT_MUL[A.type] * tm;
+    if (lead) { const b = s.atk * ce * s.aspd * (1 + m.double / 100); dps += b; sus += b * m.drain / 100; }
+    const hp = lead ? s.maxHp : s.maxHp * (1 + m.allyHp / 100), guard = lead ? m.guard : Math.min(60, stats.pg.guard);
+    ehp += hp / (1 - guard / 100) / (1 - s.dodge / 100) / (lead && id === 'bron' ? 1 - BRON_LEAD_GUARD : 1);
+    if (A.type === 'heal') sus += s.atk * 1.1 * (1 + m.healAlly / 100) * (1 + m.healMul / 100) * act;
+    if (lead) dps += s.atk * ce * skillDps() * (1 + m.skill / 100);
   }
-  const ehp = (s.maxHp + sustain * 20) / (1 - (m.guard || 0) / 100) / (1 - (m.dodge || 0) / 100);
-  return Math.floor(Math.sqrt(dps * ehp) / 10);
+  return Math.floor(Math.sqrt(dps * (ehp + sus * 20)) / 10);
+}
+// 장착 스킬의 대략적인 초당 피해 (리더 공격력 배율). 대상 수는 어림값, 절반만 반영 (전투력이 스킬로 너무 튀지 않게)
+const SK_TARGETS = { front: 1, sneak: 1, low: 1, rand: 1, n: 2, back: 2, all: 2.5 };
+function skillDps() {
+  if (!save || !Array.isArray(save.slots)) return 0;
+  let d = 0;
+  save.slots.forEach((id, i) => {
+    const sk = id && skillById(id), o = skOf(id);
+    if (!sk || !o || !skSlotOpen(i)) return;
+    let per = 0;
+    for (const e of sk.eff) {
+      if (e.t === 'dmg') per += skVal(e, o.lv, o.star) * (e.hits || 1) * (e.to === 'n' ? Math.min(e.n || 1, 2) : SK_TARGETS[e.to] || 1);
+      else if (e.t === 'summon') per += skVal(e, o.lv, o.star) * e.n * Math.min(e.dur, sk.cd);
+    }
+    d += per / (sk.cd * (1 - Math.min(50, stats.mods.cd) / 100));
+  });
+  return d * 0.5;
 }
 
-// ── 스킬 ─────────────────────────────────────
-// unlock: 이 스테이지를 깨야 배울 수 있음. 레벨이 오르면 power가 grow만큼 커진다
-const SKILLS = [
-  { id: 'strike', name: '강타',       cd: 8,  unlock: 0,  cost: 30,  power: 3,    grow: 0.25,
-    desc: p => `앞의 적에게 공격력 ${Math.round(p * 100)}% 피해` },
-  { id: 'whirl',  name: '회오리 베기', cd: 12, unlock: 5,  cost: 300, power: 1.5,  grow: 0.12,
-    desc: p => `앞의 적 3마리에게 각각 공격력 ${Math.round(p * 100)}% 피해` },
-  { id: 'aid',    name: '응급 처치',   cd: 25, unlock: 10, cost: 1500, power: 0.25, grow: 0.015,
-    desc: p => `최대 체력의 ${Math.round(p * 100)}% 회복 (AUTO는 체력 60% 아래에서 사용)` },
-  { id: 'cry',    name: '전투 함성',   cd: 30, unlock: 15, cost: 6000, power: 0.5,  grow: 0.04,
-    desc: p => `10초 동안 공격 속도 +${Math.round(p * 100)}%` },
-];
-const SKILL_SLOTS = 3;
-const skillById = id => SKILLS.find(s => s.id === id);
-function skillPower(sk, lv) { return sk.power + sk.grow * (lv - 1); }
-function skillCost(sk, lv) { return Math.floor(sk.cost * Math.pow(1.6, lv)); }   // lv=0이면 배우는 값
+// ── 추가 콘텐츠 (content.js) ─────────────────
+// 시작할 때 한 번 깊은 복사로 읽고 전역에서 지운다. chapters(챕터 4~10)는 챕터 작업에서 CONTENT.chapters 로 씀
+const CONTENT = (() => {
+  const src = window.STAR_CONTENT || { chapters: [], skills: [] };
+  const c = JSON.parse(JSON.stringify({ chapters: src.chapters || [], skills: src.skills || [] }));
+  try { delete window.STAR_CONTENT; } catch (e) { window.STAR_CONTENT = undefined; }
+  const freeze = o => { if (o && typeof o === 'object') { Object.values(o).forEach(freeze); Object.freeze(o); } return o; };
+  freeze(c.skills);                                                     // 스킬 데이터는 읽기 전용
+  return c;
+})();
+
+// ── 스킬 (수집형 55종, 데이터는 content.js) ──
+// grade: 0 일반 ~ 5 신화 (GRADES), boss: 챕터 보스 전용, unlock·cost: 일반만 (스테이지 클리어 후 골드로 배움)
+// 값 = (base + grow × (Lv-1)) × (1 + 0.2 × (★-1)) · 최대 Lv = 5 × (★+1) · 각성 조각 [1,2,3,4] · ★5 뒤 중복 = 별가루 +5
+// save.sk = { [id]: { lv, star, copy } }, save.slots = 4칸 (4번째는 챕터 3 보스 처치 후)
+const SKILLS = CONTENT.skills;
+const SK_MAP = Object.fromEntries(SKILLS.map(s => [s.id, s]));
+const skillById = id => SK_MAP[id];
+const SKILL_SLOTS = 4;
+const SK_COST = [30, 300, 1500, 6000, 25000, 100000];       // 등급별 강화 기준 골드 (일반은 스킬마다 cost)
+const SK_AWAKEN = [0, 1, 2, 3, 4];                         // ★n → ★n+1 에 필요한 조각
+const SK_DUST = 5;                                         // ★5 뒤 중복 → 별가루
+const FREEZE_MAX = 6;                                      // 빙결·정지 최대 초 (보스·대장은 절반)
+const SUMMON_MAX = 8;                                      // 동시에 있을 수 있는 소환수
+const AUTO_TEXT = { fight: '전투 중', hurt: '체력 낮음', crowd: '적 2마리 이상', boss: '보스전', down: '동료 쓰러짐', buff: '버프 꺼짐' };
+const FX_ICON = { slash: '⚔', whirl: '🌀', star: '✦', meteor: '☄', bolt: '⚡', chain: 'ϟ', fire: '🔥', ice: '❄', wind: '༄', holy: '✚', shadow: '☾', heal: '♥', shield: '⛨', buff: '▲', arrow: '➶', quake: '⛰', time: '⏱', void: '◉' };
+const skOf = id => save && save.sk && save.sk[id];
+const skMaxLv = st => 5 * (st + 1);
+const skSlotOpen = i => i < SKILL_SLOTS - 1 || bossBeaten(3);
+const skVal = (e, lv, st) => ((e.base || 0) + (e.grow || 0) * (lv - 1)) * (1 + 0.2 * (st - 1));
+function skCost(sk, lv) { return Math.floor((sk.grade === 0 ? sk.cost : SK_COST[sk.grade]) * Math.pow(1.6, lv)); }   // lv=0이면 배우는 값(일반)
+const skLearnable = sk => sk.grade === 0 && !skOf(sk.id) && save.stage - 1 >= (sk.unlock || 0);
+const skSource = sk => sk.boss ? `챕터 ${sk.boss} 보스` : sk.grade === 0 ? (sk.unlock ? `${stageLabel(sk.unlock)} 스테이지 클리어 후 골드` : '골드로 배움') : '스킬 뽑기';
+const skCanUp = id => { const o = skOf(id), sk = skillById(id); return !!(o && sk && o.lv < skMaxLv(o.star) && save.gold >= skCost(sk, o.lv)); };
+const skCanAwaken = id => { const o = skOf(id); return !!(o && o.star < STAR_MAX && o.copy >= SK_AWAKEN[o.star]); };
+// desc 의 {i} → eff[i] 값 (dmg·buff·shield·heal·mark·gold·revive ×100 %, freeze 초, summon 지속 초, cdr 초)
+function effText(e, lv, st) {
+  const v = skVal(e, lv, st), n = x => String(+x.toFixed(1));
+  if (e.t === 'freeze') return n(Math.min(FREEZE_MAX, v));
+  if (e.t === 'summon') return n(e.dur);
+  if (e.t === 'cdr') return n(e.base);
+  if (e.t === 'revive') return n(Math.min(1, v) * 100);
+  return n(v * 100);
+}
+// next: 다음 레벨 미리보기 (현재→다음)
+function skDesc(sk, lv, st, next) {
+  return sk.desc.replace(/\{(\d+)\}/g, (_, i) => {
+    const e = sk.eff[+i];
+    if (!e) return '?';
+    const a = effText(e, lv, st), b = next ? effText(e, next, st) : a;
+    return next && b !== a ? `${a}→<em>${b}</em>` : a;
+  });
+}
 
 // ── 장비 ─────────────────────────────────────
 const GRADES = [
@@ -180,43 +283,27 @@ function equipped(slotId) { return save.items.find(it => it.id === save.gear[slo
 function itemScore(it) { return it ? it.value + it.pierce * 3 : 0; }
 function sellPrice(it) { return Math.ceil(monGold(it.stage) * 2 * GRADES[it.grade].mult); }
 
-// 강화 수치 + 장비 효과
-function fullStats(lv) {
-  const s = heroStats(lv);
-  const sh = 1 + (save.shards || 0) * SHARD_BONUS;
-  s.atk = Math.floor(s.atk * sh);
-  s.maxHp = Math.floor(s.maxHp * sh);
-  s.regen *= sh;
-  if (save && save.allies) { const lm = leaderMul(); s.atk = Math.floor(s.atk * lm); s.maxHp = Math.floor(s.maxHp * lm); s.regen *= lm; }
-  const w = equipped('weapon'), a = equipped('armor'), c = equipped('acc');
+// 리더 능력치 = 리더 캐릭터 능력치(charStats) + 리더 전용 효과(장비·특성·전직)
+// L: 리더 강화 레벨 (강화 미리보기용, 없으면 지금 레벨)
+// aspd = 기본 공격 속도 (유형과 상관없이 1회/초 기준), act = 유형 행동 속도
+function fullStats(L) {
+  const id = leaderId(), pf = allyById(id).pf;
+  L = L || charLv(id);
+  const g = partyGlob(), c = charStats(id, L, g);
+  const s = { id, atk: c.atk, maxHp: c.maxHp, crit: c.crit, critDmg: 2, pierce: 0, aspd: (1 + pf.step * L.aspd) * g.aspd, act: c.aspd, dodge: c.dodge, pg: g };
+  const w = equipped('weapon'), a = equipped('armor'), ac = equipped('acc');
   if (w) s.atk = Math.floor(s.atk * (1 + w.value / 100));
-  if (a) { s.maxHp = Math.floor(s.maxHp * (1 + a.value / 100)); s.regen *= 1 + a.value / 100; }
-  if (c) s.critDmg += c.value / 100;
-  s.pierce = c ? c.pierce : 0;
-  const ok = save && save.party;
-  const tc = t => ok ? typeCount(t) : 0;
-  const cx = ok ? codexBonus() : 0;
-  s.atk = Math.floor(s.atk * (1 + cx / 100)); s.maxHp = Math.floor(s.maxHp * (1 + cx / 100));
-  if (tc('magic')) s.atk = Math.floor(s.atk * (tc('magic') >= 2 ? 1.2 : 1.1));
-  if (tc('support')) s.maxHp = Math.floor(s.maxHp * (tc('support') >= 2 ? 1.2 : 1.1));
-  if (tc('heal')) s.regen += s.maxHp * (tc('heal') >= 2 ? 0.04 : 0.02);
-  if (tc('shot')) s.crit += tc('shot') >= 2 ? 10 : 5;
-  for (const id of ok ? team() : []) {
-    const A = allyById(id);
-    if (A && A.type === 'support') { const lv = save.allies[id] || 1, p = allyPow(id); s.atk = Math.floor(s.atk * (1 + (4 + lv) * p / 100)); s.aspd *= 1 + (2 + lv * 0.5) * p / 100; }
-  }
-  const sb = ok ? setBonus() : { atk: 0, hp: 0, crit: 0, guard: 0, aspd: 0, gold: 0 };
-  s.atk = Math.floor(s.atk * (1 + sb.atk / 100)); s.maxHp = Math.floor(s.maxHp * (1 + sb.hp / 100)); s.crit += sb.crit; s.aspd *= 1 + sb.aspd / 100;
+  if (a) s.maxHp = Math.floor(s.maxHp * (1 + a.value / 100));
+  if (ac) { s.critDmg += ac.value / 100; s.pierce = ac.pierce; }
   const m = traitMods();
-  m.guard = Math.min(60, m.guard + sb.guard); m.gold += sb.gold;
-  if (tc('warrior')) m.guard = Math.min(60, m.guard + (tc('warrior') >= 2 ? 10 : 5));
+  m.guard = Math.min(60, m.guard + g.guard); m.gold += g.gold; m.healMul += g.healMul;
   s.atk = Math.floor(s.atk * (1 + m.atk / 100));
   s.maxHp = Math.floor(s.maxHp * (1 + m.hp / 100));
   s.crit += m.crit;
   s.critDmg += m.critDmg / 100;
   s.aspd *= 1 + m.aspd / 100;
   s.pierce += m.pierce;
-  s.regen = s.regen * (1 + m.regen / 100) * (1 + m.healMul / 100) + s.maxHp * m.regenFlat / 100;
+  s.dodge = Math.min(50, s.dodge + m.dodge);       // 리더 회피 = 민첩 + 특성 (최대 50%)
   s.mods = m;
   return s;
 }
@@ -248,7 +335,7 @@ const TRAIT_TREES = [
     { id: 'a_ally',   name: '사냥 동료',     max: 5,  req: 10, desc: r => `사격형 동료 피해 +${r * 15}%` },
   ] },
   { id: 'holy', name: '신성 · 치유 (선)', color: '#d89a10', nodes: [
-    { id: 'h_regen',  name: '축복',          max: 10, desc: r => `초당 회복 +${r * 15}%` },
+    { id: 'h_regen',  name: '축복',          max: 10, desc: r => `웨이브 시작마다 최대 체력 ${r * 3}% 보호막` },
     { id: 'h_smite',  name: '심판의 빛',     max: 10, desc: r => `악 몬스터에게 피해 +${r * 20}% · 공격 속도 +${r * 5}%` },
     { id: 'h_purify', name: '정화',          max: 3,  desc: r => r >= 3 ? '저주·독 면역' : `저주·독 지속 시간 -${r * 33}%` },
     { id: 'h_heal',   name: '치유 공명',     max: 5,  req: 10, desc: r => `치유형 동료 회복 +${r * 15}%` },
@@ -269,7 +356,7 @@ const JOBS = {
     adv: [{ id: 'elem', name: '엘리멘탈리스트', bonus: '2번째 공격마다 삼색 마법 · 마법 피해 +50%' }, { id: 'necro', name: '네크로맨서', bonus: '그림자 병사 최대 +3 · 병사가 사라지지 않음' }] },
   agi:   { name: '궁수',   bonus: '공격 속도 +15%',
     adv: [{ id: 'sniper', name: '저격수', bonus: '치명타 피해 +50% · 치명타 관통 +10%' }, { id: 'ranger', name: '레인저', bonus: '공격 속도 +20% · 처치 골드 +15%' }] },
-  holy:  { name: '성직자', bonus: '초당 회복 +최대 체력 2% · 받는 피해 -5%',
+  holy:  { name: '성직자', bonus: '웨이브마다 보호막 +10% · 받는 피해 -5%',
     adv: [{ id: 'priest', name: '사제', bonus: '전투마다 부활 · 회복 효과 +50% · 저주 면역' }, { id: 'paladin', name: '성기사', bonus: '공격력 +15% · 악 몬스터 피해 +100%' }] },
   dark:  { name: '주술사', bonus: '어둠의 힘 +15% · 흡혈 2%',
     adv: [{ id: 'hypno', name: '최면술사', bonus: '8초마다 맨 앞의 적을 4초 동안 최면 · 최면 걸린 적은 자기 편을 공격' }, { id: 'fallen', name: '타락 기사', bonus: '공격력 +20% · 반발 면역' }] },
@@ -297,18 +384,18 @@ function traitMods() {
   const r = id => SEALED ? 0 : traitRank(id);
   const m = { atk: r('s_atk') * 3, hp: r('s_hp') * 4, crit: 0, double: r('s_double') * 8, drain: r('e_drain'),
     wave: r('s_wave') * 20, exec: r('s_exec'),
-    skill: r('m_skill') * 6, cd: r('m_cd') * 4, critDmg: 0, shield: 0, magicAlly: r('m_ally') * 15,
+    skill: r('m_skill') * 6, cd: r('m_cd') * 4, critDmg: 0, shield: r('h_regen') * 3, magicAlly: r('m_ally') * 15,
     color: r('m_color') * 20, colorEvery: 3, shadow: r('m_shadow'), shadowPerm: 0,
     aspd: r('a_aspd') * 3, pierce: r('a_pierce') * 2, dodge: r('a_dodge') * 2, gold: 0, shotAlly: r('a_ally') * 15, mark: r('a_mark') * 8,
-    regen: r('h_regen') * 15, guard: 0, potion: 0, healAlly: r('h_heal') * 15, revive: r('h_revive'),
+    guard: 0, potion: 0, healAlly: r('h_heal') * 15, revive: r('h_revive'),
     smite: r('h_smite') * 20, smiteSpd: r('h_smite') * 5, purify: r('h_purify'),
     dark: r('e_dark') * 8, reflect: r('e_dark'), noReflect: 0, fear: r('e_fear') * 4, weak: r('e_weak') * 6, soul: r('e_soul'),
-    hypno: 0, allyHp: 0, regenFlat: 0, healMul: 0 };
+    hypno: 0, allyHp: 0, healMul: 0 };
   if (SEALED) return m;
   if (save.job === 'sword') { m.atk += 10; m.hp += 10; }
   if (save.job === 'mana') { m.skill += 25; m.color = Math.floor(m.color * 1.3); }
   if (save.job === 'agi') m.aspd += 15;
-  if (save.job === 'holy') { m.regenFlat += 2; m.guard += 5; }
+  if (save.job === 'holy') { m.shield += 10; m.guard += 5; }
   if (save.job === 'dark') { m.dark += 15; m.drain += 2; }
   switch (save.adv) {
     case 'sm': m.atk += 15; m.double += 15; m.wave *= 2; break;
@@ -340,7 +427,7 @@ const MAIN_TYPES = [
   { key: 'kills',    text: n => `몬스터 ${n}마리 처치`,   target: i => 20 + i * 15 },
   { key: 'upgrades', text: n => `강화 ${n}번`,            target: i => 10 + i * 4 },
   { key: 'clears',   text: n => `스테이지 ${n}번 클리어`, target: i => 3 + Math.floor(i / 3) },
-  { key: 'gacha',    text: n => `장비 뽑기 ${n}번`,       target: i => 1 + Math.floor(i / 4) },
+  { key: 'gacha',    text: n => `뽑기 ${n}번`,            target: i => 1 + Math.floor(i / 4) },
   { key: 'dungeon',  text: n => `일일 던전 ${n}번 도전`,  target: i => 1 + Math.floor(i / 8) },
 ];
 const todayKey = () => { const t = new Date(); return `${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`; };
@@ -431,13 +518,13 @@ function payGacha(kind, base, again) {
   return true;
 }
 function showAgain(kind) {
-  const b1 = kind === 'ally' ? AGACHA_COST : GACHA_COST, b10 = kind === 'ally' ? AGACHA10_COST : GACHA10_COST;
+  const [b1, b10, run] = { ally: [AGACHA_COST, AGACHA10_COST, doAllyGacha], skill: [SGACHA_COST, SGACHA10_COST, doSkillGacha] }[kind] || [GACHA_COST, GACHA10_COST, doGacha];
   const k = gStreak.n + 1, d = againDisc(k);
   const btn = (cnt, base) => { const c = againPrice(base, k); return `<button class="again" data-again="${cnt}" ${save.dust < c ? 'disabled' : ''}>다시 ${cnt}회 뽑기<small><s>${base}</s> → 별가루 ${c}</small></button>`; };
   const el = $('gAgain');
   el.innerHTML = `<div class="gstreak">${gStreak.n ? `<b>${gStreak.n}연속!</b> · ` : ''}지금 다시 뽑으면 <em>-${d}%</em>${d < AGAIN_MAX ? ` · 다음엔 -${againDisc(k + 1)}%` : ' · 최대 할인'} · 나가면 할인 사라짐 · 보유 별가루 ${fmt(save.dust)}</div>
     <div class="againrow">${btn(1, b1)}${btn(10, b10)}</div>`;
-  el.querySelectorAll('[data-again]').forEach(b => b.onclick = () => (kind === 'ally' ? doAllyGacha : doGacha)(+b.dataset.again, true));
+  el.querySelectorAll('[data-again]').forEach(b => b.onclick = () => run(+b.dataset.again, true));
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
 }
 function closeGacha() {
@@ -488,9 +575,9 @@ function startDungeon(id) {
   hero.hp = stats.maxHp; hero.cd = 0; floats = [];
   const top = topStage();
   const k = makeMonster(top, false);
-  Object.assign(k, { name: D.name.split(' ').slice(0, -1).join(' '), sprite: D.sprite, body: D.body, align: 'neutral', king: true, size: 64, x: 200,
+  Object.assign(k, { name: D.name.split(' ').slice(0, -1).join(' '), sprite: D.sprite, body: D.body, align: 'neutral', king: true, size: 64, x: 200, ranged: false,
     hp: 1e30, maxHp: 1e30, atk: Math.floor(k.atk * 0.25), gold: 0 });
-  battle = { stage: top, dungeon: id, king: true, mech: null, wave: 0, queue: [k], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [],
+  battle = { stage: top, dungeon: id, king: true, mech: null, wave: 0, queue: [k], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, buffs: [], loot: [],
     timeLeft: DUNGEON_TIME, mechCd: Infinity, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0, dealt: 0 };
   initAllyHp();
   $('result').hidden = true;
@@ -538,36 +625,54 @@ function fanfare(title, sub, sound) {
 
 // ── 동료 ─────────────────────────────────────
 // r: 등급 (1 일반 · 2 희귀 · 3 전설). 스토리 동료는 보스를 깨면 합류하고 뽑기에서도 나온다(조각)
+// 유형 행동: 동료는 1/행동 속도 초마다, 리더는 기본 공격과 별도로 같은 주기에 (자기 공격력 기준)
 const ALLY_TYPES = {
-  heal:    { role: '치유형', every: 5,   desc: (lv, p) => `5초마다 체력이 가장 낮은 아군 체력 ${Math.round((6 + lv) * p)}% 회복` },
-  magic:   { role: '마법형', every: 4,   desc: (lv, p) => `4초마다 앞의 적 3마리에게 공격력 ${Math.round((50 + lv * 10) * p)}% 마법 피해` },
-  shot:    { role: '사격형', every: 2.5, desc: (lv, p) => `2.5초마다 앞의 적에게 공격력 ${Math.round((100 + lv * 20) * p)}% 피해` },
-  warrior: { role: '전사형', every: 3,   desc: (lv, p) => `3초마다 가까운 적에게 공격력 ${Math.round((120 + lv * 20) * p)}% 피해` },
-  support: { role: '지원형', every: 0,   desc: (lv, p) => `리더 공격력 +${Math.round((4 + lv) * p)}% · 공격 속도 +${Math.round((2 + lv * 0.5) * p)}%` },
+  heal:    { role: '치유형', act: '체력 비율이 가장 낮은 아군 치유 (공격력 110%) · 다친 아군이 없으면 앞의 적에게 공격력 50% 피해' },
+  magic:   { role: '마법형', act: '앞의 적 최대 3마리(잠입 암살자 포함)에게 공격력 70% 마법 피해' },
+  shot:    { role: '사격형', act: '잠입 암살자 → 몬스터 치유사 → 원거리 몬스터 → 앞의 적 순서로 공격력 100% 피해 (치유사 ×1.5)' },
+  warrior: { role: '전사형', act: '앞의 적(잠입 암살자 우선)에게 공격력 100% 피해 (암살자 ×1.5)' },
+  support: { role: '지원형', act: '앞의 적에게 공격력 60% 피해 · 파티 전체 오라' },
 };
+// pf: 캐릭터마다 다른 성장 (atk·hp 기본 배율, spd 동료로서 초당 행동 횟수, step 공격 속도 레벨당 상승, crit 기본 치명타%, agi 기본 회피%)
 const ALLIES = [
-  { id: 'miru',  name: '미르', type: 'heal',    r: 2, from: '챕터 1 보스' },
-  { id: 'serin', name: '세린', type: 'magic',   r: 2, from: '챕터 2 보스' },
-  { id: 'kai',   name: '카이', type: 'shot',    r: 2, from: '챕터 3 보스' },
-  { id: 'pio',   name: '피오', type: 'magic',   r: 3 },
-  { id: 'lea',   name: '레아', type: 'warrior', r: 3 },
-  { id: 'noeul', name: '노을', type: 'shot',    r: 3 },
-  { id: 'luka',  name: '루카', type: 'warrior', r: 2 },
-  { id: 'bron',  name: '브론', type: 'warrior', r: 2 },
-  { id: 'arin',  name: '아린', type: 'magic',   r: 2 },
-  { id: 'eunho', name: '은호', type: 'shot',    r: 2 },
-  { id: 'sea',   name: '세아', type: 'heal',    r: 2 },
-  { id: 'baram', name: '바람', type: 'support', r: 2 },
-  { id: 'tobi',  name: '토비', type: 'warrior', r: 1 },
-  { id: 'jun',   name: '준',   type: 'warrior', r: 1 },
-  { id: 'danbi', name: '단비', type: 'magic',   r: 1 },
-  { id: 'rio',   name: '리오', type: 'shot',    r: 1 },
-  { id: 'sora',  name: '소라', type: 'shot',    r: 1 },
-  { id: 'hana',  name: '하나', type: 'heal',    r: 1 },
-  { id: 'momo',  name: '모모', type: 'support', r: 1 },
-  { id: 'yuri',  name: '유리', type: 'support', r: 1 },
+  { id: 'miru',  name: '미르', type: 'heal',    r: 2, from: '챕터 1 보스', pf: { atk: 0.85, hp: 1.05, spd: 0.38, step: 0.05, crit: 3, agi: 3 } },
+  { id: 'serin', name: '세린', type: 'magic',   r: 2, from: '챕터 2 보스', pf: { atk: 1.35, hp: 0.75, spd: 0.45, step: 0.05, crit: 8, agi: 2 } },
+  { id: 'kai',   name: '카이', type: 'shot',    r: 2, from: '챕터 3 보스', pf: { atk: 1.05, hp: 0.9, spd: 0.9, step: 0.06, crit: 12, agi: 4 } },
+  { id: 'pio',   name: '피오', type: 'magic',   r: 3, pf: { atk: 1.45, hp: 0.75, spd: 0.4, step: 0.05, crit: 10, agi: 3 } },
+  { id: 'lea',   name: '레아', type: 'warrior', r: 3, pf: { atk: 1.15, hp: 1.4, spd: 0.7, step: 0.05, crit: 8, agi: 3 } },
+  { id: 'noeul', name: '노을', type: 'shot',    r: 3, pf: { atk: 1.1, hp: 0.85, spd: 1.0, step: 0.065, crit: 15, agi: 6 } },
+  { id: 'bron',  name: '브론', type: 'warrior', r: 2, pf: { atk: 0.8, hp: 1.8, spd: 0.55, step: 0.04, crit: 3, agi: 0 } },
+  { id: 'arin',  name: '아린', type: 'magic',   r: 2, pf: { atk: 1.4, hp: 0.75, spd: 0.42, step: 0.05, crit: 5, agi: 2 } },
+  { id: 'baram', name: '바람', type: 'support', r: 2, pf: { atk: 0.75, hp: 1.1, spd: 0.7, step: 0.06, crit: 6, agi: 8 } },
+  { id: 'tobi',  name: '토비', type: 'warrior', r: 1, pf: { atk: 1.0, hp: 1.4, spd: 0.75, step: 0.05, crit: 5, agi: 2 } },
+  { id: 'danbi', name: '단비', type: 'magic',   r: 1, pf: { atk: 1.2, hp: 0.8, spd: 0.45, step: 0.05, crit: 5, agi: 2 } },
+  { id: 'rio',   name: '리오', type: 'shot',    r: 1, pf: { atk: 0.95, hp: 0.85, spd: 1.0, step: 0.06, crit: 10, agi: 6 } },
+  { id: 'hana',  name: '하나', type: 'heal',    r: 1, pf: { atk: 0.75, hp: 1.0, spd: 0.4, step: 0.05, crit: 3, agi: 4 } },
+  { id: 'momo',  name: '모모', type: 'support', r: 1, pf: { atk: 0.7, hp: 1.15, spd: 0.75, step: 0.055, crit: 5, agi: 7 } },
 ];
-ALLIES.forEach(A => { const T = ALLY_TYPES[A.type]; A.role = T.role; A.every = T.every; A.desc = T.desc; A.sprite = A.id; });
+ALLIES.forEach(A => { const T = ALLY_TYPES[A.type]; A.role = T.role; A.act = T.act; A.sprite = A.id; });
+// 대개편 때 정리된 동료 (능력이 똑같은 중복): [이름, 유형, 등급]. 세이브 이전 보상과 랭킹의 옛 리더 표시에만 쓴다
+const GONE = { luka: ['루카', 'warrior', 2], jun: ['준', 'warrior', 1], eunho: ['은호', 'shot', 2], sora: ['소라', 'shot', 1], sea: ['세아', 'heal', 2], yuri: ['유리', 'support', 1] };
+// 고유 능력 (모든 캐릭터 서로 다름 · 동료든 리더든 발동). 효과는 전투 코드(allyAct·abilityOnHit·tankHit·onFall·updateRanged)에서
+const ABIL = {
+  tobi:  { name: '도끼 회전',   desc: () => '3번째 행동마다 앞의 적 2마리 동시 타격 (공격력 120%)' },
+  bron:  { name: '철벽 방패',   desc: () => '동료: 도발 중 받는 피해 -70% · 막은 피해의 30% 반사 · 리더: 받는 피해 -25% · 받은 피해의 30% 반사' },
+  lea:   { name: '관통 창',     desc: () => '공격이 뒤의 적까지 꿰뚫음 (2번째 적 70%) · 도발 시간 6초' },
+  rio:   { name: '돌팔매',      desc: () => '25% 확률로 0.8초 기절 (보스·대장은 절반) · 같은 적은 2초에 한 번' },
+  kai:   { name: '보물 사냥꾼', desc: () => '원거리·치유사 몬스터 피해 +50% · 카이가 처치한 적 골드 +30%' },
+  noeul: { name: '노을 화살비', desc: () => '5번째 사격마다 모든 적에게 공격력 80% 화살비' },
+  danbi: { name: '물방울 감옥', desc: () => '맞은 적 2초 둔화 (적 공격 느려짐)' },
+  serin: { name: '마력 공명',   desc: () => '치명타가 나면 같은 대상에 한 번 더 (공격력 60%)' },
+  arin:  { name: '불꽃 낙인',   desc: () => '맞은 적 화상 3초 (0.5초마다 공격력 15%) · 화상 시체는 되살아나지 않음' },
+  pio:   { name: '별똥별',      desc: () => '대상 수 제한 없이 모든 적(뒤 몬스터·잠입 암살자 포함)에게 공격력 60% 마법 피해' },
+  hana:  { name: '응급 붕대',   desc: () => '체력 30% 이하 아군 치유량 2배' },
+  miru:  { name: '약초 꾸러미', desc: () => '치유 대상의 독 해제 · 쓰러진 동료를 전투마다 1번 체력 30%로 일으킴' },
+  baram: { name: '바람의 노래', desc: id => `오라: 파티 공격 속도 +${auraPct(id)}% · 원거리 몬스터 공격 20% 빗나감` },
+  momo:  { name: '응원 탬버린', desc: id => `오라: 파티 공격력 +${auraPct(id)}% · 동료가 쓰러지면 남은 파티 5초 공격력 +40%` },
+};
+// 지원형 오라 % = (기본 + 2 × ★) × 등급 배율
+const AURA_BASE = { baram: 4, momo: 5 };
+const auraPct = id => Math.round((AURA_BASE[id] + 2 * allyStar(id)) * RARITY[allyById(id).r].mul * 10) / 10;
 const RARITY = [null, { name: '일반', stars: '★', color: '#8a7a6a', mul: 1 }, { name: '희귀', stars: '★★', color: '#3a7ad0', mul: 1.3 }, { name: '전설', stars: '★★★', color: '#e0902a', mul: 1.7 }];
 const PREFIX = {
   heal:    ['', '꽃잎', '축복의', '성녀', '천사'],
@@ -582,16 +687,12 @@ const allyById = id => ALLIES.find(a => a.id === id);
 const allyStar = id => (save.astar && save.astar[id]) || 1;
 const allyName = id => { const A = allyById(id), p = PREFIX[A.type][allyStar(id) - 1]; return (p ? p + ' ' : '') + A.name; };
 const allyPow = id => RARITY[allyById(id).r].mul * (1 + 0.25 * (allyStar(id) - 1));
-// 동료 강화 최대 레벨: 20 + 각성 별 × 10 (★5 = 70)
-const allyLvMax = id => 20 + allyStar(id) * 10;
-function allyCost(lv) { return Math.floor(400 * Math.pow(1.45, lv)); }
 
 // ── 리더: 주인공 없이 동료 1명이 맨 앞에서 싸운다 ──
-// 강화·장비·특성·전직·스킬·물약은 리더에게 적용. 리더가 쓰러져도 동료가 남아 있으면 계속, 모두 쓰러지면 패배
+// 강화는 캐릭터마다 따로. 장비·특성·전직·스킬·물약은 리더에게만. 리더가 쓰러져도 동료가 남아 있으면 계속, 모두 쓰러지면 패배
 const STARTERS = ['tobi', 'rio', 'danbi'];
 const leaderId = () => (save && save.leader && allyById(save.leader)) ? save.leader : 'tobi';
 const team = () => [save.leader].concat(save.party || []).filter(id => id && allyById(id));
-const leaderMul = () => 1 + (allyPow(leaderId()) - 1) * 0.25;        // 등급·각성이 높은 리더일수록 강함
 function leaderStyle() {
   const k = MOTION[ALLY_LOOKS[leaderId()].weapon] || 'dash';
   return k === 'cast' || k === 'play' ? 'cast' : k === 'shoot' ? 'shoot' : 'melee';
@@ -610,13 +711,13 @@ const PARTY_MAX = 5;
 function allyImg(id) { return allySprite(id, allyStar(id), allyById(id).type, mood); }
 const ALLY_ICON = {};
 function allyIcon(id, st) {
-  st = st || allyStar(id);
+  st = st || (allyById(id) ? allyStar(id) : 1);
   const k = id + st;
-  return ALLY_ICON[k] || (ALLY_ICON[k] = allySprite(id, st, allyById(id).type, 0).toDataURL());
+  return ALLY_ICON[k] || (ALLY_ICON[k] = allySprite(id, st, allyById(id) ? allyById(id).type : GONE[id][1], 0).toDataURL());   // GONE: 랭킹의 옛 리더
 }
-// 시너지: 같은 유형 1명 / 2명 이상
+// 시너지: 같은 유형 1명 / 2명 이상 (리더·동료 모두에게)
 const SYNERGY = [
-  { type: 'heal',    text: n => `치유형 ${n} · 초당 체력 회복 +최대 체력 ${n >= 2 ? 4 : 2}%` },
+  { type: 'heal',    text: n => `치유형 ${n} · 치유량 +${n >= 2 ? 40 : 20}%` },
   { type: 'magic',   text: n => `마법형 ${n} · 공격력 +${n >= 2 ? 20 : 10}%` },
   { type: 'shot',    text: n => `사격형 ${n} · 치명타 확률 +${n >= 2 ? 10 : 5}%` },
   { type: 'warrior', text: n => `전사형 ${n} · 받는 피해 -${n >= 2 ? 10 : 5}%` },
@@ -690,6 +791,106 @@ function awaken(id) {
   setTimeout(() => openAllies(id), 1900);
 }
 
+// ── 스킬 뽑기 · 배우기 · 강화 · 각성 ──
+// 확률(‰): 고급 600 · 희귀 280 · 영웅 90 · 전설 25 · 신화 5. 일반·보스 전용은 안 나옴. 전설 이상 천장 70회(save.spity)
+const SGACHA_COST = 40, SGACHA10_COST = 360, SPITY = 70;
+const SGACHA_W = [0, 600, 280, 90, 25, 5];
+function skillRoll(minG = 1) {
+  let g = 0;
+  const w = SGACHA_W.map((x, i) => i >= ((save.spity || 0) + 1 >= SPITY ? 4 : minG) ? x : 0);
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  while (r >= w[g]) { r -= w[g]; g++; }
+  save.spity = g >= 4 ? 0 : (save.spity || 0) + 1;
+  const pool = SKILLS.filter(s => s.grade === g && !s.boss);
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+// 빈(열린) 칸에 자동 장착
+function skAutoEquip(id) {
+  if (save.slots.includes(id)) return;
+  const i = save.slots.findIndex((x, k) => !x && skSlotOpen(k));
+  if (i >= 0) save.slots[i] = id;
+}
+// 스킬 얻기: 'new' | 'copy'(조각 +1) | 'dust'(★5 · 남은 각성 조각 충분 → 별가루 +5)
+function gainSkill(id) {
+  save.sk = save.sk || {};
+  const o = save.sk[id];
+  if (!o) { save.sk[id] = { lv: 1, star: 1, copy: 0 }; skAutoEquip(id); return 'new'; }
+  let need = 0;
+  for (let s = o.star; s < STAR_MAX; s++) need += SK_AWAKEN[s];
+  if (need <= o.copy) { save.dust += SK_DUST; return 'dust'; }
+  o.copy++;
+  return 'copy';
+}
+const skIcon = sk => `<i class="skico" style="--gc:${GRADES[sk.grade].color}">${FX_ICON[sk.fx] || '✦'}</i>`;
+function doSkillGacha(n, again) {
+  if (!payGacha('skill', n === 10 ? SGACHA10_COST : SGACHA_COST, again)) return;
+  const got = [];
+  for (let i = 0; i < n; i++) got.push(skillRoll());
+  if (n === 10 && !got.some(id => skillById(id).grade >= 2)) { save.spity = Math.max(0, save.spity - 1); got[9] = skillRoll(2); }   // 10회는 희귀 이상 1개 보장 (바꾼 1장은 천장에 한 번만)
+  const res = got.map(id => ({ id, kind: gainSkill(id) }));
+  track('gacha', n);
+  refreshStats(); writeSave(); updateHud();
+  closeModal();
+  $('gacha').hidden = false;
+  $('gTitle').textContent = '스킬 뽑기';
+  $('gCards').innerHTML = res.map((x, i) => {
+    const sk = skillById(x.id), G = GRADES[sk.grade];
+    return `<div class="gcard g${sk.grade}" style="--d:${i * 0.18}s"><div class="gbeam"></div>${skIcon(sk)}
+      <b style="color:${G.color}">${G.name}</b><span>${sk.name}</span><small>${x.kind === 'new' ? '<em class="newb">NEW!</em>' : x.kind === 'copy' ? '조각 +1' : `별가루 +${SK_DUST}`}</small></div>`;
+  }).join('');
+  res.forEach((x, i) => setTimeout(() => Sound.reveal(skillById(x.id).grade), i * 180));
+  $('gacha').classList.toggle('flash', res.some(x => skillById(x.id).grade >= 4));
+  showAgain('skill');
+}
+// 배우기(일반, Lv 0 → 1) 또는 골드 강화. 했으면 true
+function learnSkill(id) {
+  const sk = skillById(id), o = skOf(id);
+  if (!sk) return false;
+  if (!o) {
+    if (!skLearnable(sk) || save.gold < skCost(sk, 0)) return false;
+    save.gold -= skCost(sk, 0);
+    save.sk[id] = { lv: 1, star: 1, copy: 0 };
+    skAutoEquip(id);
+  } else {
+    if (o.lv >= skMaxLv(o.star) || save.gold < skCost(sk, o.lv)) return false;
+    save.gold -= skCost(sk, o.lv);
+    o.lv++;
+  }
+  track('upgrades');
+  refreshStats(); updateHud();
+  return true;
+}
+function awakenSkill(id) {
+  const o = skOf(id), sk = skillById(id);
+  if (!sk || !skCanAwaken(id)) return false;
+  o.copy -= SK_AWAKEN[o.star];
+  o.star++;
+  refreshStats(); writeSave(); updateHud();
+  fanfare(o.star === STAR_MAX ? '스킬 최종 각성!' : '스킬 각성!', `${sk.name} · ${'★'.repeat(o.star)} · 최대 Lv ${skMaxLv(o.star)}`, Sound.levelUp);
+  return true;
+}
+// 장착/해제 (slot: 넣을 칸, 없으면 빈 칸)
+function equipSkill(id, slot) {
+  if (!skOf(id)) return false;
+  const at = save.slots.indexOf(id);
+  if (at >= 0 && slot === undefined) save.slots[at] = null;
+  else {
+    const i = slot !== undefined ? slot : save.slots.findIndex((x, k) => !x && skSlotOpen(k));
+    if (i < 0 || !skSlotOpen(i)) { alert('스킬 칸 부족 · 다른 스킬 해제 필요'); return false; }
+    if (at >= 0) save.slots[at] = null;
+    save.slots[i] = id;
+  }
+  refreshStats(); updateHud();
+  return true;
+}
+// 챕터 보스 첫 처치: 그 챕터 보스 전용 스킬 (이미 있으면 null)
+function grantBossSkill(c) {
+  const sk = SKILLS.find(s => s.boss === +c);
+  if (!sk || skOf(sk.id)) return null;
+  gainSkill(sk.id);
+  return sk;
+}
+
 // ── 대사 ─────────────────────────────────────
 const LINES = {
   battle: {
@@ -760,15 +961,16 @@ const TALK = {
 
 // ── 챕터 ─────────────────────────────────────
 // mech: 보스 특수 공격 (slam = 7초마다 강한 박치기, root = 8초마다 2초 동안 묶음, poison = 8초마다 독침, 4초 동안 독 피해)
+// 몬스터 ranged: true = 원거리 (줄 뒤에서도 파티원을 쏜다), shot: 투사체 색
 const CHAPTERS = [
   { name: '들꽃 평원', theme: 'meadow',
-    monsters: [{ from: 1, sprite: 'slime', name: '풀잎 슬라임', align: 'neutral', body: 'soft' }, { from: 8, sprite: 'mushroom', name: '꽃버섯', align: 'neutral', body: 'plant' }, { from: 15, sprite: 'bee', name: '들벌', align: 'neutral', body: 'flying' }],
+    monsters: [{ from: 1, sprite: 'slime', name: '풀잎 슬라임', align: 'neutral', body: 'soft' }, { from: 8, sprite: 'mushroom', name: '꽃버섯', align: 'neutral', body: 'plant' }, { from: 15, sprite: 'bee', name: '들벌', align: 'neutral', body: 'flying', ranged: true, shot: '#ffd84a' }],
     boss: { name: '거대 슬라임 왕', sprite: 'slime_king', mech: 'slam', every: 7, mechName: '몸통 박치기', ally: 'miru', align: 'neutral', body: 'soft' } },
   { name: '속삭이는 숲', theme: 'forest',
-    monsters: [{ from: 1, sprite: 'wisp', name: '숲 요정', align: 'good', body: 'spirit' }, { from: 8, sprite: 'toadstool', name: '독버섯', align: 'neutral', body: 'plant' }, { from: 15, sprite: 'sprout', name: '나무 정령', align: 'good', body: 'plant' }],
+    monsters: [{ from: 1, sprite: 'wisp', name: '숲 요정', align: 'good', body: 'spirit', ranged: true, shot: '#bfe8ff' }, { from: 8, sprite: 'toadstool', name: '독버섯', align: 'neutral', body: 'plant' }, { from: 15, sprite: 'sprout', name: '나무 정령', align: 'good', body: 'plant' }],
     boss: { name: '고목 수호자', sprite: 'treant', mech: 'root', every: 8, mechName: '뿌리 감옥', ally: 'serin', align: 'good', body: 'plant' } },
   { name: '붉은 사막', theme: 'desert',
-    monsters: [{ from: 1, sprite: 'cactus', name: '선인장 무사', align: 'neutral', body: 'plant' }, { from: 8, sprite: 'scorpion', name: '모래 전갈', align: 'neutral', body: 'armored' }, { from: 15, sprite: 'mummy', name: '붕대 유령', align: 'evil', body: 'spirit' }],
+    monsters: [{ from: 1, sprite: 'cactus', name: '선인장 무사', align: 'neutral', body: 'plant', ranged: true, shot: '#9ad86a' }, { from: 8, sprite: 'scorpion', name: '모래 전갈', align: 'neutral', body: 'armored' }, { from: 15, sprite: 'mummy', name: '붕대 유령', align: 'evil', body: 'spirit' }],
     boss: { name: '사막 전갈 여왕', sprite: 'scorpion_queen', mech: 'poison', every: 8, mechName: '독침', ally: 'kai', align: 'neutral', breaker: true, body: 'armored' } },
 ];
 const MAX_STAGE = CHAPTERS.length * STAGES_PER;
@@ -885,8 +1087,8 @@ function fmt(n) {
 let save = null;
 
 function newSave(starter) {
-  return { name: '모험단', gender: 'm', leader: starter, gold: 0, stage: 1, lv: { atk: 0, hp: 0, regen: 0, crit: 0, aspd: 0 },
-    chest: 0, chestAt: Date.now(), potions: 3, skills: { strike: 1 }, slots: ['strike', null, null], autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: { [starter]: 1 }, party: [], seenCh: 1, traits: {}, job: null, adv: null, traitsV: 2, astar: { [starter]: 1 }, acopy: {}, apity: 0, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
+  return { name: '모험단', gender: 'm', leader: starter, gold: 0, stage: 1, clv: { [starter]: { ...ZERO_LV } }, saveV: 3,
+    chest: 0, chestAt: Date.now(), potions: 3, sk: { strike: { lv: 1, star: 1, copy: 0 } }, slots: ['strike', null, null, null], skV: 1, spity: 0, autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: { [starter]: 1 }, party: [], seenCh: 1, traits: {}, job: null, adv: null, traitsV: 2, astar: { [starter]: 1 }, acopy: {}, apity: 0, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
 }
 
 // 탭이 여러 개면 서로 저장을 덮어쓰므로, 가장 나중에 연 탭만 저장한다
@@ -931,18 +1133,19 @@ function useAccountKey(uid) {
 // 옛날 형식의 세이브를 지금 형식으로 맞춘다
 function migrateSave(s) {
   try {
-    if (!s || !s.name || !s.lv) return null;
+    if (!s || typeof s !== 'object' || !s.name || (!s.lv && !s.clv)) return null;
     // 옛날 저장(1단계) 이어받기
     if (s.chest === undefined) { s.chest = 0; s.chestAt = Date.now(); s.potions = 3; }
     delete s.kills; delete s.best;
-    for (const u of UPGRADES) s.lv[u.id] = Math.min(s.lv[u.id] || 0, u.max);
+    if (s.lv && typeof s.lv === 'object') for (const k of ['atk', 'hp', 'regen', 'crit', 'aspd']) s.lv[k] = Math.min(Math.max(0, Math.floor(+s.lv[k] || 0)), { crit: 30, aspd: 40 }[k] ?? Infinity);   // 옛 전역 강화 (v3 이전)
     if (!s.items) { s.items = []; s.gear = {}; s.nextItem = 1; }
     if (s.shards === undefined) s.shards = 0;
     if (!s.bosses) { s.bosses = s.bossDone ? { 1: true } : {}; delete s.bossDone; }
-    if (!s.allies) { s.allies = {}; s.party = []; }
+    if (!s.allies || typeof s.allies !== 'object') { s.allies = {}; s.party = []; }
     if (!s.astar) { s.astar = {}; s.acopy = {}; s.apity = 0; }
-    for (const id in s.allies) s.allies[id] = Math.min(s.allies[id], 20 + ((s.astar[id] || 1) * 10));   // 최대 레벨 적용
-    s.party = s.party.filter(id => allyById(id));
+    if (!s.acopy) s.acopy = {};
+    if (!Array.isArray(s.party)) s.party = [];
+    s.party = s.party.filter(id => allyById(id) || GONE[id]);
     for (const [c, ok] of Object.entries(s.bosses)) {            // 보스를 깼으면 그 챕터 동료가 있어야 한다
       const id = CHAPTERS[c - 1] && CHAPTERS[c - 1].boss.ally;
       if (ok && id && !s.allies[id]) { s.allies[id] = 1; if (s.party.length < 3) s.party.push(id); }
@@ -959,9 +1162,131 @@ function migrateSave(s) {
       if (s.shop) s.shop.items.forEach(it => it.value = rollValue(it.grade, it.stage, 0.8));
       s.gearV2 = true;
     }
-    if (!s.skills) { s.skills = { strike: 1 }; s.slots = ['strike', null, null]; s.autoSkill = true; }
+    if (s.saveV !== 3) migrateV3(s);
+    if (s.skV !== 1) migrateSkills(s);
+    // 스킬 정리 (이상한 값이 섞여도 버티게)
+    if (!s.sk || typeof s.sk !== 'object') s.sk = {};
+    for (const id of Object.keys(s.sk)) {
+      const o = s.sk[id];
+      if (!skillById(id) || !o || typeof o !== 'object') { delete s.sk[id]; continue; }
+      o.star = Math.min(STAR_MAX, Math.max(1, Math.floor(+o.star || 1)));
+      o.lv = Math.min(SK_LV_CAP, Math.max(1, Math.floor(+o.lv || 1)));
+      o.copy = Math.max(0, Math.floor(+o.copy || 0));
+    }
+    s.slots = (Array.isArray(s.slots) ? s.slots : []).slice(0, SKILL_SLOTS).map((id, i, a) => id && s.sk[id] && a.indexOf(id) === i ? id : null);
+    while (s.slots.length < SKILL_SLOTS) s.slots.push(null);
+    s.spity = Math.max(0, Math.floor(+s.spity || 0));
+    if (s.autoSkill === undefined) s.autoSkill = true;
+    // v3 세이브 정리 (이상한 값이 섞여도 버티게)
+    if (!s.clv || typeof s.clv !== 'object') s.clv = {};
+    for (const id of Object.keys(s.clv)) {
+      if (!allyById(id) || !s.clv[id] || typeof s.clv[id] !== 'object') { delete s.clv[id]; continue; }
+      for (const u of CHAR_UPS) s.clv[id][u.id] = Math.min(u.max, Math.max(0, Math.floor(+s.clv[id][u.id] || 0)));
+    }
+    for (const id of Object.keys(s.allies)) if (!allyById(id)) delete s.allies[id]; else s.allies[id] = 1;
+    if (s.leader && !allyById(s.leader)) s.leader = Object.keys(s.allies)[0] || 'tobi';
+    if (s.leader && !s.allies[s.leader]) { s.allies[s.leader] = 1; s.astar[s.leader] = s.astar[s.leader] || 1; }
+    s.party = s.party.filter((id, i, a) => allyById(id) && s.allies[id] && id !== s.leader && a.indexOf(id) === i);
     return s;
-  } catch (e) { return null; }
+  } catch (e) { console.warn(e); return null; }
+}
+
+// ── 세이브 이전 v3 (대개편): 캐릭터별 강화·체력 회복 삭제·중복 동료 정리. saveV로 한 번만 ──
+// 1. 리더 강화(clv) ← 옛 전역 강화(save.lv), '체력 회복' 강화 골드 환급
+// 2. 다른 보유 동료: 옛 동료 레벨에 쓴 골드만큼의 공격력·체력 레벨로 변환 (최소 리더 레벨의 60%, 최대 리더 레벨). 골드 환급 없음
+//    (옛 동료 비용 400·1.45^Lv 는 너무 커서 골드로 바꾸면 폭발 → 레벨로만 변환, 리더의 옛 동료 레벨은 환급 없음)
+// 3. 삭제 동료 보상(별가루·골드), 리더였으면 남은 동료 중 가장 강한 동료가 리더 (리더 강화 물려받음)
+//    환급 골드 합(체력 회복 + 삭제 동료)은 최대 monGold(스테이지) × 2000
+// 4. 스킬 이전은 스킬 개편에서 따로
+// 5. reworkNotice: 로비에서 한 번 안내
+function migrateV3(s) {
+  const n = v => Math.max(0, Math.floor(+v || 0));
+  const allyGold = L => { let g = 0; for (let k = 1; k < L; k++) g += Math.floor(400 * Math.pow(1.45, k)); return g; };   // 옛 동료 강화(allyCost)에 쓴 골드
+  const old = s.lv && typeof s.lv === 'object' ? s.lv : {};
+  const lead = { atk: n(old.atk), hp: n(old.hp), aspd: Math.min(40, n(old.aspd)), crit: Math.min(30, n(old.crit)), agi: 0 };
+  let gold = 0, dust = 0;
+  for (let k = 0; k < Math.min(n(old.regen), 2000); k++) gold += Math.floor(25 * Math.pow(1.09, k));   // 체력 회복 환급
+  const oldLv = {};
+  for (const id of Object.keys(s.allies)) oldLv[id] = Math.min(Math.max(1, n(s.allies[id]) || 1), 20 + Math.min(5, Math.max(1, n(s.astar[id]) || 1)) * 10);
+  const pw = id => RARITY[allyById(id).r].mul * (1 + 0.25 * (Math.min(5, n(s.astar[id]) || 1) - 1));   // 등급·각성
+  const partyWas = s.party.filter((id, i, a) => id && id !== s.leader && (allyById(id) || GONE[id]) && s.allies[id] && a.indexOf(id) === i).length;   // 옛 배치 인원
+  // 삭제 동료 보상
+  for (const id of Object.keys(GONE)) {
+    if (!s.allies[id]) continue;
+    const st = Math.min(5, Math.max(1, n(s.astar[id]) || 1));
+    dust += { 1: 30, 2: 80, 3: 300 }[GONE[id][2]] + 40 * (st - 1) + n(s.acopy[id]) * 10;
+    if (id !== s.leader) gold += allyGold(oldLv[id]);                              // 삭제된 리더의 옛 동료 레벨은 환급 없음
+    delete s.allies[id]; delete s.astar[id]; delete s.acopy[id];
+  }
+  for (const id of Object.keys(s.allies)) if (!allyById(id)) delete s.allies[id];
+  // 리더 정리: 삭제된 리더면 등급·각성이 가장 높은 동료(없으면 토비)
+  if (s.leader && !allyById(s.leader)) {
+    const own = Object.keys(s.allies).sort((a, b) => pw(b) - pw(a));
+    s.leader = own[0] || 'tobi';
+  }
+  if (s.leader && !s.allies[s.leader]) { s.allies[s.leader] = 1; s.astar[s.leader] = s.astar[s.leader] || 1; oldLv[s.leader] = 1; }
+  const pmax = 3 + (s.bosses && s.bosses[2] ? 1 : 0) + (s.bosses && s.bosses[3] ? 1 : 0);
+  s.party = s.party.filter((id, i, a) => allyById(id) && s.allies[id] && id !== s.leader && a.indexOf(id) === i).slice(0, pmax);
+  // 삭제 동료(또는 새 리더)가 빠진 자리는 남은 동료 중 등급·각성 높은 순으로 채움 (옛 배치 인원까지)
+  const spare = Object.keys(s.allies).filter(id => id !== s.leader && !s.party.includes(id)).sort((a, b) => pw(b) - pw(a) || (oldLv[b] || 1) - (oldLv[a] || 1));
+  while (s.party.length < Math.min(pmax, partyWas) && spare.length) s.party.push(spare.shift());
+  // 강화 이전
+  s.clv = s.clv && typeof s.clv === 'object' ? s.clv : {};
+  if (s.leader) s.clv[s.leader] = lead;                                                // 리더의 옛 동료 레벨은 환급 없음 (리더 강화가 대신)
+  else s.leadLv = lead;                                                                // 리더를 아직 안 고른 옛 세이브: 고른 동료가 물려받음
+  const up = CHAR_UPS[0];                                                              // 공격력·체력 비용 공식이 같음
+  for (const id of Object.keys(s.allies)) {
+    if (id === s.leader) continue;
+    let G = allyGold(oldLv[id] || 1);
+    const L = { ...ZERO_LV };
+    for (let guard = 0; guard < 5000; guard++) {
+      const k = L.atk <= L.hp ? 'atk' : 'hp', c = upgradeCost(up, L[k]);
+      if (G < c) break;
+      G -= c; L[k]++;
+    }
+    L.atk = Math.min(lead.atk, Math.max(L.atk, Math.floor(0.6 * lead.atk)));          // 리더 레벨의 60% ~ 100%
+    L.hp = Math.min(lead.hp, Math.max(L.hp, Math.floor(0.6 * lead.hp)));
+    s.clv[id] = L;
+  }
+  for (const id of Object.keys(s.allies)) s.allies[id] = 1;                           // 이제 보유 여부만
+  gold = Math.min(gold, monGold(Math.min(MAX_STAGE, Math.max(1, n(s.stage) || 1))) * 2000);   // 환급 상한
+  s.gold = (+s.gold || 0) + gold;
+  s.dust = (+s.dust || 0) + dust;
+  s.reworkNotice = { gold, dust };
+  delete s.lv;
+  s.saveV = 3;
+}
+
+// ── 스킬 대개편 이전 (skV 1): 옛 save.skills {id: lv} → save.sk (★1), 칸 4개, 이미 깬 보스의 전용 스킬 지급 ──
+// 옛 레벨은 그대로 유지 (★1 최대 Lv 10을 넘어도 값은 그 레벨로, 강화만 각성 뒤에). 절대 상한 Lv 30을 넘는 부분은 골드 환급
+const SK_LV_CAP = skMaxLv(STAR_MAX);
+function migrateSkills(s) {
+  const old = s.skills && typeof s.skills === 'object' ? s.skills : { strike: 1 };
+  s.sk = s.sk && typeof s.sk === 'object' ? s.sk : {};
+  let gold = 0;
+  for (const [id, v] of Object.entries(old)) {
+    const sk = skillById(id), lv = Math.floor(+v || 0);
+    if (!sk || lv < 1 || s.sk[id]) continue;
+    for (let k = SK_LV_CAP; k < Math.min(lv, 500); k++) gold += skCost(sk, k);
+    s.sk[id] = { lv: Math.min(lv, SK_LV_CAP), star: 1, copy: 0 };
+  }
+  s.slots = (Array.isArray(s.slots) ? s.slots : []).slice(0, SKILL_SLOTS).map((id, i, a) => id && s.sk[id] && a.indexOf(id) === i ? id : null);
+  while (s.slots.length < SKILL_SLOTS) s.slots.push(null);
+  const boss = [];
+  for (let c = 1; c <= 10; c++) {
+    const sk = SKILLS.find(x => x.boss === c);
+    if (!sk || !(s.bosses && s.bosses[c]) || s.sk[sk.id]) continue;
+    s.sk[sk.id] = { lv: 1, star: 1, copy: 0 };
+    boss.push(sk.id);
+    const i = s.slots.findIndex((x, k) => !x && (k < SKILL_SLOTS - 1 || s.bosses[3]));
+    if (i >= 0) s.slots[i] = sk.id;
+  }
+  if (gold) s.gold = (+s.gold || 0) + gold;
+  s.spity = s.spity || 0;
+  if (s.autoSkill === undefined) s.autoSkill = true;
+  s.skillNotice = { boss, gold };
+  delete s.skills;
+  s.skV = 1;
 }
 
 // ── 매일 출석: 날마다 소량, 7일째 크게. 하루 빠지면 1일차부터 ──
@@ -1037,28 +1362,84 @@ function showAway(next) {
   $('awayOk').onclick = () => take(false);
   $('awayX2').onclick = () => take(true);
 }
-// 접속 순서: 접속 보상 → 출석
+// 접속 순서: 대개편 안내(한 번) → 접속 보상 → 출석
 function showWelcome() {
   if (!save.leader) return;
   const att = () => { if (attendReady()) openAttend(); };
-  if (checkAway()) showAway(att); else att();
+  const away = () => { if (checkAway()) showAway(att); else att(); };
+  const skn = () => { if (save.skillNotice) openSkillNotice(away); else away(); };
+  if (save.reworkNotice) openRework(skn); else skn();
+}
+// 대개편 안내 (세이브 이전 v3 후 한 번). 확인·바깥 클릭·Esc 어느 쪽으로 닫아도 다시 안 뜸 (closeModal)
+// 안내창이 여러 개면 차례로 (대개편 → 스킬 대개편 → 접속 보상 → 출석)
+let noticeNext = null, noticeKey = null;
+function openRework(next) {
+  const N = save.reworkNotice || { gold: 0, dust: 0 };
+  modalKind = 'notice';
+  noticeKey = 'reworkNotice';
+  noticeNext = next || null;
+  $('mTitle').textContent = '대개편 안내';
+  $('mClose').hidden = true;
+  $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
+    <p class="lead">별의 설화 대개편 · 지금까지의 진행 그대로 유지</p>
+    <ul class="rwk">
+      <li><b>캐릭터별 강화</b> 리더·동료 모두 각자 강화 (공격력·체력·공격 속도·치명타·민첩) · 능력치·성장 캐릭터마다 다름 · 리더 강화는 그대로 유지 · 옛 동료 레벨은 공격력·체력 강화로 변환</li>
+      <li><b>따라잡기·협공</b> 최고 레벨보다 낮은 강화 비용 ${Math.round((1 - CATCHUP_MUL) * 100)}% 할인 · 동료로 싸울 때 공격력 ×${ALLY_ATK}</li>
+      <li><b>체력 회복 삭제</b> 체력 회복 강화 삭제 · 환급 골드 <em>+${fmt(N.gold)} G</em></li>
+      <li><b>중복 동료 정리</b> 능력이 같은 동료 6명 정리 · 보상 별가루 <em>+${fmt(N.dust)}</em></li>
+      <li><b>동료 고유 능력</b> 동료 ${ALLIES.length}명 모두 서로 다른 능력 · 동료 탭에서 확인</li>
+      <li><b>원거리 몬스터</b> 줄 뒤에서 공격하는 몬스터(➶) 등장</li>
+      <li><b>암살자 기습 강화</b> 뒤로 잠입한 적 암살자 공격력·공격 속도 상승</li>
+      <li><b>파티 체력바</b> 리더·동료 모두 체력바 · 왼쪽 아래는 파티 체력 합</li>
+    </ul>
+    <p class="note">팁 · 환급 골드로 동료 강화 추천 (따라잡기 할인)</p>
+    <div class="gbtns"><button id="rwOk">확인</button></div>`;
+  $('modal').hidden = false;
+  refreshModal();
+  $('rwOk').onclick = closeModal;
+}
+// 스킬 대개편 안내 (스킬 이전 후 한 번)
+function openSkillNotice(next) {
+  const N = save.skillNotice || { boss: [], gold: 0 };
+  const boss = (N.boss || []).map(skillById).filter(Boolean);
+  modalKind = 'notice';
+  noticeKey = 'skillNotice';
+  noticeNext = next || null;
+  $('mTitle').textContent = '스킬 대개편 안내';
+  $('mClose').hidden = true;
+  $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
+    <p class="lead">스킬 대개편 · 스킬 ${SKILLS.length}종 · 등급 6단계 · 스킬 뽑기 추가 · 보스 전용 스킬</p>
+    <ul class="rwk">
+      <li><b>스킬 ${SKILLS.length}종</b> 등급 6단계 (${GRADES.map(G => G.name).join('·')}) · 배운 스킬·레벨 그대로 유지</li>
+      <li><b>스킬 뽑기</b> 뽑기 → 스킬 탭 · 중복은 조각 → 각성 (★ 하나마다 효과 +20% · 최대 레벨 +5)</li>
+      <li><b>보스 전용 스킬</b> 챕터 보스 첫 처치 보상${boss.length ? ` · 지급: ${boss.map(sk => `<em style="color:${GRADES[sk.grade].color}">${sk.name}</em>`).join(', ')}` : ''}</li>
+      <li><b>스킬 칸 4개</b> 4번째 칸은 챕터 3 보스 처치 시 해금 · 키 1~4</li>
+      ${N.gold ? `<li><b>최대 레벨 초과분 환급</b> <em>+${fmt(N.gold)} G</em></li>` : ''}
+    </ul>
+    <div class="gbtns"><button id="rwOk">확인</button></div>`;
+  $('modal').hidden = false;
+  refreshModal();
+  $('rwOk').onclick = closeModal;
 }
 
 // ── 다음 목표 ──
 function nextGoal() {
   const cleared = save.stage - 1;
-  for (let c = 1; c <= CHAPTERS.length; c++) if (bossOpen(c) && !bossBeaten(c))
-    return { text: `챕터 ${c} 보스 처치 → 별조각 · 동료 · ${c === 1 ? '특성 해금' : '동료 칸 +1'}`, prog: 1, go: () => openStages(c) };
+  for (let c = 1; c <= CHAPTERS.length; c++) if (bossOpen(c) && !bossBeaten(c)) {
+    const B = chapter(c).boss, rw = ['별조각'].concat(B.ally ? ['동료'] : [], SKILLS.some(s => s.boss === c) ? ['보스 스킬'] : [], c === 1 ? ['특성 해금'] : c <= 3 ? ['동료 칸 +1'] : [], c === 3 ? ['스킬 칸 +1'] : []);
+    return { text: `챕터 ${c} 보스 처치 → ${rw.join(' · ')}`, prog: 1, go: () => openStages(c) };
+  }
   if (traitsOpen() && pointsLeft() > 0) return { text: `특성 포인트 ${pointsLeft()}개 남음 → 특성 탭에서 배치`, prog: 1, go: () => openModal('traits') };
   if (traitsOpen() && !save.job) {
     const best = Math.max(...TRAIT_TREES.map(treeSpent));
     return { text: best >= JOB_POINTS ? '1차 전직 가능!' : `한 갈래 ${JOB_POINTS}포인트 → 1차 전직 (${best}/${JOB_POINTS})`, prog: Math.min(1, best / JOB_POINTS), go: () => openModal('traits') };
   }
-  const ms = SKILLS.filter(s => s.unlock > 0).map(s => ({ at: s.unlock, label: `스킬 '${s.name}' 해금` }))
+  const learn = SKILLS.filter(s => s.grade === 0 && s.unlock > 0);                 // 일반 스킬 해금 (골드로 배움)
+  const ms = learn.map(s => ({ at: s.unlock, label: `스킬 '${s.name}' 해금` }))
     .concat(CHAPTERS.map((C, i) => ({ at: (i + 1) * STAGES_PER, label: `챕터 ${i + 1} 보스 도전` })))
     .filter(x => x.at > cleared).sort((a, b) => a.at - b.at);
   if (ms.length) {
-    const t = ms[0], prev = Math.max(0, ...SKILLS.map(s => s.unlock).concat(CHAPTERS.map((C, i) => (i + 1) * STAGES_PER)).filter(x => x <= cleared));
+    const t = ms[0], prev = Math.max(0, ...learn.map(s => s.unlock).concat(CHAPTERS.map((C, i) => (i + 1) * STAGES_PER)).filter(x => x <= cleared));
     return { text: `${stageLabel(t.at)} 클리어까지 ${t.at - cleared}스테이지 → ${t.label}`, prog: (cleared - prev) / Math.max(1, t.at - prev), go: () => openStages() };
   }
   return { text: '다음 챕터는 업데이트 예정 · 랭킹 올리기!', prog: 1, go: () => openRank() };
@@ -1075,7 +1456,7 @@ function updateGoal() {
 let rankSent = 0;
 function rankUpload() {
   if (!cloudOn() || !window.Cloud.rankSave) return;
-  const p = Math.floor(power(stats));
+  const p = power();
   if (p === rankSent) return;
   rankSent = p;
   window.Cloud.rankSave({ name: String(save.name || '모험단').slice(0, 10), leader: leaderId(), star: allyStar(leaderId()), power: p, stage: save.stage - 1, job: jobTitle(), at: Date.now() })
@@ -1090,14 +1471,14 @@ async function openRank() {
   if (TEST || !window.Cloud || !window.Cloud.user) return ($('rankBody').innerHTML = '<p class="note">테스트 모드 · 랭킹 꺼짐</p>');
   rankSent = 0; rankUpload();
   try {
-    const my = Math.floor(power(stats));
+    const my = power();
     const [top, mine] = await Promise.all([window.Cloud.rankTop(50), window.Cloud.rankOf(my)]);
     if (modalKind !== 'rank') return;
     const me = window.Cloud.user.uid;
     $('rankBody').innerHTML = `<div class="lead">내 순위 <b>${mine}위</b> · 전투력 ${fmt(my)} · 이름 ${esc(save.name)} <button id="rkName" class="plain">이름 바꾸기</button></div>
       <table class="rank"><tr><th>순위</th><th>이름</th><th>리더</th><th>전직</th><th>스테이지</th><th>전투력</th></tr>
       ${top.map((r, i) => `<tr class="${r.uid === me ? 'me' : ''}${i < 3 ? ' top' : ''}"><td>${['🥇', '🥈', '🥉'][i] || i + 1}</td><td>${esc(r.name)}</td>
-        <td>${allyById(r.leader) ? `<img src="${allyIcon(r.leader, Math.min(5, Math.max(1, r.star | 0)))}"> ${allyById(r.leader).name}` : '-'}</td><td>${esc(r.job || '')}</td>
+        <td>${allyById(r.leader) || GONE[r.leader] ? `<img src="${allyIcon(r.leader, Math.min(5, Math.max(1, r.star | 0)))}"> ${allyById(r.leader) ? allyById(r.leader).name : GONE[r.leader][0]}` : '-'}</td><td>${esc(r.job || '')}</td>
         <td>${r.stage > 0 ? stageLabel(Math.min(r.stage, MAX_STAGE)) : '-'}</td><td>${fmt(r.power)}</td></tr>`).join('')}</table>`;
     $('rkName').onclick = () => {
       const n = (prompt('모험단 이름 (최대 8자)', save.name) || '').trim().slice(0, 8);
@@ -1122,11 +1503,11 @@ function pickupLeft() {
 
 // ── 도감 세트: 모으면 영구 효과 + 한 번 별가루 ──
 const SETS = [
-  { id: 'heal',   name: '치유의 손길', ids: ['miru', 'sea', 'hana'],                 text: '체력 +5%',          b: { hp: 5 },  dust: 30 },
+  { id: 'heal',   name: '치유의 손길', ids: ['miru', 'hana'],                         text: '체력 +5%',          b: { hp: 5 },  dust: 30 },
   { id: 'magic',  name: '마법 학회',   ids: ['serin', 'pio', 'arin', 'danbi'],        text: '공격력 +5%',        b: { atk: 5 }, dust: 40 },
-  { id: 'shot',   name: '명사수 모임', ids: ['kai', 'noeul', 'eunho', 'rio', 'sora'], text: '치명타 확률 +3%',   b: { crit: 3 }, dust: 50 },
-  { id: 'wall',   name: '철벽 전사단', ids: ['lea', 'luka', 'bron', 'tobi', 'jun'],   text: '받는 피해 -3%',     b: { guard: 3 }, dust: 50 },
-  { id: 'fest',   name: '별빛 악단',   ids: ['baram', 'momo', 'yuri'],                text: '공격 속도 +5%',     b: { aspd: 5 }, dust: 30 },
+  { id: 'shot',   name: '명사수 모임', ids: ['kai', 'noeul', 'rio'],                  text: '치명타 확률 +3%',   b: { crit: 3 }, dust: 50 },
+  { id: 'wall',   name: '철벽 전사단', ids: ['lea', 'bron', 'tobi'],                  text: '받는 피해 -3%',     b: { guard: 3 }, dust: 50 },
+  { id: 'fest',   name: '별빛 악단',   ids: ['baram', 'momo'],                        text: '공격 속도 +5%',     b: { aspd: 5 }, dust: 30 },
   { id: 'story',  name: '첫 여행의 셋', ids: ['miru', 'serin', 'kai'],                text: '처치 골드 +10%',    b: { gold: 10 }, dust: 30 },
   { id: 'legend', name: '전설의 별',   ids: ['pio', 'lea', 'noeul'],                 text: '공격력·체력 +10%',  b: { atk: 10, hp: 10 }, dust: 100 },
 ];
@@ -1187,7 +1568,7 @@ let floatsLobby = [];   // 로비 상자 위에 떠오르는 숫자
 const hero = { hp: 0, cd: 0, lunge: 0, hurt: 0, x: 70, atk: null };
 let battle = null;      // { stage, wave, queue, earned, state, delay, potionCd }
 
-function refreshStats() { stats = fullStats(save.lv); hero.x = 70 + Math.max(0, (save.party || []).length - 3) * 18; }
+function refreshStats() { stats = fullStats(); cstats = {}; hero.x = 70 + Math.max(0, (save.party || []).length - 3) * 18; }
 
 // ── 전투 ────────────────────────────────────
 // stage: 도전할 스테이지 (깬 곳 또는 다음 곳)
@@ -1198,7 +1579,7 @@ function startBattle(stage) {
   hero.hp = stats.maxHp;
   hero.cd = 0;
   floats = [];
-  battle = { stage, wave: 0, queue: [], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [], allyCd: {}, fx: [], shield: 0, revived: false, poison: 0 };
+  battle = { stage, wave: 0, queue: [], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, buffs: [], loot: [], allyCd: {}, fx: [], shield: 0, revived: false, poison: 0 };
   initAllyHp();
   spawnWave();
   if (chOf(stage) > (save.seenCh || 1)) {                          // 새 챕터에 처음 들어옴
@@ -1223,14 +1604,14 @@ function startBoss(c) {
   floats = [];
   const k = makeMonster(last, true);
   Object.assign(k, {
-    name: B.name, sprite: B.sprite, king: true, size: 64, x: 200, align: B.align, body: B.body,
+    name: B.name, sprite: B.sprite, king: true, size: 64, x: 200, align: B.align, body: B.body, ranged: !!B.ranged,
     hp: Math.floor(BAL.monHp * growth(last, BAL.hpGrow, BAL.hpGrow2) * BAL.kingHp),
     atk: Math.floor(BAL.monAtk * growth(last, BAL.atkGrow, BAL.atkGrow2) * BAL.kingAtk),
     gold: monGold(last) * BAL.kingGold,
     critRes: critRes(last) + 5,
   });
   k.maxHp = k.hp;
-  battle = { stage: last, ch: c, king: true, mech: B.mech, every: B.every, wave: 0, queue: [k], earned: 0, state: 'talk', delay: 0, potionCd: 0, skillCd: {}, cryT: 0, loot: [],
+  battle = { stage: last, ch: c, king: true, mech: B.mech, every: B.every, wave: 0, queue: [k], earned: 0, state: 'talk', delay: 0, potionCd: 0, skillCd: {}, buffs: [], loot: [],
     timeLeft: BOSS_TIME, mechCd: B.every, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0 };
   initAllyHp();
   $('result').hidden = true;
@@ -1257,13 +1638,13 @@ function spawnWave() {
     m.role = role; m.rcd = role === 'assassin' ? 2.2 : 3;
     m.hp = m.maxHp = Math.floor(m.hp * 1.5);
     if (role === 'healer') m.name = '치유사 ' + m.name;
-    else Object.assign(m, ELITE_LOOK[role]);
+    else Object.assign(m, ELITE_LOOK[role], { ranged: false });
   }
   // 깜짝 난입: 황금 슬라임(골드·별가루) 또는 보물 골렘(장비). 8초 안에 못 잡으면 도망
   if (Math.random() < 0.12) {
     const gol = Math.random() < 0.2, m = makeMonster(battle.stage, false);
     Object.assign(m, { name: gol ? '보물 골렘' : '황금 슬라임', sprite: gol ? 'golem' : 'gold_slime', body: gol ? 'armored' : 'soft', align: 'neutral',
-      size: gol ? 44 : 36, intruder: gol ? 'golem' : 'slime', escape: 8, gold: 0, x: 195 });
+      size: gol ? 44 : 36, intruder: gol ? 'golem' : 'slime', escape: 8, gold: 0, x: 195, ranged: false });
     m.hp = m.maxHp = Math.floor(m.hp * (gol ? 4 : 2.5));
     battle.queue.unshift(m);
     toast(`${m.name} 난입! 8초 안에 잡기`);
@@ -1277,22 +1658,27 @@ function spawnWave() {
 function giveShield() {
   const pct = stats.mods.shield;
   if (!pct) return;
-  battle.shield = Math.floor(stats.maxHp * pct / 100);
+  battle.shield = Math.max(battle.shield || 0, Math.floor(stats.maxHp * pct / 100));   // 스킬 보호막이 더 크면 유지
   addFloat('보호막', hero.x + 16, GROUND - 56, '#9fd0ff');
 }
 
 function addFloat(text, x, y, color, big) { floats.push({ text, x, y, color, big, t: 0 }); }
 
 // 리더가 피해를 받는다. 리더가 이미 쓰러졌으면 맨 앞 동료가 대신 맞는다. 파티 전멸이면 true
-function takeHit(raw, color, big, noDodge) {
+// mon: 때린 적 (브론 리더 반사용, 독처럼 없으면 반사 없음)
+function takeHit(raw, color, big, noDodge, mon) {
   if (hero.hp <= 0) {
     const front = (save.party || []).find(id => !allyDown(id));
     if (front) hurtAlly(front, raw);
     return partyWiped();
   }
   const m = stats.mods;
-  if (!noDodge && Math.random() * 100 < m.dodge) { addFloat('회피', hero.x + 16, GROUND - 40, '#9fd0ff'); return false; }
-  let dmg = Math.floor(raw * (1 - m.guard / 100));
+  if (!noDodge && Math.random() * 100 < Math.min(75, stats.dodge + buffSum('dodge', true) * 100)) { addFloat('회피', hero.x + 16, GROUND - 40, '#9fd0ff'); return false; }
+  let dmg = Math.floor(raw * (1 - Math.min(80, m.guard + buffSum('guard', true) * 100) / 100));   // 스킬 버프: 회피 +%p · 받는 피해 -%
+  if (save.leader === 'bron') {                                                     // 브론 리더: 철벽 방패 (받는 피해 -25%, 받은 피해 30% 반사)
+    dmg = Math.floor(dmg * (1 - BRON_LEAD_GUARD));
+    if (mon && mon.dead <= 0 && dmg * 0.3 >= 1) hit(mon, 1, '#ffd0a0', 'fixed', null, { id: 'bron', atk: dmg * 0.3, crit: 0, critDmg: 1, pierce: 0 });
+  }
   if (battle.shield > 0) {
     const ab = Math.min(battle.shield, dmg);
     battle.shield -= ab; dmg -= ab;
@@ -1312,8 +1698,21 @@ function takeHit(raw, color, big, noDodge) {
   }
   hero.hp = 0;
   addFloat(allyName(leaderId()) + ' 쓰러짐', hero.x + 16, GROUND - 56, '#ff9aa0', true);
+  onFall(save.leader);
   if (!partyWiped()) say((save.party || []).find(id => !allyDown(id)), '아직 끝나지 않았어!', 2);
   return partyWiped();
+}
+// 파티원 한 명에게 피해 (리더면 takeHit, 동료면 hurtAlly). 파티 전멸이면 true
+function hitMember(id, raw, color, big, noDodge, mon) {
+  if (id === save.leader) return takeHit(raw, color, big, noDodge, mon);
+  hurtAlly(id, raw, noDodge);
+  return partyWiped();
+}
+// 누군가 쓰러짐: 모모(응원 탬버린)가 살아 있으면 남은 파티 5초 공격력 +40%
+function onFall(id) {
+  if (!battle || id === 'momo' || !team().includes('momo') || allyDown('momo')) return;
+  battle.rally = 5;
+  addFloat('응원! 공격력 +40%', allyX(save.party.indexOf('momo')) + 16, GROUND - 66, '#ffb0e0', true);
 }
 
 function notify(text, color) {
@@ -1349,9 +1748,8 @@ function updateBattle(dt) {
 
   if (partyWiped()) return endBattle('lost');                // 모두 쓰러지면 패배
   battle.potionCd = Math.max(0, battle.potionCd - dt);
-  if (hero.hp > 0) hero.hp = Math.min(stats.maxHp, hero.hp + stats.regen * dt);
-  for (const a of Object.values(battle.ahp || {})) if (a.hp > 0) a.hp = Math.min(a.max, a.hp + a.max * stats.regen / stats.maxHp * dt);
   battle.curse = Math.max(0, (battle.curse || 0) - dt);
+  battle.rally = Math.max(0, (battle.rally || 0) - dt);
   if (battle.cleanse && (battle.cleanse.t -= dt) <= 0) {
     const id = battle.cleanse.id;
     battle.cleanse = null;
@@ -1381,7 +1779,7 @@ function updateBattle(dt) {
     battle.bound = Math.max(0, battle.bound - dt);
     if (battle.timeLeft <= 0) { battle.timeLeft = 0; return endBattle('timeout'); }
     const k = battle.queue[0];
-    if (k && k.dead <= 0 && k.x <= hero.x + 40) {
+    if (k && k.dead <= 0 && k.x <= hero.x + 40 && !(k.ice > 0)) {        // 스킬 빙결·정지 중에는 특수 공격 대기도 멈춤
       battle.mechCd -= dt;
       if (battle.mechCd <= MECH_WARN && !battle.mechWarn) {
         battle.mechWarn = 1;
@@ -1395,10 +1793,10 @@ function updateBattle(dt) {
         if (battle.mech === 'poison') { battle.poison = 4 * (1 - stats.mods.purify / 3); battle.poisonDps = k.atk * 0.5; addFloat('독!', hero.x + 16, GROUND - 60, '#b070e0', true); }
         battle.mechCd = battle.every;
         battle.mechWarn = 0;
-        if (battle.mech === 'slam') for (const id in battle.ahp) hurtAlly(id, battle.ahp[id].max * 0.25);
+        if (battle.mech === 'slam') for (const id in battle.ahp) hurtAlly(id, battle.ahp[id].max * 0.25, true);
         const tw = battle.mech === 'slam' ? tauntOn(k) : null;
-        if (tw) { hurtAlly(tw, k.atk * mult * (1 - tauntGuard(tw))); addFloat(allyName(tw) + ' 막아냄!', hero.x - 10, GROUND - 64, '#ffb08a', true); }
-        else if (takeHit(Math.floor(k.atk * mult), '#ff3a4a', true, true)) return endBattle('lost');
+        if (tw) { tankHit(tw, k.atk * mult, k); addFloat(allyName(tw) + ' 막아냄!', hero.x - 10, GROUND - 64, '#ffb08a', true); }
+        else if (takeHit(Math.floor(k.atk * mult), '#ff3a4a', true, true, k)) return endBattle('lost');
       }
     }
     // 룰 브레이커: 챕터 3 보스가 체력 절반 아래로 폭주하면 14초마다 6초 동안 특성·전직 봉인
@@ -1437,12 +1835,15 @@ function updateBattle(dt) {
   for (const m of q.concat(battle.sneak ? [battle.sneak] : [])) {
     m.stun = Math.max(0, (m.stun || 0) - dt);
     m.charm = Math.max(0, (m.charm || 0) - dt);
-    m.slow = Math.max(0, (m.slow || 0) - dt);
+    if (!(m.ice > 0)) m.slow = Math.max(0, (m.slow || 0) - dt);       // 빙결 중에는 둔화 시간이 줄지 않음 (녹은 뒤 둔화)
+    if (m.ice > 0) m.ice -= dt;
+    if (m.vuln && (m.vuln.t -= dt) <= 0) m.vuln = null;                // 스킬: 받는 피해 증가 (표식·약점)
+    if (m.rioCd > 0) m.rioCd -= dt;
     m.kb = Math.max(0, (m.kb || 0) - dt * 40);
     if (m.taunt) m.taunt.t -= dt;
     if (m.burn > 0 && m.dead <= 0) {
       m.burn -= dt;
-      if ((m.burnT = (m.burnT || 0) + dt) >= 0.5) { m.burnT -= 0.5; hit(m, m.burnMult, '#ff8a3a', 'dot', ['fire']); }
+      if ((m.burnT = (m.burnT || 0) + dt) >= 0.5) { m.burnT -= 0.5; hit(m, m.burnMult, '#ff8a3a', 'dot', ['fire'], m.burnSrc); }
     }
   }
   // 암살자: 뒤에서 동료(또는 주인공)를 공격
@@ -1461,12 +1862,13 @@ function updateBattle(dt) {
     if (!(s.stun > 0)) {
       s.cd -= dt * (s.slow > 0 ? 0.6 : 1);
       if (s.cd <= 0) {
-        s.cd += 1 / s.aspd;
+        s.cd += 1 / s.aspd;                                         // 기습 강화로 공격력 ×1.6 · 공격 속도 ×1.4 (잠입할 때)
         s.lunge = 1;
-        const dmg = s.atk * 1.5 * (1 - stats.mods.weak / 100);
-        if (s.target === 'hero') { if (takeHit(dmg)) return endBattle('lost'); }
-        else if (isWarrior(s.target)) hurtAlly(s.target, dmg * 0.5 * (1 - tauntGuard(s.target)));     // 전사형은 암살자에 강함
-        else hurtAlly(s.target, dmg * (allyById(s.target).type === 'heal' ? 2 : 1));                  // 치유형은 암살자의 먹잇감
+        const dmg = s.atk * (1 - stats.mods.weak / 100);
+        if (s.target === 'hero') { if (takeHit(dmg, null, false, false, s)) return endBattle('lost'); }
+        else if (isWarrior(s.target)) tankHit(s.target, dmg * 0.5, s);     // 전사형은 암살자에 강함
+        else hurtAlly(s.target, dmg);
+        if (partyWiped()) return endBattle('lost');
       }
     }
     s.lunge = Math.max(0, (s.lunge || 0) - dt * 4);
@@ -1486,6 +1888,7 @@ function updateBattle(dt) {
 
   updateAllies(dt, q);
   updateShadows(dt, q);
+  if (updateRanged(dt, q)) return endBattle('lost');
   if (stats.mods.hypno && front) {                      // 최면술사
     battle.hypCd = (battle.hypCd ?? 3) - dt;
     if (battle.hypCd <= 0) {
@@ -1502,7 +1905,7 @@ function updateBattle(dt) {
   if (hero.hp > 0) hero.cd -= dt; else hero.cd = Math.max(hero.cd, 0);
   if (hero.cd <= 0 && !battle.bound && hero.hp > 0) {
     const m = stats.mods;
-    const spd = (battle.cryT > 0 ? 1 + battle.cryPower : 1) * (battle.curse > 0 ? 0.5 : 1) * (tgt.align === 'evil' ? 1 + m.smiteSpd / 100 : 1);
+    const spd = (1 + buffSum('aspd', true)) * (battle.curse > 0 ? 0.5 : 1) * (tgt.align === 'evil' ? 1 + m.smiteSpd / 100 : 1);
     hero.cd += 1 / (stats.aspd * spd);
     hero.lunge = 1;
     hero.back = sneakOn;
@@ -1511,12 +1914,12 @@ function updateBattle(dt) {
     if (style === 'cast') battle.fx.push({ kind: 'star', from: hero.x + (sneakOn ? 10 : 22), x: tx0, t: 0, dur: 0.26 });
     else if (style === 'shoot') battle.fx.push({ kind: 'arrow', i: -1, x: tx0, t: 0, dur: 0.3, color: allyColor(leaderId()) });
     else battle.fx.push({ kind: 'hslash', x: tgt.x + (tgt.size || 32) / 2, t: 0.04, dur: 0.24, dash: true, dir: sneakOn ? -1 : 1 });
-    const killed = hit(tgt, 1, null, 'basic', heroEls());
+    const killed = hit(tgt, 1, null, 'basic', heroEls(), stats);
     battle.hits = (battle.hits || 0) + 1;
-    if (m.wave) { const t2 = q.find(x => x !== tgt && x.dead <= 0); if (t2) { battle.fx.push({ kind: 'wave', from: hero.x + 24, x: t2.x + (t2.size || 32) / 2, t: 0, dur: 0.3 }); hit(t2, m.wave / 100, '#bfe8ff', 'ally', ['slash']); } }
+    if (m.wave) { const t2 = q.find(x => x !== tgt && x.dead <= 0); if (t2) { battle.fx.push({ kind: 'wave', from: hero.x + 24, x: t2.x + (t2.size || 32) / 2, t: 0, dur: 0.3 }); hit(t2, m.wave / 100, '#bfe8ff', 'extra', ['slash'], stats); } }
     if (m.color && battle.hits % m.colorEvery === 0) castColor(q);
     if (killed) return;
-    if (Math.random() * 100 < m.double && hit(tgt, 1, '#ffc0a0', 'basic', heroEls())) return;
+    if (Math.random() * 100 < m.double + buffSum('double', true) * 100 && hit(tgt, 1, '#ffc0a0', 'basic', heroEls(), stats)) return;
   }
 
   // 몬스터 공격 (기절이면 못 함, 최면이면 자기 편을 공격, 둔화면 느리게)
@@ -1534,13 +1937,13 @@ function updateBattle(dt) {
         const d = Math.floor(o.maxHp * 0.2);
         o.hp -= d; o.hurt = 1; o.kb = 6;
         addFloat(fmt(d), o.x + 16, GROUND - 40, '#ff9ae0');
-        if (o.hp <= 0) { o.hp = 1; hit(o, 0.001, '#ff9ae0', 'dot'); }
+        if (o.hp <= 0) { o.hp = 1; hit(o, 0.001, '#ff9ae0', 'dot', null, stats); }
       }
       return;
     }
     const tw = tauntOn(mon);
-    if (tw) { hurtAlly(tw, mon.atk * (1 - stats.mods.weak / 100) * (1 - tauntGuard(tw))); battle.anim[tw] = battle.anim[tw] || { t: 0, dur: 0.25 }; return; }
-    if (takeHit(mon.atk * (1 - stats.mods.weak / 100))) endBattle('lost');
+    if (tw) { tankHit(tw, mon.atk * (1 - stats.mods.weak / 100), mon); battle.anim[tw] = battle.anim[tw] || { t: 0, dur: 0.25 }; if (partyWiped()) endBattle('lost'); return; }
+    if (takeHit(mon.atk * (1 - stats.mods.weak / 100), null, false, false, mon)) endBattle('lost');
   }
 }
 
@@ -1586,10 +1989,12 @@ function updateMonsterRoles(dt) {
       battle.sneak = m;
       m.cd = 0.9;
       m.target = sneakTarget();
+      m.atk = Math.floor(m.atk * 1.6); m.aspd *= 1.4;              // 기습 강화: 뒤에 있는 동안 공격력 ×1.6 · 공격 속도 ×1.4
       battle.fx.push({ kind: 'smoke', x: m.x + 16, t: 0, dur: 0.6 });
       m.x = m.target === 'hero' ? hero.x - 30 : allyX(save.party.indexOf(m.target)) - 22;
       battle.fx.push({ kind: 'smoke', x: m.x + 16, t: 0, dur: 0.6 });
       addFloat('암살자 잠입!', m.x + 16, GROUND - 52, '#ff5a6e', true);
+      addFloat('기습 강화!', m.x + 16, GROUND - 66, '#ffb03a', true);
       say('hero', m.target === 'hero' ? '뒤다!' : '뒤를 노린다! ' + allyName(m.target) + ' 조심해!', 2);
       break;
     }
@@ -1599,10 +2004,12 @@ function updateMonsterRoles(dt) {
 function spawnShadow() {
   const m = stats.mods;
   battle.shadows = battle.shadows || [];
-  if (battle.shadows.length >= m.shadow) return;
+  if (battle.shadows.filter(s => !s.kind).length >= m.shadow) return;             // 특성 병사 수 (스킬 소환수는 따로)
   battle.shadows.push({ t: m.shadowPerm ? Infinity : 10, cd: 0.6, rise: 0, k: battle.shadows.length, act: 0 });
   addFloat('그림자 병사!', hero.x + 30, GROUND - 50, '#b48cff');
 }
+// 소환수: 특성 그림자 병사(kind 없음) + 스킬 소환수(kind: shadow·spirit·clone, mult: 리더 공격력 배율, el: 속성)
+const SUMMON_COL = { shadow: '#b48cff', spirit: '#fff0a0', clone: '#9fe8ff' };
 function updateShadows(dt, q) {
   if (!battle.shadows || !battle.shadows.length) return;
   battle.shadows = battle.shadows.filter(s => (s.t -= dt) > 0);
@@ -1611,11 +2018,12 @@ function updateShadows(dt, q) {
     s.rise = Math.min(1, s.rise + dt * 2);
     s.act = Math.max(0, s.act - dt * 4);
     if ((s.cd -= dt) > 0) return;
-    const t = q.find(m => m.dead <= 0 && m.x <= hero.x + 90);
+    const t = q.find(m => m.dead <= 0 && m.x <= hero.x + 90) || (battle.sneak && battle.sneak.dead <= 0 && s.kind ? battle.sneak : null);
     if (!t) return;
     s.cd = 1; s.act = 1;
-    battle.fx.push({ kind: 'shadowhit', x: t.x + (t.size || 32) / 2, t: 0, dur: 0.25 });
-    hit(t, 0.3, '#b48cff', 'ally', ['magic']);
+    const col = SUMMON_COL[s.kind] || '#b48cff';
+    battle.fx.push(s.kind === 'spirit' ? { kind: 'star', from: hero.x + 30, x: t.x + (t.size || 32) / 2, t: 0, dur: 0.25 } : { kind: 'shadowhit', x: t.x + (t.size || 32) / 2, color: col, t: 0, dur: 0.25 });
+    hit(t, s.mult || 0.3, col, 'summon', [s.el || 'magic'], stats);
   });
 }
 
@@ -1627,41 +2035,53 @@ function castColor(q) {
   const e = ELEM[battle.elem], mult = m.color / 100;
   const px = t => t.x + (t.size || 32) / 2;
   if (e.id === 'bolt') {
-    alive.slice(0, 3).forEach(t => { battle.fx.push({ kind: 'elem', e: e.id, color: e.color, x: px(t), t: 0, dur: 0.35 }); hit(t, mult * 0.7, e.color, 'magic', ['magic']); });
+    alive.slice(0, 3).forEach(t => { battle.fx.push({ kind: 'elem', e: e.id, color: e.color, x: px(t), t: 0, dur: 0.35 }); hit(t, mult * 0.7, e.color, 'magic', ['magic'], stats); });
   } else {
     const t = alive[0];
     battle.fx.push({ kind: 'elem', e: e.id, color: e.color, from: hero.x + 24, x: px(t), t: 0, dur: 0.35 });
-    if (e.id === 'fire') { t.burn = 3; t.burnMult = mult * 0.15; } else t.slow = 3;
-    hit(t, mult, e.color, 'magic', [e.id === 'fire' ? 'fire' : 'magic']);
+    if (e.id === 'fire') { t.burn = 3; t.burnMult = mult * 0.15; t.burnSrc = stats; } else t.slow = 3;
+    hit(t, mult, e.color, 'magic', [e.id === 'fire' ? 'fire' : 'magic'], stats);
   }
 }
 
 // 적 하나를 때린다. 쓰러뜨리면 true
-// kind: 'basic'(일반 공격) | 'skill' | 'ally'
-function hit(mon, mult, color, kind, els) {
+// kind: 'basic'(리더 기본 공격) | 'skill' | 'ally'(유형 행동: 동료·리더) | 'echo'(마력 공명 추가타) | 'summon'(그림자 병사)
+//       | 'extra'(검기) | 'magic'(삼색 마법) | 'dot'(화상) | 'fixed'(고정 피해: 반사 등, 배율·치명타 없음)
+// src: 공격자 { id, atk, crit, critDmg, pierce } (리더 = stats, 동료 = charStats). 없으면 리더
+function hit(mon, mult, color, kind, els, src) {
   if (mon.dead > 0) return false;
-  const m = stats.mods;
+  src = src || stats;
+  const m = stats.mods, fixed = kind === 'fixed';
   let aff = 1;
-  if (els && els.length) {
+  if (els && els.length && !fixed) {
     aff = affinity(mon, els);
     if (kind === 'basic' || kind === 'skill') aff = 1 + (aff - 1) * 0.5;
     mult *= aff;
   }
-  if (kind === 'skill') mult *= 1 + m.skill / 100;
-  if (mon.align === 'evil') mult *= 1 + m.smite / 100;
   const repel = m.dark && (mon.align === 'good' || mon.align === 'fallen');
-  if (m.dark && !repel) mult *= 1 + m.dark / 100;
-  if (m.mark && mon === battle.queue[0]) mult *= 1 + m.mark / 100;
-  if (m.soul && battle.souls) mult *= 1 + battle.souls * m.soul / 100;
-  if (battle.curse > 0) mult *= 0.8;
-  const crit = Math.random() * 100 < stats.crit - Math.max(0, mon.critRes - stats.pierce);
-  const dmg = Math.floor(stats.atk * mult * (crit ? stats.critDmg : 1) * (0.9 + Math.random() * 0.2));
+  if (!fixed) {
+    if (kind === 'skill') mult *= 1 + m.skill / 100;
+    if (mon.align === 'evil') mult *= 1 + m.smite / 100;
+    if (m.dark && !repel) mult *= 1 + m.dark / 100;
+    if (m.mark && mon === battle.queue[0]) mult *= 1 + m.mark / 100;
+    if (m.soul && battle.souls) mult *= 1 + battle.souls * m.soul / 100;
+    if (battle.curse > 0) mult *= 0.8;
+    if (battle.rally > 0) mult *= 1.4;                                              // 모모: 응원
+    if (src.id === 'kai' && (mon.ranged || mon.role === 'healer')) mult *= 1.5;     // 카이: 보물 사냥꾼
+    if (mon.vuln) mult *= 1 + mon.vuln.v;                                           // 스킬: 받는 피해 증가
+    const ab = buffSum('atk', src === stats);                                       // 스킬 버프: 공격력 (party면 동료도)
+    if (ab) mult *= 1 + ab;
+  }
+  const lead = src === stats, bc = lead ? buffSum('crit', true) * 100 : 0, bcd = lead ? buffSum('critDmg', true) : 0;
+  const crit = !fixed && Math.random() * 100 < src.crit + bc - Math.max(0, (mon.critRes || 0) - (src.pierce || 0));
+  const dmg = Math.floor(src.atk * mult * (crit ? src.critDmg + bcd : 1) * (fixed ? 1 : 0.9 + Math.random() * 0.2));
   if (aff < 0.99 && !crit) color = '#b8b8c0';
-  if (m.drain && kind !== 'ally' && hero.hp > 0) hero.hp = Math.min(stats.maxHp, hero.hp + dmg * m.drain / 100);
+  const drain = lead ? m.drain + buffSum('drain', true) * 100 : 0;
+  if (drain && (kind === 'basic' || kind === 'skill' || kind === 'magic') && hero.hp > 0) hero.hp = Math.min(stats.maxHp, hero.hp + dmg * drain / 100);   // 흡혈은 리더 공격만
   mon.hp -= dmg;
   if (battle.dungeon) battle.dealt += dmg;
   mon.hurt = 1;
-  if (kind !== 'dot') {
+  if (kind !== 'dot' && !fixed) {
     mon.kb = Math.min(mon.king ? 2 : 10, (mon.kb || 0) + (crit ? 5 : 3));
     battle.fx.push({ kind: 'spark', x: mon.x + (mon.size || 32) / 2, y: GROUND - (mon.size || 32) / 2, color: crit ? '#ffd25e' : color || '#ffffff', big: crit, t: 0, dur: 0.25 });
   }
@@ -1674,14 +2094,17 @@ function hit(mon, mult, color, kind, els) {
   const mid = (mon.size || 32) / 2;
   if (aff > 1 && !mon.weakSaid) { mon.weakSaid = true; addFloat('약점!', mon.x + mid, GROUND - 58 - (mon.size ? 24 : 0), '#7dffa0', true); }
   addFloat(fmt(dmg) + (crit ? '!' : '') + (aff > 1.01 ? '▲' : aff < 0.99 ? '▼' : ''), mon.x + mid, GROUND - 36 - (mult > 1 ? 8 : 0) - (mon.size ? 24 : 0), crit ? '#ffd25e' : color || '#ffffff', crit || mult > 1);
-  if (mon.hp > 0) return false;
+  if (mon.hp > 0) {
+    if (kind === 'basic' || kind === 'ally') abilityOnHit(mon, src, crit, els);
+    return false;
+  }
   mon.hp = 0;
   mon.dead = 0.5;
   if (m.soul) battle.souls = Math.min(30, (battle.souls || 0) + 1);
   const burned = mon.burn > 0 || (els && els.includes('fire'));
   if (!mon.king && !mon.boss && !mon.undead && !mon.role && !mon.intruder && !battle.dungeon && !burned) (battle.corpses = battle.corpses || []).push(mon);
   if (m.shadow) spawnShadow();
-  const gold = Math.floor(mon.gold * (1 + m.gold / 100));
+  const gold = Math.floor(mon.gold * (1 + m.gold / 100 + buffSum('gold', true)) * (src.id === 'kai' ? 1.3 : 1));   // 카이가 처치하면 골드 +30% · 스킬 골드 버프
   save.gold += gold;              // 얻은 골드는 바로 저장 (져도 남는다)
   battle.earned += gold;
   if (gold > 0) addFloat('+' + fmt(gold) + 'G', mon.x + 16, GROUND - 52, '#ffd25e');
@@ -1699,6 +2122,22 @@ function hit(mon, mult, color, kind, els) {
   return true;
 }
 
+// 맞은 뒤 살아 있는 적에게 붙는 고유 능력 (리더 기본 공격·유형 행동에만)
+const RIO_STUN_CD = 2;   // 리오 기절: 같은 적에게 다시 걸리기까지 (초)
+function abilityOnHit(mon, src, crit, els) {
+  const x = mon.x + (mon.size || 32) / 2, y = GROUND - (mon.size || 32) - 20;
+  switch (src.id) {
+    case 'rio':                                                                     // 돌팔매: 25% 기절 (같은 적 2초 재기절 금지)
+      if (!(mon.rioCd > 0) && Math.random() < 0.25) { mon.stun = Math.max(mon.stun || 0, mon.king || mon.boss ? 0.4 : 0.8); mon.rioCd = RIO_STUN_CD; addFloat('기절!', x, y, '#ffe27a'); }
+      break;
+    case 'danbi': mon.slow = Math.max(mon.slow || 0, 2); break;                     // 물방울 감옥: 2초 둔화
+    case 'arin': mon.burn = 3; mon.burnMult = 0.15; mon.burnSrc = src; break;       // 불꽃 낙인: 화상 3초
+    case 'serin':                                                                   // 마력 공명: 치명타면 한 번 더
+      if (crit) { addFloat('공명!', x, y - 10, '#e0c0ff'); hit(mon, 0.6, '#e0c0ff', 'echo', els, src); }
+      break;
+  }
+}
+
 function dropItem(mon) {
   if (save.items.length >= BAG_MAX) { toast('가방 공간 부족 · 장비 획득 실패'); return; }
   const it = rollItem(battle.stage);
@@ -1708,79 +2147,182 @@ function dropItem(mon) {
 }
 
 // ── 전투 중 동료 ──
+// 리더·동료 모두 1/행동 속도 초마다 유형 행동 (자기 공격력 기준). 리더는 이것과 따로 기본 공격(updateBattle)
+// 타이머: battle.allyCd[id] (첫 행동은 반 주기 뒤), 저주 중 절반 속도. 할 일이 없으면 다음 프레임에 다시
 function updateAllies(dt, q) {
   const sn = battle.sneak && battle.sneak.dead <= 0 ? battle.sneak : null;
-  const cx = t => t.x + (t.size || 32) / 2;
+  battle.actN = battle.actN || {};
   team().forEach(id => {
-    const i = id === save.leader ? -1 : save.party.indexOf(id);
-    const A = allyById(id), lv = save.allies[id] || 1;
-    if (!A || !A.every || allyDown(id)) return;
-    const p = allyPow(id), big = allyStar(id) >= 3;
-    if (A.type === 'warrior' && i >= 0) {
+    const lead = id === save.leader, i = lead ? -1 : save.party.indexOf(id);
+    const A = allyById(id);
+    if (!A || allyDown(id)) return;
+    if (A.type === 'warrior' && !lead) {
       battle.tauntCd[id] = (battle.tauntCd[id] ?? 2) - dt;
       const front = q.find(m => m.dead <= 0 && m.x <= hero.x + 45);
       if (battle.tauntCd[id] <= 0 && front && !tauntOn(front) && !(sn && !isWarrior(sn.target))) {
-        front.taunt = { id, t: TAUNT_TIME };
+        front.taunt = { id, t: id === 'lea' ? 6 : TAUNT_TIME };         // 레아: 도발 6초
         doTaunt(id, front);
       }
     }
-    battle.allyCd[id] = (battle.allyCd[id] ?? A.every * 0.5) - dt * (battle.curse > 0 ? 0.5 : 1);
+    const src = srcOf(id), spd = (lead ? stats.act : src.aspd) * (1 + buffSum('aspd', lead));   // 스킬 버프: 공격 속도 (party면 동료도)
+    battle.allyCd[id] = (battle.allyCd[id] ?? 0.5 / spd) - dt * (battle.curse > 0 ? 0.5 : 1);
     if (battle.allyCd[id] > 0) return;
-    if (A.type === 'heal') {
-      // 체력 비율이 가장 낮은 아군(주인공 또는 동료)을 치유
-      let who = hero.hp > 0 ? 'hero' : null, low = hero.hp > 0 ? hero.hp / stats.maxHp : 1;
-      for (const [aid, a] of Object.entries(battle.ahp || {})) if (a.hp > 0 && a.hp / a.max < low) { low = a.hp / a.max; who = aid; }
-      if (low >= 0.95) return;
-      const k = (6 + lv) * p / 100 * (1 + stats.mods.healAlly / 100) * (1 + stats.mods.healMul / 100);
-      const tx = who === 'hero' ? hero.x + 16 : allyX(save.party.indexOf(who)) + 16;
-      if (who === 'hero') { const h = Math.floor(stats.maxHp * k); hero.hp = Math.min(stats.maxHp, hero.hp + h); addFloat('+' + fmt(h), tx, GROUND - 50, '#6fe39a'); }
-      else { const a = battle.ahp[who], h = Math.floor(a.max * k * 1.5); a.hp = Math.min(a.max, a.hp + h); addFloat('+' + fmt(h), tx, GROUND - 46, '#6fe39a'); }
-      battle.fx.push({ kind: 'heal', i, x: tx, big, t: 0, dur: 0.6 });
-    } else if (A.type === 'magic') {
-      const targets = q.filter(m => m.dead <= 0 && m.x <= hero.x + 120).slice(0, 3);
-      if (sn) targets.unshift(sn);
-      if (!targets.length) return;
-      targets.slice(0, 3).forEach(m => { hit(m, (50 + lv * 10) * p / 100 * (1 + stats.mods.magicAlly / 100), '#d6b0ff', 'ally', [allyEl(id)]); battle.fx.push({ kind: 'bolt', i, x: cx(m), color: allyColor(id), big, t: 0, dur: 0.4 }); });
-    } else if (A.type === 'shot') {
-      const healerMon = q.find(m => m.dead <= 0 && m.role === 'healer' && m.x <= hero.x + 160);
-      const t = sn || healerMon || q.find(m => m.dead <= 0 && m.x <= hero.x + 160);
-      if (!t) return;
-      if (t === healerMon && !t.sniped) { t.sniped = true; addFloat('치유사 저격!', t.x + 16, GROUND - 62, '#ffd27a', true); }
-      hit(t, (100 + lv * 20) * p / 100 * (1 + stats.mods.shotAlly / 100) * (t.role === 'healer' ? 1.5 : 1), '#ffd27a', 'ally', [allyEl(id)]);
-      for (let k = 0; k < (big ? 3 : 1); k++) battle.fx.push({ kind: 'arrow', i, x: cx(t), off: (k - 1) * 4 * (big ? 1 : 0), t: -k * 0.05, dur: 0.3, color: allyColor(id) });
-    } else if (A.type === 'warrior') {
-      const t = sn || q.find(m => m.dead <= 0 && m.x <= hero.x + 70);
-      if (!t) return;
-      hit(t, (120 + lv * 20) * p / 100 * (t.role === 'assassin' ? 1.5 : 1), '#ff9a7a', 'ally', [allyEl(id)]);
-      battle.fx.push({ kind: 'slash', i, x: cx(t), big, color: allyColor(id), t: 0, dur: 0.3 });
-    }
+    if (!allyAct(id, A, src, i, q, sn)) return;
     battle.anim[id] = { t: 0, dur: 0.4 };
-    battle.allyCd[id] = A.every;
+    battle.allyCd[id] = 1 / spd;
   });
+}
+
+// 유형 행동 하나 (고유 능력 포함). 행동했으면 true
+function allyAct(id, A, src, i, q, sn) {
+  const m = stats.mods, big = allyStar(id) >= 3, col = allyColor(id), el = [allyEl(id)];
+  const cx = t => t.x + (t.size || 32) / 2;
+  const near = r => q.filter(t => t.dead <= 0 && t.x <= hero.x + r);
+  const count = () => (battle.actN[id] = (battle.actN[id] || 0) + 1);
+  const bolt = t => battle.fx.push({ kind: 'bolt', i, x: cx(t), color: col, big, t: 0, dur: 0.4 });
+  if (A.type === 'heal') {
+    // 미르: 쓰러진 동료를 전투마다 1번 체력 30%로 일으킴
+    if (id === 'miru' && !battle.miruUp) {
+      const down = team().find(x => x !== id && allyDown(x));
+      if (down) {
+        battle.miruUp = true;
+        const dx = allyX(down === save.leader ? -1 : save.party.indexOf(down)) + 16;
+        if (down === save.leader) hero.hp = Math.floor(stats.maxHp * 0.3);
+        else { const a = battle.ahp[down]; a.hp = Math.floor(a.max * 0.3); }
+        addFloat('약초 꾸러미! ' + allyName(down) + ' 일어남', dx, GROUND - 62, '#9ef0b0', true);
+        battle.fx.push({ kind: 'heal', i, x: dx, big: true, t: 0, dur: 0.6 });
+        return true;
+      }
+    }
+    // 체력 비율이 가장 낮은 아군(95% 미만)을 치유
+    let who = null, low = 0.95;
+    if (save.leader && hero.hp > 0 && hero.hp / stats.maxHp < low) { low = hero.hp / stats.maxHp; who = save.leader; }
+    for (const [aid, a] of Object.entries(battle.ahp || {})) if (a.hp > 0 && a.hp / a.max < low) { low = a.hp / a.max; who = aid; }
+    if (!who) {                                                     // 다친 아군이 없으면 앞의 적 50%
+      const t = near(120)[0] || sn;
+      if (!t) return false;
+      hit(t, 0.5, '#bfffd0', 'ally', ['magic'], src); bolt(t);
+      return true;
+    }
+    let h = src.atk * 1.1 * (1 + m.healAlly / 100) * (1 + m.healMul / 100);
+    if (id === 'hana' && low <= 0.3) h *= 2;                       // 하나: 응급 붕대
+    h = Math.floor(h);
+    const tx = allyX(who === save.leader ? -1 : save.party.indexOf(who)) + 16;
+    if (who === save.leader) {
+      hero.hp = Math.min(stats.maxHp, hero.hp + h);
+      if (id === 'miru' && battle.poison > 0) { battle.poison = 0; addFloat('해독!', tx, GROUND - 60, '#9ef0b0', true); }   // 미르: 독 해제
+    } else { const a = battle.ahp[who]; a.hp = Math.min(a.max, a.hp + h); }
+    addFloat('+' + fmt(h) + (id === 'hana' && low <= 0.3 ? ' 응급 붕대!' : ''), tx, GROUND - 48, '#6fe39a');
+    battle.fx.push({ kind: 'heal', i, x: tx, big, t: 0, dur: 0.6 });
+    return true;
+  }
+  if (A.type === 'magic') {
+    const pio = id === 'pio';                                       // 피오: 별똥별 (모든 적 60%)
+    let ts = pio ? q.filter(t => t.dead <= 0) : near(120);
+    if (sn) ts = [sn].concat(ts);
+    if (!pio) ts = ts.slice(0, 3);
+    if (!ts.length) return false;
+    const mul = (pio ? 0.6 : 0.7) * (1 + m.magicAlly / 100);
+    ts.forEach(t => { hit(t, mul, '#d6b0ff', 'ally', el, src); bolt(t); });
+    return true;
+  }
+  if (A.type === 'shot') {
+    const R = 170, healerMon = q.find(t => t.dead <= 0 && t.role === 'healer' && t.x <= hero.x + R);
+    const t = sn || healerMon || q.find(t => t.dead <= 0 && t.ranged && t.x <= hero.x + R) || q.find(t => t.dead <= 0 && t.x <= hero.x + R);
+    if (!t) return false;
+    const mul = 1 + m.shotAlly / 100;
+    const arrows = (to, n) => { for (let k = 0; k < n; k++) battle.fx.push({ kind: 'arrow', i, x: cx(to), off: (k - 1) * 4 * (n > 1 ? 1 : 0), t: -k * 0.05, dur: 0.3, color: col }); };
+    if (id === 'noeul' && count() % 5 === 0) {                     // 노을: 5번째 사격마다 화살비
+      const all = q.filter(x => x.dead <= 0).concat(sn ? [sn] : []);
+      addFloat('노을 화살비!', allyX(i) + 16, GROUND - 64, '#ffb070', true);
+      all.forEach(x => { hit(x, 0.8 * mul, '#ffb070', 'ally', el, src); arrows(x, 2); });
+      return true;
+    }
+    if (t === healerMon && !t.sniped) { t.sniped = true; addFloat('치유사 저격!', t.x + 16, GROUND - 62, '#ffd27a', true); }
+    hit(t, mul * (t.role === 'healer' ? 1.5 : 1), '#ffd27a', 'ally', el, src);
+    arrows(t, big ? 3 : 1);
+    return true;
+  }
+  if (A.type === 'warrior') {
+    const t = sn || q.find(x => x.dead <= 0 && x.x <= hero.x + 70);
+    if (!t) return false;
+    const vsA = x => x.role === 'assassin' ? 1.5 : 1;
+    if (id === 'tobi' && count() % 3 === 0) {                      // 토비: 3번째 행동마다 앞의 적 2마리 120%
+      const ts = [t].concat(q.filter(x => x !== t && x.dead <= 0 && x.x <= hero.x + 100)).slice(0, 2);
+      addFloat('도끼 회전!', allyX(i) + 16, GROUND - 64, '#ffb08a', true);
+      ts.forEach(x => { hit(x, 1.2 * vsA(x), '#ff9a7a', 'ally', el, src); battle.fx.push({ kind: 'slash', i, x: cx(x), big: true, color: col, t: 0, dur: 0.3 }); });
+      return true;
+    }
+    hit(t, vsA(t), '#ff9a7a', 'ally', el, src);
+    battle.fx.push({ kind: 'slash', i, x: cx(t), big, color: col, t: 0, dur: 0.3 });
+    if (id === 'lea' && t !== sn) {                                // 레아: 관통 창 (뒤의 적 70%)
+      const t2 = q.find(x => x !== t && x.dead <= 0 && x.x <= hero.x + 100);
+      if (t2) { hit(t2, 0.7, '#ffc8a0', 'ally', el, src); battle.fx.push({ kind: 'wave', from: cx(t), x: cx(t2), t: 0, dur: 0.3 }); }
+    }
+    return true;
+  }
+  // 지원형: 앞의 적 60% (오라는 partyGlob)
+  const t = near(120)[0] || sn;
+  if (!t) return false;
+  hit(t, 0.6, col, 'ally', ['magic'], src); bolt(t);
+  return true;
+}
+
+// 원거리 몬스터: 줄 뒤(맨 앞이 아닐 때)에서도 1/(공격 속도×0.6)초마다 살아 있는 파티원 중 무작위 1명에게 공격력 60%. 파티 전멸이면 true
+function updateRanged(dt, q) {
+  const first = q.find(m => m.dead <= 0);
+  for (const m of q) {
+    if (!m.ranged || m === first || m.dead > 0 || m.stun > 0 || m.charm > 0 || m.x > hero.x + 170) continue;
+    if (m.scd === undefined) m.scd = (0.5 + Math.random() * 0.5) / (m.aspd * 0.6);
+    if ((m.scd -= dt * (m.slow > 0 ? 0.6 : 1)) > 0) continue;
+    m.scd = 1 / (m.aspd * 0.6);
+    const alive = team().filter(id => !allyDown(id));
+    if (!alive.length) return true;
+    const id = pick(alive), tx = allyX(id === save.leader ? -1 : save.party.indexOf(id)) + 16;
+    battle.fx.push({ kind: 'mshot', from: m.x + (m.size || 32) / 2, x: tx, color: m.shot || '#ffb05a', t: 0, dur: 0.45 });
+    if (team().includes('baram') && !allyDown('baram') && Math.random() < 0.2) { addFloat('빗나감', tx, GROUND - 46, '#9fe0ff'); continue; }   // 바람의 노래
+    if (hitMember(id, m.atk * 0.6 * (1 - stats.mods.weak / 100), '#ffb05a', false, false, m)) return true;
+  }
+  return false;
 }
 
 function allyX(i) { return i < 0 ? hero.x : hero.x - 24 - i * 18; }   // -1 = 리더 자리
 
-// 동료 체력: 주인공 체력의 45~85% (각성할수록 단단)
-function allyMaxHp(id) { return Math.floor(stats.maxHp * (0.35 + 0.1 * allyStar(id)) * (1 + stats.mods.allyHp / 100)); }
+// 동료 체력 = 그 동료의 최대 체력 × (1 + 동료 체력 보너스)
+function allyMaxHp(id) { return Math.floor(srcOf(id).maxHp * (1 + stats.mods.allyHp / 100)); }
 function initAllyHp() {
-  battle.ahp = {}; battle.anim = {}; battle.tauntCd = {};
-  for (const id of save.party || []) { const mx = allyMaxHp(id); battle.ahp[id] = { hp: mx, max: mx, hurt: 0 }; }
+  battle.ahp = {}; battle.anim = {}; battle.tauntCd = {}; battle.actN = {}; battle.rally = 0; battle.miruUp = false;
+  for (const id of save.party || []) { const mx = allyMaxHp(id); battle.ahp[id] = { hp: mx, max: mx, hurt: 0, sh: 0 }; }
 }
 const allyDown = id => id === save.leader ? hero.hp <= 0 : (!battle.ahp || !battle.ahp[id] || battle.ahp[id].hp <= 0);
-function hurtAlly(id, raw) {
+// 동료가 피해를 받는다 (그 동료의 회피, 파티 공통 받는 피해 감소)
+function hurtAlly(id, raw, noDodge) {
   const a = battle.ahp && battle.ahp[id];
   if (!a || a.hp <= 0) return;
-  const dmg = Math.floor(raw * (1 - stats.mods.guard / 100));
-  a.hp -= dmg; a.hurt = 1;
   const x = allyX(save.party.indexOf(id)) + 16;
+  if (!noDodge && Math.random() * 100 < (srcOf(id).dodge || 0)) { addFloat('회피', x, GROUND - 40, '#9fd0ff'); return; }
+  let dmg = Math.floor(raw * (1 - Math.min(60, stats.pg.guard) / 100));
+  if (a.sh > 0) {                                                       // 스킬 보호막 (동료)
+    const ab = Math.min(a.sh, dmg);
+    a.sh -= ab; dmg -= ab;
+    if (ab) addFloat('(' + fmt(ab) + ')', x - 8, GROUND - 46, '#9fd0ff');
+    if (!dmg) return;
+  }
+  a.hp -= dmg; a.hurt = 1;
   addFloat('-' + fmt(dmg), x, GROUND - 40, '#ff6b7a');
-  if (a.hp <= 0) { a.hp = 0; addFloat(allyName(id) + ' 쓰러짐', x, GROUND - 52, '#ff9aa0', true); }
+  if (a.hp <= 0) { a.hp = 0; addFloat(allyName(id) + ' 쓰러짐', x, GROUND - 52, '#ff9aa0', true); onFall(id); }
+}
+// 전사형이 막아서서 맞는다 (도발·암살자 가로막기): 받는 피해 감소, 브론은 막은 피해의 30% 반사
+function tankHit(id, raw, mon) {
+  const g = tauntGuard(id);
+  hurtAlly(id, raw * (1 - g));
+  if (id === 'bron' && mon && mon.dead <= 0 && raw * g * 0.3 >= 1) hit(mon, 1, '#ffd0a0', 'fixed', null, { id, atk: raw * g * 0.3, crit: 0, critDmg: 1, pierce: 0 });
 }
 // 전사형 도발: 10초마다 맨 앞 적의 공격을 4초 동안 자기에게 돌린다(받는 피해 감소).
 // 암살자가 뒤로 숨어들면 도발이 준비된 전사가 곧바로 막아선다.
 const TAUNT_CD = 10, TAUNT_TIME = 4;
-const tauntGuard = id => (ALLY_LOOKS[id].weapon === 'shield' ? 0.6 : 0.4) + (allyStar(id) >= 3 ? 0.1 : 0);
+const BRON_LEAD_GUARD = 0.25;   // 브론이 리더일 때 받는 피해 감소 (리더는 도발 안 함)
+const tauntGuard = id => Math.min(0.8, (id === 'bron' ? 0.7 : ALLY_LOOKS[id].weapon === 'shield' ? 0.6 : 0.4) + (allyStar(id) >= 3 ? 0.1 : 0));   // 브론: 철벽 방패
 const isWarrior = id => id !== 'hero' && allyById(id) && allyById(id).type === 'warrior';
 const readyTaunter = () => (save.party || []).find(id => isWarrior(id) && !allyDown(id) && (battle.tauntCd[id] || 0) <= 0);
 const tauntOn = m => m && m.taunt && m.taunt.t > 0 && !allyDown(m.taunt.id) ? m.taunt.id : null;
@@ -1802,50 +2344,232 @@ const MOTION = { spear: 'thrust', greatsword: 'chop', axe: 'chop', sword: 'dash'
 const allyColor = id => 'rgb(' + ALLY_GLOW[allyById(id).type] + ')';
 
 
-// ── 전투 중 스킬 ──
+// ── 전투 중 스킬 (데이터 엔진: content.js 스킬의 eff 를 순서대로 실행) ──
+// 버프: battle.buffs = [{ id(스킬), stat, v, t, party }] · 능력치(stats)는 고치지 않고 hit·takeHit·공격 속도 계산에서 더한다
+// stat: atk·aspd (party면 동료도) · crit·dodge(%p, 0.15 = +15%p) · critDmg · guard(받는 피해 -) · drain(흡혈) · double(연속 공격) · gold(처치 골드)
+function buffSum(stat, lead) {
+  let v = 0;
+  if (battle && battle.buffs) for (const b of battle.buffs) if (b.stat === stat && (lead || b.party)) v += b.v;
+  return v;
+}
+function addBuff(id, stat, v, dur, party) {
+  battle.buffs = (battle.buffs || []).filter(b => !(b.id === id && b.stat === stat));   // 같은 스킬의 같은 버프는 새로 고침
+  battle.buffs.push({ id, stat, v, t: dur, party: !!party });
+}
+const skCd = sk => sk.cd * (1 - Math.min(50, stats.mods.cd) / 100);
+const isBossMon = m => !!(m.king || m.boss);
+const SK_FLOAT = ['#9fd0ff', '#7dffa0', '#8ac0ff', '#d6a8ff', '#ffc86a', '#ff8a9a'];   // 스킬 이름 글자 (등급별)
+// 살아 있는 적: q 줄, sn 잠입 암살자, all 모두, engaged 붙어 싸우는 중
+function skFoes() {
+  const q = battle.queue.filter(m => m.dead <= 0), sn = battle.sneak && battle.sneak.dead <= 0 ? battle.sneak : null;
+  return { q, sn, all: sn ? q.concat([sn]) : q, engaged: !!((q.length && q[0].x <= hero.x + 40) || sn) };
+}
+// 다친 파티원 (리더 lead 비율 미만 · 동료 ally 비율 미만)
+function partyHurt(lead, ally) {
+  if (hero.hp > 0 && hero.hp < stats.maxHp * lead) return true;
+  return Object.values(battle.ahp || {}).some(a => a.hp > 0 && a.hp < a.max * ally);
+}
+const someoneDown = () => (save.party || []).some(id => allyDown(id));
+// 스킬이 돌볼 사람이 있나: 파티 효과(party·부활)가 있으면 파티 전체(부활이면 쓰러진 동료도), 없으면 리더만
+function skHurt(sk, lead, ally) {
+  if (!sk.eff.some(e => e.party || e.t === 'revive')) return partyHurt(lead, 0);
+  return partyHurt(lead, ally) || (sk.eff.some(e => e.t === 'revive') && someoneDown());
+}
+// AUTO 사용 조건: fight 붙은 적 · hurt 리더 60%/동료 50% 미만 · crowd 적 2마리 이상 · boss 보스·대장 · down 쓰러진 동료 · buff 같은 버프 꺼짐
+function skAutoOk(sk, F) {
+  switch (sk.auto) {
+    case 'hurt': return skHurt(sk, 0.6, 0.5);
+    case 'crowd': return F.engaged && F.all.length >= 2;
+    case 'boss': return F.engaged && !!(battle.king || (F.q[0] && F.q[0].boss));
+    case 'down': return someoneDown();
+    case 'buff': return F.engaged && !(battle.buffs || []).some(b => b.id === sk.id);
+    default: return F.engaged;
+  }
+}
 function castSkill(slot, auto) {
   const id = save.slots[slot];
-  if (!id || !battle || battle.state !== 'fight' || battle.delay > 0 || hero.hp <= 0) return false;
-  const sk = skillById(id), lv = save.skills[id];
-  if (!lv || (battle.skillCd[id] || 0) > 0) return false;
-  const q = battle.queue.filter(m => m.dead <= 0);
-  const inRange = q.length && q[0].x <= hero.x + 40;
-  const p = skillPower(sk, lv);
-  const girl = leaderStyle() !== 'melee', mx = m => m.x + (m.size || 32) / 2;
-  if (id === 'strike') {
-    if (!inRange) return false;
-    hero.lunge = 1.5;
-    hero.back = false;
-    hero.atk = { t: 0, dur: 0.42, kind: 'strike' };
-    battle.fx.push(girl ? { kind: 'star', from: hero.x + 22, x: mx(q[0]), big: true, t: 0, dur: 0.34 } : { kind: 'hslash', x: mx(q[0]), big: true, dash: true, t: 0.08, dur: 0.32 });
-    hit(q[0], p, '#9fd0ff', 'skill', heroEls());
-  } else if (id === 'whirl') {
-    if (!inRange) return false;
-    hero.lunge = 1.5;
-    hero.back = false;
-    hero.atk = { t: 0, dur: 0.5, kind: 'whirl' };
-    if (girl) q.slice(0, 3).forEach((m, k) => battle.fx.push({ kind: 'star', from: hero.x + 22, x: mx(m), t: -k * 0.07, dur: 0.3 }));
-    else battle.fx.push({ kind: 'whirl', t: 0, dur: 0.5 });
-    q.slice(0, 3).forEach(m => hit(m, p, '#9fd0ff', 'skill', heroEls()));
-  } else if (id === 'aid') {
-    if (auto && hero.hp > stats.maxHp * 0.6) return false;
-    if (hero.hp >= stats.maxHp) return false;
-    const heal = Math.floor(stats.maxHp * p);
-    hero.hp = Math.min(stats.maxHp, hero.hp + heal);
-    addFloat('+' + fmt(heal), hero.x + 16, GROUND - 46, '#6fe39a', true);
-  } else if (id === 'cry') {
-    if (!q.length) return false;
-    battle.cryT = 10;
-    battle.cryPower = p;
-  }
-  battle.skillCd[id] = sk.cd * (1 - Math.min(50, stats.mods.cd) / 100);
-  addFloat(sk.name + '!', hero.x + 16, GROUND - 62, '#9fd0ff', true);
+  if (!id || !skSlotOpen(slot) || !battle || battle.state !== 'fight' || battle.delay > 0 || hero.hp <= 0) return false;
+  const sk = skillById(id), o = skOf(id);
+  if (!sk || !o || (battle.skillCd[id] || 0) > 0) return false;
+  const F = skFoes();
+  if (!F.all.length) return false;
+  const ts = sk.eff.map(e => e.t);
+  if (ts.some(t => t === 'dmg' || t === 'summon' || t === 'freeze' || t === 'mark') && !F.engaged) return false;   // 공격형은 붙은 적이 있어야
+  if (ts.every(t => t === 'heal') && !skHurt(sk, 0.999, 0.999)) return false;                                    // 회복만 하는 스킬은 다친 파티원이 있어야
+  if (auto && !skAutoOk(sk, F)) return false;
+  battle.skillCd[id] = skCd(sk);
+  addFloat(sk.name + '!', hero.x + 16, GROUND - 62, SK_FLOAT[sk.grade], true);
+  runSkill(sk, o);
   return true;
+}
+// 대상 고르기: front 맨 앞 · n 앞에서 n마리 · all 모두(잠입 암살자 포함) · back 맨 앞 빼고 모두 · rand 무작위(hits번) · low 체력 비율 가장 낮은 적 · sneak 잠입 암살자 우선
+function skTargets(e, F) {
+  const base = F.q.length ? F.q : F.sn ? [F.sn] : [];
+  switch (e.to) {
+    case 'n': return base.slice(0, e.n || 1);
+    case 'all': case 'rand': return F.all.slice();
+    case 'back': return F.all.filter(t => t !== F.q[0]);
+    case 'low': return F.all.length ? [F.all.reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a))] : [];
+    case 'sneak': return [F.sn || base[0]].filter(Boolean);
+    default: return base.slice(0, 1);
+  }
+}
+function setVuln(t, v, dur) { if (!t.vuln || v >= t.vuln.v) t.vuln = { v, t: dur }; }
+// 한 대: 보스 배율 · 즉사(exec %, 보스·대장·던전 제외)
+function skHitOne(t, e, v, els) {
+  if (t.dead > 0) return;
+  hit(t, v * (e.bossMul && isBossMon(t) ? e.bossMul : 1), '#9fd0ff', 'skill', els, stats);
+  if (e.exec && t.dead <= 0 && !isBossMon(t) && !battle.dungeon && t.hp < t.maxHp * e.exec / 100) {
+    addFloat('즉사!', t.x + (t.size || 32) / 2, GROUND - 70, '#ff5a6e', true);
+    hit(t, 1, '#ff5a6e', 'fixed', null, { id: stats.id, atk: t.hp + 1, crit: 0, critDmg: 1, pierce: 0 });
+  }
+}
+// 맞은 뒤 상태 이상: 기절·둔화·화상·넉백(음수 = 끌어당김)·받는 피해 증가. 보스·대장은 기절 절반·넉백 30%
+function skStatus(t, e) {
+  if (t.dead > 0) return;
+  const B = isBossMon(t);
+  if (e.stun) t.stun = Math.max(t.stun || 0, B ? e.stun / 2 : e.stun);
+  if (e.slow) t.slow = Math.max(t.slow || 0, e.slow);
+  if (e.burn) { t.burn = Math.max(t.burn || 0, e.burn); t.burnMult = 0.15; t.burnSrc = stats; }
+  if (e.knock && t !== battle.sneak) {
+    const k = e.knock * (B ? 0.3 : 1);
+    t.x = k > 0 ? Math.max(t.x, Math.min(330, t.x + k)) : Math.min(t.x, Math.max(hero.x + 40, t.x + k));   // 밀기는 뒤로만 · 당기기는 앞으로만
+    t.kb = k > 0 ? (B ? 2 : 10) : 0;
+  }
+  if (e.vuln) setVuln(t, e.vuln.base, e.vuln.dur);
+}
+function runSkill(sk, o) {
+  const m = stats.mods, lv = o.lv, st = o.star, hm = 1 + m.healMul / 100;
+  const ax = id => allyX(save.party.indexOf(id)) + 16;
+  let fxDone = false;
+  if (sk.eff.some(e => e.t === 'dmg')) {                                       // 리더 모션 (회오리면 회전)
+    hero.lunge = 1.5; hero.back = false;
+    hero.atk = { t: 0, dur: sk.fx === 'whirl' ? 0.5 : 0.42, kind: sk.fx === 'whirl' ? 'whirl' : 'strike' };
+  }
+  for (const e of sk.eff) {
+    const v = skVal(e, lv, st), F = skFoes();
+    switch (e.t) {
+      case 'dmg': {
+        const els = e.el || sk.el ? [e.el || sk.el] : heroEls(), ts = skTargets(e, F), hits = e.hits || 1;
+        if (!fxDone) { skFx(sk, ts); fxDone = true; }
+        if (e.to === 'rand') {
+          const got = new Set();
+          for (let k = 0; k < hits; k++) {
+            const alive = ts.filter(t => t.dead <= 0);
+            if (!alive.length) break;
+            const t = pick(alive); got.add(t);
+            skHitOne(t, e, v, els);
+          }
+          got.forEach(t => skStatus(t, e));
+        } else {
+          for (let k = 0; k < hits; k++) for (const t of ts) skHitOne(t, e, v, els);
+          ts.forEach(t => skStatus(t, e));
+        }
+        break;
+      }
+      case 'buff':
+        addBuff(sk.id, e.stat, v, e.dur, e.party);
+        battle.fx.push({ kind: 'buff', x: hero.x + 16, party: !!e.party, t: 0, dur: 0.8 });
+        break;
+      case 'shield': {
+        battle.shield = Math.min(stats.maxHp, (battle.shield || 0) + Math.floor(stats.maxHp * v));
+        battle.fx.push({ kind: 'shield', x: hero.x + 16, t: 0, dur: 0.6 });
+        if (e.party) for (const [id, a] of Object.entries(battle.ahp || {})) if (a.hp > 0) { a.sh = Math.min(a.max, (a.sh || 0) + Math.floor(a.max * v)); battle.fx.push({ kind: 'shield', x: ax(id), t: 0, dur: 0.6 }); }
+        addFloat('보호막', hero.x + 16, GROUND - 76, '#9fd0ff');
+        break;
+      }
+      case 'heal': {
+        if (hero.hp > 0) {
+          const h = Math.floor(stats.maxHp * v * hm);
+          hero.hp = Math.min(stats.maxHp, hero.hp + h);
+          addFloat('+' + fmt(h), hero.x + 16, GROUND - 46, '#6fe39a', true);
+          battle.fx.push({ kind: 'heal', x: hero.x + 16, big: true, t: 0, dur: 0.6 });
+        }
+        if (e.party) for (const [id, a] of Object.entries(battle.ahp || {})) if (a.hp > 0) {
+          const h = Math.floor(a.max * v * hm);
+          a.hp = Math.min(a.max, a.hp + h);
+          addFloat('+' + fmt(h), ax(id), GROUND - 48, '#6fe39a');
+          battle.fx.push({ kind: 'heal', x: ax(id), t: 0, dur: 0.6 });
+        }
+        break;
+      }
+      case 'revive': {                                                           // 쓰러진 동료 전원(리더 포함) 부활
+        const r = Math.min(1, v);
+        if (hero.hp <= 0) { hero.hp = Math.floor(stats.maxHp * r); addFloat('부활!', hero.x + 16, GROUND - 62, '#ffe27a', true); }
+        for (const [id, a] of Object.entries(battle.ahp || {})) if (a.hp <= 0) {
+          a.hp = Math.floor(a.max * r);
+          addFloat(allyName(id) + ' 부활!', ax(id), GROUND - 60, '#ffe27a', true);
+          battle.fx.push({ kind: 'holy', x: ax(id), t: 0, dur: 0.6 });
+        }
+        break;
+      }
+      case 'freeze': {                                                           // 모든 적 정지 (보스·대장 절반, 최대 6초)
+        const d = Math.min(FREEZE_MAX, v);
+        for (const t of F.all) { const x = isBossMon(t) ? d / 2 : d; t.stun = Math.max(t.stun || 0, x); t.ice = Math.max(t.ice || 0, x); }
+        if (!fxDone) { skFx(sk, F.all); fxDone = true; }
+        break;
+      }
+      case 'summon': {                                                           // 소환수 n명 · dur초 · 1초마다 앞의 적 공격 (리더 공격력 × v)
+        battle.shadows = battle.shadows || [];
+        for (let k = 0; k < e.n; k++) battle.shadows.push({ kind: e.kind, t: e.dur, cd: 0.4 + k * 0.2, rise: 0, k: battle.shadows.length, act: 0, mult: v, el: sk.el || 'magic' });
+        while (battle.shadows.length > SUMMON_MAX) { const i = battle.shadows.findIndex(s => s.kind); if (i < 0) break; battle.shadows.splice(i, 1); }
+        addFloat({ shadow: '그림자 병사!', spirit: '빛의 정령!', clone: '분신!' }[e.kind] || '소환!', hero.x + 30, GROUND - 50, SUMMON_COL[e.kind] || '#b48cff');
+        if (!fxDone) { skFx(sk, F.q.slice(0, 1)); fxDone = true; }
+        break;
+      }
+      case 'cleanse': {                                                          // 저주·독 해제, 봉인 시간 절반
+        const any = battle.curse > 0 || battle.poison > 0 || battle.seal > 0;
+        battle.curse = 0; battle.poison = 0; battle.cleanse = null;
+        if (battle.seal > 0) battle.seal *= 0.5;
+        if (any) addFloat('정화!', hero.x + 16, GROUND - 88, '#9ef0b0', true);
+        break;
+      }
+      case 'cdr':                                                                // 다른 장착 스킬 쿨타임 감소
+        for (const x of save.slots) if (x && x !== sk.id && battle.skillCd[x] > 0) battle.skillCd[x] = Math.max(0, battle.skillCd[x] - e.base);
+        addFloat(`쿨타임 -${e.base}초`, hero.x + 16, GROUND - 88, '#bfe8ff');
+        break;
+      case 'mark':                                                               // 모든 적 받는 피해 증가
+        for (const t of F.all) setVuln(t, v, e.dur);
+        if (!fxDone) { skFx(sk, F.all); fxDone = true; }
+        break;
+      case 'gold':
+        addBuff(sk.id, 'gold', v, e.dur, false);
+        addFloat(`처치 골드 +${Math.round(v * 100)}%`, hero.x + 16, GROUND - 88, '#ffd25e');
+        break;
+    }
+  }
+  if (!fxDone) skFx(sk, []);
+}
+// 스킬 그림 (프리셋). 대상 ts 기준, 기존 이펙트 종류 재사용 + meteor·chain·ice·wind·holy·shield·buff·quake·time·void
+function skFx(sk, ts) {
+  const F = battle.fx, cx = t => t.x + (t.size || 32) / 2, girl = leaderStyle() !== 'melee';
+  const mid = ts.length ? ts.reduce((a, t) => a + cx(t), 0) / ts.length : hero.x + 70;
+  const each = (fn, gap = 0.06) => ts.slice(0, 6).forEach((t, k) => F.push({ ...fn(t, k), t: -k * gap }));
+  switch (sk.fx) {
+    case 'slash': each((t, k) => (girl ? { kind: 'star', from: hero.x + 22, x: cx(t), big: !k, dur: 0.34 } : { kind: 'hslash', x: cx(t), big: !k, dash: !k, dur: 0.32 })); break;
+    case 'whirl': if (girl) each(t => ({ kind: 'star', from: hero.x + 22, x: cx(t), dur: 0.3 })); else F.push({ kind: 'whirl', t: 0, dur: 0.5 }); break;
+    case 'star': each(t => ({ kind: 'star', from: hero.x + 22, x: cx(t), big: true, dur: 0.34 })); break;
+    case 'meteor': F.push({ kind: 'meteor', x: ts.length ? cx(ts[0]) : mid, t: 0, dur: 0.75 }); shake = Math.max(shake, 0.35); break;
+    case 'bolt': each(t => ({ kind: 'elem', e: 'bolt', color: '#ffe94a', x: cx(t), dur: 0.35 }), 0.05); break;
+    case 'chain': F.push({ kind: 'chain', xs: ts.slice(0, 6).map(cx), t: 0, dur: 0.45 }); break;
+    case 'fire': each(t => ({ kind: 'elem', e: 'fire', color: '#ff7a3a', from: hero.x + 24, x: cx(t), dur: 0.4 }), 0.05); break;
+    case 'ice': each(t => ({ kind: 'ice', x: cx(t), dur: 0.55 }), 0.04); break;
+    case 'wind': F.push({ kind: 'wind', x: mid, t: 0, dur: 0.55 }); break;
+    case 'holy': if (ts.length) each(t => ({ kind: 'holy', x: cx(t), dur: 0.6 }), 0.05); else F.push({ kind: 'holy', x: hero.x + 16, t: 0, dur: 0.6 }); break;
+    case 'shadow': each(t => ({ kind: 'smoke', x: cx(t), dur: 0.5 }), 0.04); each(t => ({ kind: 'shadowhit', x: cx(t), dur: 0.3 }), 0.04); break;
+    case 'heal': F.push({ kind: 'heal', x: hero.x + 16, big: true, t: 0, dur: 0.6 }); break;
+    case 'shield': F.push({ kind: 'shield', x: hero.x + 16, t: 0, dur: 0.6 }); if (ts.length) F.push({ kind: 'hslash', x: cx(ts[0]), big: true, dash: true, t: 0.05, dur: 0.3 }); break;
+    case 'buff': F.push({ kind: 'buff', x: hero.x + 16, t: 0, dur: 0.8 }); break;
+    case 'arrow': each((t, k) => ({ kind: 'arrow', i: -1, x: cx(t), off: (k % 3 - 1) * 4, dur: 0.3, color: '#ffe0a0' }), 0.04); break;
+    case 'quake': F.push({ kind: 'quake', x: mid, t: 0, dur: 0.6 }); shake = Math.max(shake, 0.4); break;
+    case 'time': F.push({ kind: 'time', x: mid, t: 0, dur: 0.9 }); break;
+    case 'void': F.push({ kind: 'void', x: mid, t: 0, dur: 0.8 }); break;
+  }
 }
 
 function updateSkills(dt) {
   for (const id in battle.skillCd) battle.skillCd[id] = Math.max(0, battle.skillCd[id] - dt);
-  battle.cryT = Math.max(0, battle.cryT - dt);
+  if (battle.buffs && battle.buffs.length) battle.buffs = battle.buffs.filter(b => (b.t -= dt) > 0);
   if (save.autoSkill) for (let i = 0; i < SKILL_SLOTS; i++) castSkill(i, true);
 }
 
@@ -1856,7 +2580,7 @@ function waveCleared() {
     hero.hp = hero.hp <= 0 ? Math.floor(stats.maxHp * 0.3) : Math.min(stats.maxHp, hero.hp + heal);   // 쓰러진 리더는 30%로 일어남
     addFloat('+' + fmt(heal), hero.x + 16, GROUND - 46, '#6fe39a', true);
     for (const a of Object.values(battle.ahp || {})) a.hp = a.hp <= 0 ? Math.floor(a.max * 0.3) : Math.min(a.max, a.hp + a.max * WAVE_HEAL);
-    battle.shadows = (battle.shadows || []).filter(s => s.t === Infinity);
+    battle.shadows = (battle.shadows || []).filter(s => s.t === Infinity || s.kind);   // 스킬 소환수는 시간이 다할 때까지
     toast(`웨이브 ${battle.wave + 1} 클리어! 체력 회복`);
     battle.wave++;
     battle.delay = 1.6;
@@ -1919,18 +2643,23 @@ function endBoss(result) {
   const bonus = Math.floor(monGold(c * STAGES_PER) * BAL.kingGold * (first ? 1 : REPLAY_BONUS));
   save.gold += bonus;
   r.earned += bonus;
-  const ally = allyById(B.ally);
+  const ally = B.ally && allyById(B.ally);
+  let bsk = null;
   if (first) {
     setTimeout(() => fanfare('LEVEL UP!', `Lv ${heroLevel()} · 레벨 +3`, Sound.levelUp), 200);
     save.dust += 50;
     save.bosses[c] = true;
     save.shards = (save.shards || 0) + 1;
-    gainAlly(ally.id);
+    if (ally) gainAlly(ally.id);
+    bsk = grantBossSkill(c);                                           // 보스 전용 스킬
+    if (bsk) setTimeout(() => fanfare('보스 스킬 획득!', `${GRADES[bsk.grade].name} · ${bsk.name}`, Sound.levelUp), 2300);
+    refreshStats();
   }
   writeSave();
   cloudUpload();
   let text = `획득 골드 ${fmt(r.earned)} G`
-    + (first ? `<br>✦ 별조각 +1 · 공격력·체력 영구 +10% · 별가루 +50<br>레벨 +3 · 특성 포인트 +3<br>${ally.name} 합류 · 동료 탭에서 확인${c >= 2 ? ' · 동료 배치 칸 +1' : ''}`
+    + (first ? `<br>✦ 별조각 +1 · 공격력·체력 영구 +10% · 별가루 +50<br>레벨 +3 · 특성 포인트 +3${ally ? `<br>${ally.name} 합류 · 동료 탭에서 확인${c >= 2 && c <= 3 ? ' · 동료 배치 칸 +1' : ''}` : ''}`
+      + (bsk ? `<br>보스 전용 스킬 <b style="color:${GRADES[bsk.grade].color}">${bsk.name}</b> 획득 · 스킬 탭에서 확인${c === 3 ? ' · 스킬 칸 +1' : ''}` : '')
       + (c < CHAPTERS.length ? `<br>챕터 ${c + 1} · ${chapter(c + 1).name} 해금` : '<br>다음 챕터는 업데이트 예정') : ' (재도전 보상 30%)');
   if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
   const btns = [['캠프로', () => showScreen('lobby'), !(first && c < CHAPTERS.length)]];
@@ -2208,12 +2937,13 @@ function refreshTraits() {
 function affinityChart() {
   const rows = Object.values(BODY).map(B => `<tr><th>${B.name}</th><td class="w">${B.weak.map(e => ELEM_NAME[e]).join('·')}</td><td class="r">${B.resist.map(e => ELEM_NAME[e]).join('·')}</td></tr>`).join('');
   return `<div class="aff"><b>상성</b>
-    <p class="note">공격 속성 · 베기: 검·도끼 전사형 / 관통: 사격형, 창 전사형 / 마법: 마법형, 그림자 병사, 치유·지원형 리더 / 화염: 불 지팡이, 삼색 마법의 불 (마법 약점에도 통함) / 신성: 심판의 빛 특성</p>
+    <p class="note">공격 속성 · 베기: 검·도끼 전사형 / 관통: 사격형, 창 전사형 / 마법: 마법형, 그림자 병사, 치유·지원형 / 화염: 불 지팡이, 삼색 마법의 불 (마법 약점에도 통함) / 신성: 심판의 빛 특성</p>
     <table><tr><th>몸 종류</th><th>약점 ×1.5</th><th>저항 ×0.7</th></tr>${rows}</table>
     <p class="note">리더의 기본 공격·스킬은 상성 효과 절반 (×1.25 / ×0.85)</p>
     <ul>
-      <li><b>암살자 → 치유형</b> 치유형 동료에게 피해 2배</li>
+      <li><b>적 암살자 기습 강화</b> 뒤로 잠입한 동안 공격력 ×1.6 · 공격 속도 ×1.4 · 치유형 → 지원형 → 맨 뒤 동료 순서로 노림</li>
       <li><b>전사형 → 암살자</b> 도발로 뒤를 지킴 · 암살자에게 피해 1.5배, 받는 피해 절반</li>
+      <li><b>원거리 몬스터 ➶</b> 줄 뒤에서도 파티원 아무나 공격 · 사격형이 먼저 저격 · 바람의 노래로 20% 빗나감</li>
       <li><b>사격형 → 몬스터 치유사</b> 치유사를 먼저 저격 · 피해 1.5배</li>
       <li><b>치유형 → 저주술사</b> 걸린 저주를 곧바로 정화</li>
       <li><b>지원형 → 룰 브레이커</b> 노래로 특성 봉인 시간 절반</li>
@@ -2234,23 +2964,33 @@ function openAllies(sel) {
   refreshModal();
 }
 
+// 이 동료를 리더로 바꾸면 팀 전투력 (미리보기 · 세이브는 그대로)
+function powerIfLeader(id) {
+  const keep = { leader: save.leader, party: (save.party || []).slice() };
+  setLeader(id); refreshStats();
+  const p = power();
+  save.leader = keep.leader; save.party = keep.party; refreshStats();
+  return p;
+}
 function refreshAllies() {
   const party = save.party || [];
   const own = ALLIES.filter(A => save.allies[A.id]);
   if (!allySel || !save.allies[allySel]) allySel = save.leader || party[0] || (own[0] && own[0].id) || null;
   let html = '';
   if (allySel) {
-    const A = allyById(allySel), id = A.id, lv = save.allies[id], st = allyStar(id), R = RARITY[A.r];
-    const inParty = party.includes(id), cost = allyCost(lv), have = save.acopy[id] || 0, need = AWAKEN_COST[st], isLead = id === save.leader;
+    const A = allyById(allySel), id = A.id, st = allyStar(id), R = RARITY[A.r], L = charLv(id), cs = memberStats(id), Ab = ABIL[id];
+    const inParty = party.includes(id), have = save.acopy[id] || 0, need = AWAKEN_COST[st], isLead = id === save.leader;
     html += `<div class="adet"><img src="${allyIcon(id)}" class="abig">
       <div class="ainfo"><b style="color:${R.color}">${R.stars} ${R.name} · ${A.role}</b><h3>${isLead ? '👑 ' : ''}${allyName(id)}</h3>
-      ${isLead ? `<p class="lead">리더 · 맨 앞에서 싸움 · 강화·장비·특성·전직·스킬·물약 적용 · 등급·각성 보정 ×${leaderMul().toFixed(2)}</p>` : ''}
-      <div class="astars">${[1, 2, 3, 4, 5].map(n => `<i class="${n <= st ? 'on' : ''}">★</i>`).join('')} <small>각성 ${st} / ${STAR_MAX} · Lv ${lv}</small></div>
-      <p>${A.desc(lv, allyPow(id))}${A.type === 'warrior' && !isLead ? ` · 도발: 10초마다 적의 공격을 4초 동안 대신 받음 (피해 -${Math.round(tauntGuard(id) * 100)}%)` : ''}</p>
-      <p class="note">공격 속성 · ${A.type === 'heal' ? '없음 (치유)' : A.type === 'support' ? '없음 (지원)' : ELEM_NAME[allyEl(id)]}</p>
+      ${isLead ? '<p class="lead">리더 · 맨 앞에서 싸움 · 기본 공격 + 유형 행동 · 장비·특성·전직·스킬·물약 적용</p>' : `<p class="lead">동료 협공 · 동료로 싸울 때 공격력 ×${ALLY_ATK} (아래 수치 포함) · 치명타 관통 = 리더의 ${Math.round(ALLY_PIERCE * 100)}%</p>`}
+      <div class="astars">${[1, 2, 3, 4, 5].map(n => `<i class="${n <= st ? 'on' : ''}">★</i>`).join('')} <small>각성 ${st} / ${STAR_MAX} · 강화 ${CHAR_UPS.reduce((a, u) => a + L[u.id], 0)}회 · 등급·각성 보정 ×${charMul(id).toFixed(2)}</small></div>
+      <p class="stl">공격력 <b>${fmt(cs.atk)}</b> · 체력 <b>${fmt(cs.maxHp)}</b> · ${isLead ? `기본 공격 <b>${cs.aspd.toFixed(2)}</b>회/초 · 유형 행동 <b>${cs.act.toFixed(2)}</b>회/초` : `행동 <b>${cs.aspd.toFixed(2)}</b>회/초`} · 치명타 <b>${cs.crit.toFixed(0)}%</b> · 회피 <b>${cs.dodge.toFixed(1)}%</b></p>
+      <p>${A.act}${A.type === 'warrior' && !isLead ? ` · 도발: 10초마다 적의 공격을 ${id === 'lea' ? 6 : TAUNT_TIME}초 동안 대신 받음 (피해 -${Math.round(tauntGuard(id) * 100)}%)` : ''}</p>
+      ${Ab ? `<div class="abil"><b>고유 능력 · ${Ab.name}</b> ${Ab.desc(id)}</div>` : ''}
+      <p class="note">공격 속성 · ${A.type === 'heal' || A.type === 'support' ? '마법' : ELEM_NAME[allyEl(id)]}</p>
       ${st < STAR_MAX ? `<div class="anext"><img src="${allyIcon(id, st + 1)}"><div><small>다음 각성</small><br><b>${PREFIX[A.type][st]} ${A.name}</b><br><small>조각 ${have} / ${need}</small></div></div>` : '<p class="note">최대 각성 · 중복은 별가루 +10</p>'}
-      <div class="skbtns">${isLead ? '<button class="equip on" disabled>리더</button>' : `<button class="equip${inParty ? ' on' : ''}" id="aParty" ${!inParty && party.length >= partyMax() ? 'disabled' : ''}>${inParty ? '해제' : '배치'}</button><button id="aLead" class="plain">리더로</button>`}
-      ${lv >= allyLvMax(id) ? `<button disabled>최대 Lv ${allyLvMax(id)}${st < STAR_MAX ? ' · 각성하면 +10' : ''}</button>` : `<button id="aUp" ${save.gold < cost ? 'disabled' : ''}>강화 ${fmt(cost)} G</button>`}
+      <div class="skbtns">${isLead ? '<button class="equip on" disabled>리더</button>' : `<button class="equip${inParty ? ' on' : ''}" id="aParty" ${!inParty && party.length >= partyMax() ? 'disabled' : ''}>${inParty ? '해제' : '배치'}</button><button id="aLead" class="plain">리더로 <small>전투력 ${fmt(power())} → ${fmt(powerIfLeader(id))}</small></button>`}
+      <button id="aUpg">강화${canUp(id) ? ' <em class="rdot"></em>' : ''}</button>
       <button id="aAwk" class="awk" ${st >= STAR_MAX || have < need ? 'disabled' : ''}>각성</button></div></div></div>`;
   }
   html += `<p class="note" style="margin:8px 0">리더 1명 + 배치 ${party.length} / ${partyMax()}${partyMax() < PARTY_MAX ? ' · 챕터 보스 처치로 칸 추가' : ''} · 도감 ${own.length} / ${ALLIES.length} (공격력·체력 +${codexBonus()}%) · 새 동료는 뽑기에서 획득</p><div class="agrid">`;
@@ -2271,13 +3011,7 @@ function refreshAllies() {
   });
   if (!allySel) return;
   const id = allySel;
-  if ($('aUp')) $('aUp').onclick = () => {
-    const cost = allyCost(save.allies[id]);
-    if (save.gold < cost) return;
-    if (save.allies[id] >= allyLvMax(id)) return;
-    save.gold -= cost; save.allies[id]++;
-    refreshStats(); updateHud();
-  };
+  $('aUpg').onclick = () => openUpgrade(id);
   if ($('aLead')) $('aLead').onclick = () => { setLeader(id); refreshStats(); updateHud(); drawBattleIcon(); writeSave(); notify(allyName(id) + ' 리더 지정!', '#ffe27a'); };
   if ($('aParty')) $('aParty').onclick = () => {
     const at = save.party.indexOf(id);
@@ -2332,11 +3066,11 @@ function label(text, cx, y, color) {
   ctx.fillText(text, cx * SCALE, y * SCALE);
 }
 
-function hpBar(x, y, w, ratio, color) {
+function hpBar(x, y, w, ratio, color, h = 2) {
   ctx.fillStyle = '#000a';
-  ctx.fillRect(x * SCALE, y * SCALE, w * SCALE, 2 * SCALE);
+  ctx.fillRect(x * SCALE, y * SCALE, w * SCALE, h * SCALE);
   ctx.fillStyle = color;
-  ctx.fillRect(x * SCALE, y * SCALE, w * SCALE * Math.max(0, ratio), 2 * SCALE);
+  ctx.fillRect(x * SCALE, y * SCALE, w * SCALE * Math.min(1, Math.max(0, ratio)), h * SCALE);
 }
 
 function drawFloats(list, defaultX, defaultY) {
@@ -2414,11 +3148,13 @@ function setDot(sel, on, num) {
   dot.textContent = num ? (num > 99 ? '99+' : num) : '';
   dot.classList.toggle('num', !!num);
 }
+// 스킬 빨간 점: 배울 수 있는 일반 스킬 · 장착 스킬 강화 가능 · 각성 가능 (장착 안 한 스킬 강화는 표시 안 함)
+const skillDot = () => SKILLS.some(sk => skLearnable(sk) && save.gold >= skCost(sk, 0)) || save.slots.some((id, i) => id && skSlotOpen(i) && skCanUp(id)) || Object.keys(save.sk || {}).some(skCanAwaken);
 function updateDots() {
-  setDot('[data-open=up]', UPGRADES.some(u => save.lv[u.id] < u.max && save.gold >= upgradeCost(u, save.lv[u.id])));
+  setDot('[data-open=up]', [leaderId()].concat(save.party || []).some(canUp));
   setDot('[data-open=traits]', traitsOpen() && pointsLeft() > 0, pointsLeft());
-  setDot('[data-open=allies]', Object.entries(save.allies || {}).some(([id, lv]) => allyById(id) && ((lv < allyLvMax(id) && save.gold >= allyCost(lv)) || (allyStar(id) < STAR_MAX && (save.acopy[id] || 0) >= AWAKEN_COST[allyStar(id)]))));
-  setDot('[data-open=skill]', SKILLS.some(sk => save.stage - 1 >= sk.unlock && save.gold >= skillCost(sk, save.skills[sk.id] || 0)));
+  setDot('[data-open=allies]', Object.keys(save.allies || {}).some(id => allyById(id) && allyStar(id) < STAR_MAX && (save.acopy[id] || 0) >= AWAKEN_COST[allyStar(id)]));
+  setDot('[data-open=skill]', skillDot());
   setDot('[data-open=gear]', save.items.some(it => !Object.values(save.gear).includes(it.id) && itemScore(it) > itemScore(equipped(it.slot))));
   setDot('[data-open=gacha]', save.dust >= GACHA_COST);
   setDot('#lAttend', attendReady());
@@ -2487,6 +3223,13 @@ function drawMonMarks(m, size) {
     ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = '900 17px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(R.icon, cx, top - 5);
   }
+  if (m.ranged) {                                   // 원거리 몬스터 표시
+    ctx.save(); ctx.font = '900 22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4; ctx.strokeStyle = '#3a2410'; ctx.fillStyle = '#ffe9b0';
+    const rx = cx + (m.role ? 26 : 0);
+    ctx.strokeText('➶', rx, top - 5); ctx.fillText('➶', rx, top - 5);
+    ctx.restore();
+  }
   if (m.stun > 0) { ctx.fillStyle = '#ffe27a'; for (let k = 0; k < 3; k++) { const an = time * 6 + k * 2.1; ctx.beginPath(); ctx.arc(cx + Math.cos(an) * 26, top + 26 + Math.sin(an) * 7, 5, 0, Math.PI * 2); ctx.fill(); } }
   if (tauntOn(m)) { ctx.fillStyle = '#ff5a3a'; ctx.font = '900 24px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('💢', cx + 22, top + 14); }
   if (m.charm > 0) { ctx.fillStyle = '#ff7ac8'; ctx.font = '900 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('♥', cx + Math.sin(time * 5) * 14, top + 16 - (time * 30 % 20)); }
@@ -2495,6 +3238,11 @@ function drawMonMarks(m, size) {
     ctx.fillText(`⏱ ${Math.max(0, m.escape).toFixed(1)}`, cx, top - 2);
   }
   if (m.burn > 0) { ctx.fillStyle = `rgba(255,120,40,${0.5 + 0.3 * Math.sin(time * 20)})`; ctx.beginPath(); ctx.arc(cx, (GROUND - 6) * SCALE, 10 + Math.random() * 4, 0, Math.PI * 2); ctx.fill(); }
+  if (m.ice > 0) {                                  // 스킬 빙결: 얼음 덩어리
+    ctx.fillStyle = 'rgba(170,225,255,0.38)'; ctx.strokeStyle = 'rgba(220,245,255,0.9)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.roundRect(cx - size * SCALE * 0.55, (GROUND - size - 2) * SCALE, size * SCALE * 1.1, (size + 2) * SCALE, 10); ctx.fill(); ctx.stroke();
+  }
+  if (m.vuln) { ctx.fillStyle = '#ff6a6a'; ctx.font = '900 20px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('◎', cx - 26, top + 16); }   // 받는 피해 증가
   ctx.restore();
 }
 
@@ -2569,11 +3317,23 @@ function renderBattle() {
     const sx = hero.x + 14 + (s.k % 3) * 7 + s.act * 6, sy = GROUND - 28 + (s.k % 2) * 2 + (1 - s.rise) * 20;
     ctx.save();
     ctx.globalAlpha = 0.8 * s.rise * (s.t < 1 ? s.t : 1);
-    ctx.filter = 'brightness(0.15) sepia(1) hue-rotate(230deg) saturate(4)';
-    drawImg(allyImg(leaderId()), sx, sy, 28);
+    if (s.kind === 'spirit') {                          // 빛의 정령: 빛나는 구슬 + 날개
+      const px = (sx + 16) * SCALE, py = (sy + 4 + Math.sin(time * 4 + s.k) * 3) * SCALE;
+      ctx.shadowColor = '#ffe27a'; ctx.shadowBlur = 22; ctx.fillStyle = '#fff6c8';
+      ctx.beginPath(); ctx.arc(px, py, 14 + s.act * 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,240,180,0.6)';
+      for (const d of [-1, 1]) { ctx.beginPath(); ctx.ellipse(px + d * 20, py - 6, 14, 7, d * 0.5 + Math.sin(time * 12) * 0.2, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+      continue;
+    }
+    ctx.filter = s.kind === 'clone' ? 'brightness(1.3) saturate(0.5) hue-rotate(160deg)' : 'brightness(0.15) sepia(1) hue-rotate(230deg) saturate(4)';
+    if (s.kind === 'clone') ctx.globalAlpha *= 0.75;
+    drawImg(allyImg(leaderId()), sx, sy, s.kind === 'clone' ? 30 : 28);
     ctx.filter = 'none';
-    ctx.fillStyle = '#d0a0ff';
-    ctx.fillRect((sx + 17) * SCALE, (sy + 11) * SCALE, 5, 5); ctx.fillRect((sx + 21) * SCALE, (sy + 11) * SCALE, 5, 5);
+    if (s.kind !== 'clone') {
+      ctx.fillStyle = '#d0a0ff';
+      ctx.fillRect((sx + 17) * SCALE, (sy + 11) * SCALE, 5, 5); ctx.fillRect((sx + 21) * SCALE, (sy + 11) * SCALE, 5, 5);
+    }
     ctx.restore();
   }
   // 동료 (주인공 뒤) · 무기마다 다른 모션, ★3부터 더 크게 움직이고 잔상과 빛
@@ -2618,7 +3378,11 @@ function renderBattle() {
       ctx.save(); ctx.strokeStyle = `rgba(255,120,90,${0.6 + 0.3 * Math.sin(time * 10)})`; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.ellipse((x + dx + 16) * SCALE, (GROUND - 15 + dy) * SCALE, 19 * SCALE, 18 * SCALE, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
-    if (hp && !walking) hpBar(x + 9, GROUND - 36 + (i % 2) * 2, 14, hp.hp / hp.max, down ? '#777' : '#6fe39a');
+    if (!down && hp && hp.sh > 0) {                            // 스킬 보호막
+      ctx.save(); ctx.strokeStyle = 'rgba(150,210,255,0.75)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse((x + dx + 16) * SCALE, (GROUND - 15 + dy) * SCALE, 18 * SCALE, 17 * SCALE, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    }
+    if (hp) hpBar(x + 9, GROUND - 36 + (i % 2) * 2, 14, down ? 1 : hp.hp / hp.max, down ? '#6a6a70' : hp.hp < hp.max * 0.3 ? '#ff8a5a' : '#6fe39a');   // 동료 체력바 (걷는 중에도)
   });
   // 이펙트
   const S = SCALE, Y = v => v * S;
@@ -2726,7 +3490,7 @@ function renderBattle() {
         }
       }
     } else if (f.kind === 'shadowhit') {
-      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#b48cff'; ctx.lineWidth = 6; ctx.shadowColor = '#6a2aa0'; ctx.shadowBlur = 16;
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = f.color || '#b48cff'; ctx.lineWidth = 6; ctx.shadowColor = '#6a2aa0'; ctx.shadowBlur = 16;
       ctx.beginPath(); ctx.moveTo(tx - 30, ty - 30 + pr * 20); ctx.lineTo(tx + 20, ty + 10); ctx.stroke();
     } else if (f.kind === 'mheal') {                    // 몬스터 치유사
       ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#6fe39a'; ctx.lineWidth = 5;
@@ -2742,9 +3506,84 @@ function renderBattle() {
       ctx.globalAlpha = 1 - pr; ctx.fillStyle = '#7dff9a'; ctx.shadowColor = '#3ad060'; ctx.shadowBlur = 24;
       ctx.fillRect(tx - 18, Y(GROUND) - pr * 260, 36, pr * 260);
       ctx.beginPath(); ctx.ellipse(tx, Y(GROUND), 50, 12, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (f.kind === 'mshot') {                    // 원거리 몬스터의 투사체 (몬스터 → 파티원)
+      const fx0 = f.from * S, k = Math.min(1, pr / 0.8), px = fx0 + (tx - fx0) * k, py = Y(GROUND - 24) + Y(6) * k - Math.sin(k * Math.PI) * 40;
+      ctx.shadowColor = f.color; ctx.shadowBlur = 14;
+      if (pr < 0.8) {
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = f.color; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(px + 30, py - 6); ctx.lineTo(px, py); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px - 2, py - 2, 3.5, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const q2 = (pr - 0.8) / 0.2;
+        ctx.globalAlpha = 1 - q2; ctx.strokeStyle = f.color; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(tx, Y(GROUND - 18), 8 + q2 * 26, 0, Math.PI * 2); ctx.stroke();
+      }
     } else if (f.kind === 'hypno') {                    // 최면 소용돌이
       ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#ff9ae0'; ctx.lineWidth = 4;
       ctx.beginPath(); for (let a = 0; a < 18; a += 0.3) ctx.lineTo(tx + Math.cos(a + pr * 8) * a * 3, Y(GROUND - 50) + Math.sin(a + pr * 8) * a * 3); ctx.stroke();
+    } else if (f.kind === 'meteor') {                   // 스킬: 떨어지는 바위 → 폭발
+      if (pr < 0.5) {
+        const k = pr / 0.5, px = tx + 160 * (1 - k), py = -40 + (ty + 40) * k;
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffb05a'; ctx.lineWidth = 16; ctx.beginPath(); ctx.moveTo(px + 60, py - 90); ctx.lineTo(px, py); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.fillStyle = '#7a4a2a'; ctx.shadowColor = '#ff7a3a'; ctx.shadowBlur = 30;
+        ctx.beginPath(); ctx.arc(px, py, 26, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffb05a'; ctx.beginPath(); ctx.arc(px - 6, py - 6, 9, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const q2 = (pr - 0.5) / 0.5;
+        ctx.globalAlpha = 1 - q2; ctx.fillStyle = '#ff9a3a'; ctx.shadowColor = '#ffd25e'; ctx.shadowBlur = 30;
+        ctx.beginPath(); ctx.arc(tx, ty, 30 + q2 * 150, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff3c0'; ctx.beginPath(); ctx.arc(tx, ty, 20 + q2 * 60, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (f.kind === 'chain') {                    // 스킬: 대상들을 잇는 번개 지그재그
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#d6b0ff'; ctx.lineWidth = 6; ctx.shadowColor = '#a070ff'; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.moveTo((hero.x + 24) * S, ay - 10);
+      (f.xs || []).forEach((x, k) => { const mx = ((k ? f.xs[k - 1] : hero.x + 24) + x) / 2 * S; ctx.lineTo(mx, ty - 40 + (k % 2 ? 30 : -20) * (1 - pr)); ctx.lineTo(x * S, ty); });
+      ctx.stroke();
+    } else if (f.kind === 'ice') {                      // 스킬: 파란 얼음 조각
+      ctx.globalAlpha = 1 - pr; ctx.fillStyle = '#bfefff'; ctx.strokeStyle = '#5ab8ff'; ctx.lineWidth = 3;
+      for (let n = 0; n < 6; n++) {
+        const an = n * Math.PI / 3 + 0.3, r = 12 + pr * 46;
+        ctx.save(); ctx.translate(tx + Math.cos(an) * r, ty - 12 + Math.sin(an) * r); ctx.rotate(an);
+        ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(0, -6); ctx.lineTo(14, 0); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+    } else if (f.kind === 'wind') {                     // 스킬: 바람 줄기 (화면을 가로지름)
+      ctx.globalAlpha = 0.8 * (1 - pr); ctx.strokeStyle = '#e8fff4'; ctx.lineWidth = 5;
+      for (let n = 0; n < 6; n++) {
+        const yy = Y(GROUND - 60 + n * 10), x0 = (hero.x + pr * 260 - 60 + (n % 3) * 30) * S;
+        ctx.beginPath(); ctx.moveTo(x0, yy); ctx.quadraticCurveTo(x0 + 90, yy - 18, x0 + 200, yy); ctx.stroke();
+      }
+    } else if (f.kind === 'holy') {                     // 스킬: 빛기둥
+      ctx.globalAlpha = 1 - pr; ctx.fillStyle = 'rgba(255,240,170,0.75)'; ctx.shadowColor = '#ffe27a'; ctx.shadowBlur = 30;
+      const w = 40 * (1 - pr * 0.5);
+      ctx.fillRect(tx - w / 2, 0, w, Y(GROUND));
+      ctx.beginPath(); ctx.ellipse(tx, Y(GROUND), 60, 14, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (f.kind === 'shield') {                   // 스킬: 보호막 거품
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#9fd0ff'; ctx.fillStyle = 'rgba(160,210,255,0.25)'; ctx.lineWidth = 5; ctx.shadowColor = '#7ac8ff'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(tx, Y(GROUND - 16), 40 + pr * 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    } else if (f.kind === 'buff') {                     // 스킬: 위로 오르는 반짝이
+      ctx.globalAlpha = 1 - pr; ctx.fillStyle = f.party ? '#ffd27a' : '#fff3a0'; ctx.shadowColor = '#ffd25e'; ctx.shadowBlur = 12;
+      for (let n = 0; n < 7; n++) { const px = tx + Math.sin(n * 2.7) * 40, py = Y(GROUND) - pr * 120 - (n % 3) * 26; ctx.fillRect(px - 4, py - 4, 8, 8); }
+      ctx.strokeStyle = '#ffd25e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(tx, Y(GROUND), 40 + pr * 30, 10, 0, 0, Math.PI * 2); ctx.stroke();
+    } else if (f.kind === 'quake') {                    // 스킬: 땅이 갈라짐
+      ctx.globalAlpha = 1 - pr; ctx.strokeStyle = '#5a3418'; ctx.lineWidth = 7;
+      ctx.beginPath(); let px = (hero.x + 30) * S; ctx.moveTo(px, Y(GROUND));
+      for (let n = 1; n <= 8; n++) { px += (tx - (hero.x + 30) * S + 120) / 8; ctx.lineTo(px, Y(GROUND) + (n % 2 ? 8 : -6)); }
+      ctx.stroke();
+      ctx.fillStyle = '#8a6a48'; for (let n = 0; n < 6; n++) ctx.fillRect(tx - 120 + n * 45, Y(GROUND) - pr * 60 - (n % 2) * 20, 10, 10);
+    } else if (f.kind === 'time') {                     // 스킬: 시계 원
+      const cy = Y(GROUND - 40), r = 70 + pr * 20;
+      ctx.globalAlpha = 1 - pr * 0.8; ctx.strokeStyle = '#e0d0ff'; ctx.lineWidth = 5; ctx.shadowColor = '#a090ff'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.arc(tx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      for (let n = 0; n < 12; n++) { const an = n * Math.PI / 6; ctx.beginPath(); ctx.moveTo(tx + Math.cos(an) * r * 0.85, cy + Math.sin(an) * r * 0.85); ctx.lineTo(tx + Math.cos(an) * r, cy + Math.sin(an) * r); ctx.stroke(); }
+      ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(tx, cy); ctx.lineTo(tx + Math.cos(pr * 12 - 1.57) * r * 0.75, cy + Math.sin(pr * 12 - 1.57) * r * 0.75); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tx, cy); ctx.lineTo(tx + Math.cos(pr * 2 - 1.57) * r * 0.5, cy + Math.sin(pr * 2 - 1.57) * r * 0.5); ctx.stroke();
+    } else if (f.kind === 'void') {                     // 스킬: 어두운 소용돌이
+      const cy = Y(GROUND - 30);
+      ctx.globalAlpha = 1 - pr * 0.7; ctx.fillStyle = '#1a0a2a'; ctx.shadowColor = '#8a40ff'; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.arc(tx, cy, 30 + Math.sin(pr * Math.PI) * 30, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#b080ff'; ctx.lineWidth = 4;
+      ctx.beginPath(); for (let a = 0; a < 16; a += 0.3) ctx.lineTo(tx + Math.cos(a - pr * 10) * (90 - a * 5), cy + Math.sin(a - pr * 10) * (90 - a * 5) * 0.6); ctx.stroke();
     }
     ctx.restore();
   }
@@ -2780,11 +3619,17 @@ function renderBattle() {
     if (m.dead <= 0) drawMonMarks(m, size);
     if (i === 0 && m.dead <= 0 && !battle.dungeon) {
       hpBar(m.x + 2, GROUND - size - 5, size - 4, m.hp / m.maxHp, '#ff6b7a');
-      label(m.name + (ALIGN[m.align] && !m.name.includes(ALIGN[m.align][0]) ? ' · ' + ALIGN[m.align][0] : '') + (BODY[m.body] ? ' · ' + BODY[m.body].name : ''), m.x + size / 2, GROUND - size - 9, m.role ? ROLES[m.role].color : m.boss ? '#ffb0b8' : '#fff');
+      label(m.name + (ALIGN[m.align] && !m.name.includes(ALIGN[m.align][0]) ? ' · ' + ALIGN[m.align][0] : '') + (BODY[m.body] ? ' · ' + BODY[m.body].name : '') + (m.ranged ? ' · 원거리' : ''), m.x + size / 2, GROUND - size - 9, m.role ? ROLES[m.role].color : m.boss ? '#ffb0b8' : '#fff');
     }
     if (i === 0 && battle.dungeon) label(m.name, m.x + size / 2, GROUND - size - 4, '#ffe9a8');
   }
   if (heroOnTop) paintHero();
+  // 리더 체력바 (조금 크게, 쓰러지면 회색, 보호막은 하늘색 줄)
+  {
+    const hr = Math.max(0, hero.hp) / stats.maxHp, by = GROUND - 40 + (girl && !down ? -5 : 0);
+    hpBar(hero.x + 5, by, 22, down ? 1 : hr, down ? '#6a6a70' : hr < 0.3 ? '#ff8a5a' : '#6fe39a', 3);
+    if (battle.shield > 0 && !down) { ctx.fillStyle = '#9fd0ff'; ctx.fillRect((hero.x + 5) * SCALE, (by - 1) * SCALE, 22 * SCALE * Math.min(1, battle.shield / stats.maxHp), SCALE * 0.8); }
+  }
   // 뒤로 잠입한 암살자 (오른쪽을 봄)
   const sn = battle.sneak;
   if (sn) {
@@ -2862,8 +3707,9 @@ function updateBattleHud() {
   $('bStage').textContent = battle.dungeon ? `🏰 일일 던전 · ${DUNGEONS.find(x => x.id === battle.dungeon).name}` : battle.king ? `👑 챕터 보스 · ${chapter(battle.ch).boss.name}` : `${chapter(chOf(battle.stage)).name} ${stageLabel(battle.stage)}`;
   if (!battle.king) $('bWave').textContent = `웨이브 ${battle.wave + 1} / ${WAVES.length}` + (battle.wave === WAVES.length - 1 ? ' · 대장 등장!' : '') + ` · 몬스터 치명타 저항 ${critRes(battle.stage).toFixed(1)}%`;
   $('skillBar').innerHTML = save.slots.map((id, i) => {
-    const sk = id && skillById(id);
-    return `<button class="stone skbtn${sk ? '' : ' lock'}" data-slot="${i}"><kbd>${i + 1}</kbd><span>${sk ? sk.name : '빈 칸'}</span>${sk ? `<small>Lv ${save.skills[id]}</small>` : ''}<i class="cd"></i><span class="cdn"></span></button>`;
+    const sk = id && skillById(id), o = sk && skOf(id), open = skSlotOpen(i);
+    if (!open) return `<button class="stone skbtn lock" data-slot="${i}" disabled><kbd>${i + 1}</kbd><span>🔒</span><small>챕터 3 보스</small></button>`;
+    return `<button class="stone skbtn${sk && o ? '' : ' lock'}" data-slot="${i}"${sk && o ? ` style="--gc:${GRADES[sk.grade].color}"` : ''}><kbd>${i + 1}</kbd><span>${sk && o ? sk.name : '빈 칸'}</span>${sk && o ? `<small>Lv ${o.lv} ${'★'.repeat(o.star)}</small>` : ''}<i class="cd"></i><span class="cdn"></span></button>`;
   }).join('') + `<button class="stone skauto${save.autoSkill ? ' on' : ''}" id="autoBtn">AUTO<small>${save.autoSkill ? '켜짐' : '꺼짐'}</small></button>`;
   $('skillBar').querySelectorAll('.skbtn').forEach(b => b.onclick = () => castSkill(+b.dataset.slot, false));
   $('autoBtn').onclick = () => { save.autoSkill = !save.autoSkill; updateBattleHud(); };
@@ -2874,11 +3720,17 @@ function updateBattleHud() {
 }
 
 // 매 프레임: 체력바, 물약 쿨타임
+// 왼쪽 아래 큰 체력바 = 파티 전체 체력 합 (리더 + 동료)
+function partyHp() {
+  let hp = Math.max(0, hero.hp), max = stats.maxHp;
+  for (const a of Object.values((battle && battle.ahp) || {})) { hp += Math.max(0, a.hp); max += a.max; }
+  return { hp, max };
+}
 function updateBattleBars() {
-  const r = hero.hp / stats.maxHp;
+  const P = partyHp(), r = P.max > 0 ? Math.min(1, P.hp / P.max) : 0;
   $('hpfill').style.width = (r * 100) + '%';
   $('hpbar').classList.toggle('low', r < 0.3);
-  $('bHp').textContent = hero.hp > 0 ? `${fmt(hero.hp)} / ${fmt(stats.maxHp)}` : `쓰러짐 · 동료 ${(save.party || []).filter(id => battle && !allyDown(id)).length}명 남음`;
+  $('bHp').textContent = `파티 체력 ${fmt(P.hp)} / ${fmt(P.max)}` + (hero.hp <= 0 ? ' · 리더 쓰러짐' : '');
   const cd = battle ? battle.potionCd : 0;
   $('potionCd').style.setProperty('--p', (cd / POTION_CD * 100) + '%');
   $('potionCdn').textContent = cd > 0 ? Math.ceil(cd) : '';
@@ -2888,10 +3740,10 @@ function updateBattleBars() {
     else $('bWave').textContent = `제한 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · ${chapter(battle.ch).boss.mechName} ${Math.max(0, battle.mechCd).toFixed(1)}초 후`;
   }
   $('skillBar').querySelectorAll('.skbtn').forEach(b => {
-    const id = save.slots[b.dataset.slot];
-    if (!id || !battle) return;
+    const id = save.slots[b.dataset.slot], sk = id && skillById(id);
+    if (!sk || !battle || !b.querySelector('.cd')) return;
     const left = battle.skillCd[id] || 0;
-    b.querySelector('.cd').style.setProperty('--p', (left / skillById(id).cd * 100) + '%');
+    b.querySelector('.cd').style.setProperty('--p', Math.min(100, left / skCd(sk) * 100) + '%');
     b.querySelector('.cdn').textContent = left > 0 ? Math.ceil(left) : '';
     b.classList.toggle('cooling', left > 0);
   });
@@ -2916,9 +3768,9 @@ function openModal(kind) {
   if (kind === 'missions') return openPanel('missions', '미션');
   if (kind === 'gacha') return openPanel('gacha', '뽑기');
   if (kind === 'dungeon') return openPanel('dungeon', '일일 던전');
-  if (kind === 'up') powerGain = 0;
+  if (kind === 'up') return openUpgrade();
   modalKind = kind;
-  $('mTitle').textContent = { up: '강화', shop: '상점', skill: '스킬', gear: '장비' }[kind];
+  $('mTitle').textContent = { shop: '상점', skill: '스킬', gear: '장비' }[kind];
   if (kind === 'gear') {
     $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div class="gearslots" id="gearSlots"></div><div class="baghead"><span id="bagCnt"></span><button id="sellLow">일반·고급 모두 팔기</button></div><div id="bag"></div><p class="note">전투에서만 획득 · 대장 처치 시 1개 확정, 일반 몬스터는 낮은 확률 · 높은 스테이지일수록 좋은 장비</p>';
     $('sellLow').onclick = sellLow;
@@ -2927,17 +3779,14 @@ function openModal(kind) {
     return;
   }
   if (kind === 'skill') {
-    $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div id="skList"></div><p class="note">스킬 칸 3개 · AUTO 켜짐: 자동 사용 · AUTO 꺼짐: 버튼 또는 1·2·3 키로 사용</p>';
+    document.querySelector('.mbox').classList.add('wide');
+    $('mBody').innerHTML = `<div class="mgold" id="mGold"></div><div class="skslots" id="skSlots"></div><div class="gtabs skf" id="skTabs"></div><div id="skDet"></div><div class="skgrid" id="skGrid"></div>
+      <p class="note">스킬 칸 ${SKILL_SLOTS}개 (4번째 칸은 챕터 3 보스 처치 시 해금) · AUTO 켜짐: 조건에 맞으면 자동 사용 · AUTO 꺼짐: 버튼 또는 1~4 키 · 리더만 사용 · 스킬 뽑기는 뽑기 → 스킬 탭</p>`;
     $('modal').hidden = false;
     refreshModal();
     return;
   }
-  $('mBody').innerHTML = '<div class="mgold" id="mGold"></div>' + (kind === 'up' ? UPGRADES.map(u => `
-    <div class="up" id="up_${u.id}">
-      <div class="nm">${u.name}<small></small></div>
-      <div class="val"></div>
-      <button></button>
-    </div>`).join('') : `
+  $('mBody').innerHTML = '<div class="mgold" id="mGold"></div>' + `
     <div class="up" id="shopPotion">
       <div class="nm">회복 물약<small></small></div>
       <div class="val">전투 중 최대 체력의 ${POTION_HEAL * 100}% 회복 · 사용 후 ${POTION_CD}초 대기</div>
@@ -2946,61 +3795,114 @@ function openModal(kind) {
     <p class="note">최대 ${POTION_MAX}개 보유 · 스테이지가 오를수록 가격 상승</p>
     <div class="baghead"><span>장비 <small id="shopTimer"></small></span><button id="reroll"></button></div>
     <div id="shopGear"></div>
-    <p class="note">희귀 등급까지 판매 · 전투 장비보다 약간 낮은 성능 · 스테이지가 오를수록 성능 상승</p>`);
-  if (kind === 'shop') { checkShop(); $('reroll').onclick = rerollShop; }
-  if (kind === 'up') UPGRADES.forEach(u => holdButton($('up_' + u.id).querySelector('button'), () => buy(u)));
-  else holdButton($('shopPotion').querySelector('button'), buyPotion);
+    <p class="note">희귀 등급까지 판매 · 전투 장비보다 약간 낮은 성능 · 스테이지가 오를수록 성능 상승</p>`;
+  checkShop(); $('reroll').onclick = rerollShop;
+  holdButton($('shopPotion').querySelector('button'), buyPotion);
   $('modal').hidden = false;
   refreshModal();
 }
 
+// ── 강화 화면: 캐릭터 고르기 + 5줄 강화 (캐릭터마다 따로) ──
+let upSel = null;                  // 강화 화면에서 보고 있는 캐릭터
+// 순서: 리더 → 배치 동료 → 그 밖의 보유 동료
+const upOrder = () => [...new Set([leaderId()].concat(save.party || [], ALLIES.filter(A => save.allies[A.id]).map(A => A.id)))].filter(id => allyById(id));
+const canUp = id => { const L = charLv(id); return CHAR_UPS.some(u => L[u.id] < u.max && save.gold >= charUpCost(id, u, L[u.id])); };
+function openUpgrade(id) {
+  modalKind = 'up';
+  powerGain = 0;
+  if (typeof id === 'string' && allyById(id)) upSel = id;
+  if (!upSel || !upOrder().includes(upSel)) upSel = leaderId();
+  $('mTitle').textContent = '강화';
+  $('mBody').innerHTML = '<div class="mgold" id="mGold"></div><div class="upsel" id="upSel"></div><div class="upsum" id="upSum"></div>'
+    + CHAR_UPS.map(u => `<div class="up" id="up_${u.id}"><div class="nm">${u.name}<small></small></div><div class="val"></div><button></button></div>`).join('')
+    + `<p class="note">강화는 캐릭터마다 따로 (능력치·성장 캐릭터마다 다름) · <b>따라잡기</b>: 보유 캐릭터 중 최고 레벨보다 낮은 항목은 비용 ${Math.round((1 - CATCHUP_MUL) * 100)}% 할인 · <b>협공</b>: 동료로 싸울 때 공격력 ×${ALLY_ATK} · 리더 수치는 장비·특성·전직 포함 · 누르고 있으면 연속 강화</p>`;
+  CHAR_UPS.forEach(u => holdButton($('up_' + u.id).querySelector('button'), () => buyUp(upSel, u)));
+  $('modal').hidden = false;
+  refreshModal();
+}
+function refreshUpgrade() {
+  if (!upOrder().includes(upSel)) upSel = leaderId();
+  const id = upSel, A = allyById(id), L = charLv(id), lead = id === leaderId(), cur = memberStats(id), lid = leaderId();
+  $('upSel').innerHTML = upOrder().map(x => `<button class="${x === id ? 'on' : ''}" data-us="${x}" style="--rc:${RARITY[allyById(x).r].color}">${x === lid ? '<i class="crown">👑</i>' : ''}<img src="${allyIcon(x)}"><b>${allyById(x).name}</b><small>${x === lid ? '리더' : (save.party || []).includes(x) ? '배치' : '대기'}</small>${canUp(x) ? '<em class="rdot"></em>' : ''}</button>`).join('');
+  $('upSel').querySelectorAll('[data-us]').forEach(b => b.onclick = () => { upSel = b.dataset.us; refreshModal(); });
+  $('upSum').innerHTML = `<img src="${allyIcon(id)}"><div><b>${lead ? '👑 ' : ''}${allyName(id)}</b> <small>${A.role}${ABIL[id] ? ' · ' + ABIL[id].name : ''}</small>
+    <div class="sts"><span>공격력 <b>${fmt(cur.atk)}</b>${lead ? '' : ` <small>(협공 ×${ALLY_ATK})</small>`}</span><span>체력 <b>${fmt(cur.maxHp)}</b></span><span>${lead ? `기본 공격 <b>${cur.aspd.toFixed(2)}</b>회/초 · 유형 행동 <b>${cur.act.toFixed(2)}</b>회/초` : `행동 <b>${cur.aspd.toFixed(2)}</b>회/초`}</span><span>치명타 <b>${cur.crit.toFixed(1)}%</b></span><span>회피 <b>${cur.dodge.toFixed(1)}%</b></span></div></div>`;
+  CHAR_UPS.forEach(u => {
+    const row = $('up_' + u.id), lv = L[u.id], btn = row.querySelector('button');
+    row.querySelector('.nm small').textContent = 'Lv ' + lv + (lv < u.max && lv < upTop(u) ? ` · 따라잡기 -${Math.round((1 - CATCHUP_MUL) * 100)}%` : '');
+    if (lv >= u.max) {
+      row.querySelector('.val').textContent = upgradeText(u.id, cur) + ' (최대)';
+      btn.textContent = 'MAX'; btn.disabled = true; btn.className = 'max';
+    } else {
+      const cost = charUpCost(id, u, lv), next = memberStats(id, { ...L, [u.id]: lv + 1 });
+      row.querySelector('.val').innerHTML = `${upgradeText(u.id, cur)} → <em>${upgradeText(u.id, next)}</em>`;
+      btn.textContent = fmt(cost) + ' G'; btn.className = '';
+      btn.disabled = save.gold < cost;
+    }
+  });
+}
+// 강화 1번 (누르고 있으면 연속). 샀으면 true
+function buyUp(id, u) {
+  if (!id || !allyById(id) || (!save.allies[id] && id !== leaderId())) return false;
+  const lv = charLv(id)[u.id];
+  if (lv >= u.max) return false;
+  const cost = charUpCost(id, u, lv);
+  if (save.gold < cost) return false;
+  const p0 = power();
+  save.gold -= cost;
+  ensureLv(id)[u.id] = lv + 1;
+  refreshStats();
+  powerGain += power() - p0;
+  track('upgrades');
+  updateHud();
+  return true;
+}
+
 function closeModal() {
+  const notice = modalKind === 'notice', nx = notice ? noticeNext : null;
+  if (notice) { noticeNext = null; const k = noticeKey || 'reworkNotice'; noticeKey = null; if (save && save[k]) { delete save[k]; writeSave(); } }   // 안내창은 어떻게 닫아도 한 번만
   $('modal').hidden = true; modalKind = null; document.querySelector('.mbox').classList.remove('wide');
   $('mClose').hidden = false;
   if (save && !save.leader && !$('game').hidden) setTimeout(() => { if (!save.leader && $('modal').hidden) openLeaderPick(); }, 0);
+  if (nx) nx();
 }
 
 function potionPrice() { return monGold(save.stage) * 6; }
 
 function refreshModal() {
-  $('mGold').innerHTML = '보유 골드 ' + goldText() + ' G' + (modalKind === 'up' ? ` · 전투력 ${fmt(power(stats))}${powerGain > 0 ? ` <em class="pgain">▲ ${fmt(powerGain)}</em>` : ''}` : '');
+  $('mGold').innerHTML = '보유 골드 ' + goldText() + ' G' + (modalKind === 'up' ? ` · 팀 전투력 ${fmt(power())}${powerGain > 0 ? ` <em class="pgain">▲ ${fmt(powerGain)}</em>` : ''}` : '');
   if (modalKind === 'up') {
-    UPGRADES.forEach(u => {
-      const row = $('up_' + u.id);
-      const lv = save.lv[u.id];
-      const btn = row.querySelector('button');
-      row.querySelector('.nm small').textContent = 'Lv ' + lv;
-      if (lv >= u.max) {
-        row.querySelector('.val').textContent = upgradeText(u.id, stats) + ' (최대)';
-        btn.textContent = 'MAX'; btn.disabled = true; btn.className = 'max';
-      } else {
-        const cost = upgradeCost(u, lv);
-        const next = fullStats({ ...save.lv, [u.id]: lv + 1 });
-        row.querySelector('.val').innerHTML = `${upgradeText(u.id, stats)} → <em>${upgradeText(u.id, next)}</em>`;
-        btn.textContent = fmt(cost) + ' G';
-        btn.disabled = save.gold < cost;
-      }
-    });
+    refreshUpgrade();
   } else if (modalKind === 'missions') {
     refreshMissions();
-  } else if (modalKind === 'gacha' && gachaTab === 'ally') {
-    $('pBody').innerHTML = `<div class="gtabs"><button data-gt="gear">장비</button><button class="on">동료</button></div><div class="pickup"><img src="${allyIcon(pickupId(), 1)}"><div><b>이번 주 픽업 · ★★★ ${allyById(pickupId()).name}</b><small>전설이 나오면 50% 확률로 ${allyById(pickupId()).name} · 남은 시간 ${pickupLeft()}</small></div></div><div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
-      <div class="grates">${[1, 2, 3].map(r => `<span style="color:${RARITY[r].color}">${RARITY[r].stars} ${RARITY[r].name} ${AGACHA_W[r]}%</span>`).join('')}</div>
-      <div class="gbtns"><button id="a1" ${save.dust < AGACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${AGACHA_COST}</small></button>
-      <button id="a10" ${save.dust < AGACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${AGACHA10_COST} · 희귀 이상 1명 보장</small></button></div>
-      <p class="note">전설 확정까지 ${APITY - (save.apity || 0)}회 · 중복은 각성 조각 · 결과 화면에서 바로 다시 뽑으면 연속할수록 할인 (최대 ${AGAIN_MAX}%)</p>`;
-    $('a1').onclick = () => doAllyGacha(1);
-    $('a10').onclick = () => doAllyGacha(10);
-    $('pBody').querySelector('[data-gt]').onclick = () => { gachaTab = 'gear'; refreshModal(); };
   } else if (modalKind === 'gacha') {
-    $('pBody').innerHTML = `<div class="gtabs"><button class="on">장비</button><button data-gt="ally">동료</button></div><div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
-      <div class="grates">${GRADES.map((G, i) => GACHA_W[i] ? `<span style="color:${G.color}">${G.name} ${(GACHA_W[i] / 10).toFixed(1)}%</span>` : '').join('')}</div>
-      <div class="gbtns"><button id="g1" ${save.dust < GACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${GACHA_COST}</small></button>
-      <button id="g10" ${save.dust < GACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${GACHA10_COST} · 희귀 이상 1개 보장</small></button></div>
-      <p class="note">지금 스테이지 수준의 장비 · 별가루는 미션, 일일 던전, 챕터 보스에서 획득</p>`;
-    $('g1').onclick = () => doGacha(1);
-    $('g10').onclick = () => doGacha(10);
-    $('pBody').querySelector('[data-gt]').onclick = () => { gachaTab = 'ally'; refreshModal(); };
+    const tabs = `<div class="gtabs">${[['ally', '동료'], ['gear', '장비'], ['skill', '스킬']].map(([k, n]) => `<button data-gt="${k}" class="${gachaTab === k ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+    if (gachaTab === 'ally') {
+      $('pBody').innerHTML = `${tabs}<div class="pickup"><img src="${allyIcon(pickupId(), 1)}"><div><b>이번 주 픽업 · ★★★ ${allyById(pickupId()).name}</b><small>전설이 나오면 50% 확률로 ${allyById(pickupId()).name} · 남은 시간 ${pickupLeft()}</small></div></div><div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
+        <div class="grates">${[1, 2, 3].map(r => `<span style="color:${RARITY[r].color}">${RARITY[r].stars} ${RARITY[r].name} ${AGACHA_W[r]}%</span>`).join('')}</div>
+        <div class="gbtns"><button id="a1" ${save.dust < AGACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${AGACHA_COST}</small></button>
+        <button id="a10" ${save.dust < AGACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${AGACHA10_COST} · 희귀 이상 1명 보장</small></button></div>
+        <p class="note">전설 확정까지 ${APITY - (save.apity || 0)}회 · 중복은 각성 조각 · 결과 화면에서 바로 다시 뽑으면 연속할수록 할인 (최대 ${AGAIN_MAX}%)</p>`;
+      $('a1').onclick = () => doAllyGacha(1);
+      $('a10').onclick = () => doAllyGacha(10);
+    } else if (gachaTab === 'skill') {
+      $('pBody').innerHTML = `${tabs}<div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b> · 보유 스킬 ${Object.keys(save.sk || {}).length} / ${SKILLS.length}</div>
+        <div class="grates">${GRADES.map((G, i) => SGACHA_W[i] ? `<span style="color:${G.color}">${G.name} ${(SGACHA_W[i] / 10).toFixed(1)}%</span>` : '').join('')}</div>
+        <div class="gbtns"><button id="s1" ${save.dust < SGACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${SGACHA_COST}</small></button>
+        <button id="s10" ${save.dust < SGACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${SGACHA10_COST} · 희귀 이상 1개 보장</small></button></div>
+        <p class="note">전설 이상 확정까지 ${SPITY - (save.spity || 0)}회 · 일반·보스 전용 스킬은 안 나옴 · 중복은 각성 조각 (★5 뒤 별가루 +${SK_DUST}) · 결과 화면에서 바로 다시 뽑으면 연속할수록 할인 (최대 ${AGAIN_MAX}%)</p>`;
+      $('s1').onclick = () => doSkillGacha(1);
+      $('s10').onclick = () => doSkillGacha(10);
+    } else {
+      $('pBody').innerHTML = `${tabs}<div class="gtop">보유 별가루 <b>${fmt(save.dust)}</b></div>
+        <div class="grates">${GRADES.map((G, i) => GACHA_W[i] ? `<span style="color:${G.color}">${G.name} ${(GACHA_W[i] / 10).toFixed(1)}%</span>` : '').join('')}</div>
+        <div class="gbtns"><button id="g1" ${save.dust < GACHA_COST ? 'disabled' : ''}>1회 뽑기<small>별가루 ${GACHA_COST}</small></button>
+        <button id="g10" ${save.dust < GACHA10_COST ? 'disabled' : ''}>10회 뽑기<small>별가루 ${GACHA10_COST} · 희귀 이상 1개 보장</small></button></div>
+        <p class="note">지금 스테이지 수준의 장비 · 별가루는 미션, 일일 던전, 챕터 보스에서 획득</p>`;
+      $('g1').onclick = () => doGacha(1);
+      $('g10').onclick = () => doGacha(10);
+    }
+    $('pBody').querySelectorAll('[data-gt]').forEach(b => b.onclick = () => { gachaTab = b.dataset.gt; refreshModal(); });
   } else if (modalKind === 'dungeon') {
     $('pBody').innerHTML = DUNGEONS.map(D => `<div class="up dun"><div class="nm"><img class="gicon" src="${ICON_URL[D.sprite]}">${D.name}<small>남은 횟수 ${dunLeft(D.id)} / ${DUNGEON_TRIES}</small></div>
       <div class="val">${D.desc} · 하루 ${DUNGEON_TRIES}번</div><button data-dun="${D.id}" ${dunLeft(D.id) <= 0 ? 'disabled' : ''}>입장</button></div>`).join('')
@@ -3030,27 +3932,7 @@ function refreshModal() {
     $('bag').querySelectorAll('[data-eq]').forEach(b => b.onclick = () => equipItem(+b.dataset.eq));
     $('bag').querySelectorAll('[data-sell]').forEach(b => b.onclick = () => sellItem(+b.dataset.sell));
   } else if (modalKind === 'skill') {
-    const cleared = save.stage - 1;
-    $('skList').innerHTML = SKILLS.map(sk => {
-      const lv = save.skills[sk.id] || 0;
-      const open = cleared >= sk.unlock;
-      const slot = save.slots.indexOf(sk.id);
-      const cost = skillCost(sk, lv);
-      let val;
-      if (!open) val = `${sk.unlock}스테이지 클리어 시 해금`;
-      else if (!lv) val = sk.desc(skillPower(sk, 1)) + ` · 쿨타임 ${sk.cd}초`;
-      else val = `${sk.desc(skillPower(sk, lv))} → <em>${Math.round(skillPower(sk, lv + 1) * 100)}%</em> · 쿨타임 ${sk.cd}초`;
-      return `<div class="up sk${open ? '' : ' locked'}">
-        <div class="nm">${sk.name}<small>${lv ? 'Lv ' + lv : ''}${slot >= 0 ? ' · ' + (slot + 1) + '번 칸' : ''}</small></div>
-        <div class="val">${val}</div>
-        <div class="skbtns">
-          ${lv ? `<button class="equip${slot >= 0 ? ' on' : ''}" data-eq="${sk.id}">${slot >= 0 ? '해제' : '장착'}</button>` : ''}
-          <button data-learn="${sk.id}" ${!open || save.gold < cost ? 'disabled' : ''}>${open ? (lv ? '강화 ' : '배우기 ') + fmt(cost) + ' G' : '잠김'}</button>
-        </div>
-      </div>`;
-    }).join('');
-    $('skList').querySelectorAll('[data-learn]').forEach(b => b.onclick = () => learnSkill(b.dataset.learn));
-    $('skList').querySelectorAll('[data-eq]').forEach(b => b.onclick = () => equipSkill(b.dataset.eq));
+    refreshSkills();
   } else if (modalKind === 'shop') {
     const row = $('shopPotion');
     const btn = row.querySelector('button');
@@ -3079,20 +3961,6 @@ function updateShopTimer() {
   $('shopTimer').textContent = `· 새 물건까지 ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`;
 }
 
-function buy(u) {
-  const lv = save.lv[u.id];
-  if (lv >= u.max) return false;
-  const cost = upgradeCost(u, lv);
-  if (save.gold < cost) return false;
-  save.gold -= cost;
-  const p0 = power(stats);
-  save.lv[u.id]++;
-  refreshStats();
-  powerGain += power(stats) - p0;
-  track('upgrades');
-  updateHud();
-  return true;
-}
 let powerGain = 0;          // 강화창에 보여 줄 전투력 상승량 (창을 열 때 0으로)
 
 function equipItem(id) {
@@ -3115,25 +3983,54 @@ function sellLow() {
   save.items.filter(it => it.grade <= 1 && !Object.values(save.gear).includes(it.id)).forEach(it => sellItem(it.id));
 }
 
-function learnSkill(id) {
-  const sk = skillById(id), lv = save.skills[id] || 0;
-  const cost = skillCost(sk, lv);
-  if (save.stage - 1 < sk.unlock || save.gold < cost) return;
-  save.gold -= cost;
-  save.skills[id] = lv + 1;
-  if (!lv) { const empty = save.slots.indexOf(null); if (empty >= 0) save.slots[empty] = id; }   // 처음 배우면 빈 칸에 자동 장착
-  updateHud();
-}
-
-function equipSkill(id) {
-  const at = save.slots.indexOf(id);
-  if (at >= 0) save.slots[at] = null;
-  else {
-    const empty = save.slots.indexOf(null);
-    if (empty < 0) return alert('스킬 칸 부족 · 다른 스킬 해제 필요');
-    save.slots[empty] = id;
+// ── 스킬 화면: 장착 칸 4개 · 등급 필터 · 카드 그리드 · 상세 (장착/해제 · 강화 · 각성 · 배우기) ──
+let skSel = null, skFilter = 'all';
+const SK_TABS = [['all', '전체']].concat(GRADES.map((G, i) => [String(i), G.name]), [['boss', '보스']]);
+const skPct = v => String(+(v * 100).toFixed(1));
+function refreshSkills() {
+  if (!skSel || !skillById(skSel)) skSel = save.slots.find(Boolean) || 'strike';
+  $('skSlots').innerHTML = save.slots.map((id, i) => {
+    const sk = id && skillById(id), o = sk && skOf(id);
+    if (!skSlotOpen(i)) return `<div class="skslot lock"><b>🔒 ${i + 1}번 칸</b><small>챕터 3 보스 처치 시 해금</small></div>`;
+    return sk && o ? `<button class="skslot${id === skSel ? ' sel' : ''}" data-sks="${id}" style="--gc:${GRADES[sk.grade].color}">${skIcon(sk)}<div><b>${i + 1} · ${sk.name}</b><small>Lv ${o.lv} · ${'★'.repeat(o.star)}</small></div></button>`
+      : `<div class="skslot empty"><b>${i + 1}번 칸</b><small>빈 칸 · 아래에서 장착</small></div>`;
+  }).join('');
+  $('skTabs').innerHTML = SK_TABS.map(([k, n]) => `<button data-skf="${k}" class="${k === skFilter ? 'on' : ''}">${n}</button>`).join('');
+  const list = SKILLS.filter(sk => skFilter === 'all' || (skFilter === 'boss' ? sk.boss : sk.grade === +skFilter))
+    .map((sk, i) => [sk, i]).sort((a, b) => a[0].grade - b[0].grade || !!a[0].boss - !!b[0].boss || a[1] - b[1]).map(x => x[0]);
+  $('skGrid').innerHTML = list.map(sk => {
+    const o = skOf(sk.id), eq = save.slots.includes(sk.id);
+    const dot = o ? (eq && skCanUp(sk.id)) || skCanAwaken(sk.id) : skLearnable(sk) && save.gold >= skCost(sk, 0);
+    return `<button class="skcard${o ? '' : ' off'}${sk.id === skSel ? ' sel' : ''}${eq ? ' eq' : ''}" data-skc="${sk.id}" style="--gc:${GRADES[sk.grade].color}">
+      ${o ? skIcon(sk) : '<i class="skico q">?</i>'}<b>${sk.name}</b><small>${o ? `Lv ${o.lv} · ${'★'.repeat(o.star)}${eq ? ' · 장착' : ''}` : skSource(sk)}</small>${dot ? '<em class="rdot"></em>' : ''}</button>`;
+  }).join('') || '<p class="note">해당 등급 스킬 없음</p>';
+  // 상세
+  const sk = skillById(skSel), o = skOf(skSel), G = GRADES[sk.grade];
+  const lv = o ? o.lv : 1, st = o ? o.star : 1, max = skMaxLv(st), up = !!o && lv < max, at = save.slots.indexOf(sk.id);
+  const sum = sk.eff.find(e => e.t === 'summon');
+  let btns = '';
+  if (o) {
+    btns = `<button class="equip${at >= 0 ? ' on' : ''}" id="skEq">${at >= 0 ? '해제' : '장착'}</button>
+      <button id="skUp" ${up && save.gold >= skCost(sk, lv) ? '' : 'disabled'}>${up ? `강화 ${fmt(skCost(sk, lv))} G` : lv >= max && st < STAR_MAX ? '최대 레벨 · 각성 필요' : '최대 레벨'}</button>
+      <button id="skAwk" class="awk" ${skCanAwaken(sk.id) ? '' : 'disabled'}>${st >= STAR_MAX ? '최대 각성' : `각성 (조각 ${o.copy}/${SK_AWAKEN[st]})`}</button>`;
+  } else if (sk.grade === 0) {
+    const ok = skLearnable(sk);
+    btns = `<button id="skLearn" ${ok && save.gold >= skCost(sk, 0) ? '' : 'disabled'}>${ok ? `배우기 ${fmt(skCost(sk, 0))} G` : '잠김'}</button>`;
   }
-  updateHud();
+  $('skDet').innerHTML = `<div class="skdet" style="--gc:${G.color}">${o ? skIcon(sk) : '<i class="skico q">?</i>'}<div class="skinfo">
+    <b style="color:${G.color}">${G.name}${sk.boss ? ` · 챕터 ${sk.boss} 보스 전용` : ''}</b>
+    <h3>${sk.name} <small>${o ? `Lv ${lv} / ${max} · ${'★'.repeat(st)}${'☆'.repeat(STAR_MAX - st)}` : `미보유 · ${skSource(sk)}`}</small></h3>
+    <p>${skDesc(sk, lv, st, up ? lv + 1 : 0)}</p>
+    ${sum ? `<p class="note">소환수 1초마다 공격력 ${skPct(skVal(sum, lv, st))}%${up ? ` → ${skPct(skVal(sum, lv + 1, st))}%` : ''} · ${sum.n}명 · ${sum.dur}초</p>` : ''}
+    <p class="note">쿨타임 ${+skCd(sk).toFixed(1)}초${stats.mods.cd ? ` (기본 ${sk.cd}초)` : ''} · AUTO: ${AUTO_TEXT[sk.auto] || '전투 중'} · 속성 ${ELEM_NAME[sk.el] || '없음'}${o && st < STAR_MAX ? ' · 각성마다 효과 +20% · 최대 Lv +5' : ''}${o && at >= 0 ? ` · ${at + 1}번 칸` : ''}</p>
+    <div class="skbtns">${btns}</div></div></div>`;
+  const id = sk.id;
+  $('mBody').querySelectorAll('[data-sks],[data-skc]').forEach(b => b.onclick = () => { skSel = b.dataset.sks || b.dataset.skc; refreshModal(); });
+  $('skTabs').querySelectorAll('[data-skf]').forEach(b => b.onclick = () => { skFilter = b.dataset.skf; refreshModal(); });
+  if ($('skEq')) $('skEq').onclick = () => equipSkill(id);
+  if ($('skUp')) $('skUp').onclick = () => learnSkill(id);
+  if ($('skAwk')) $('skAwk').onclick = () => awakenSkill(id);
+  if ($('skLearn')) $('skLearn').onclick = () => learnSkill(id);
 }
 
 function buyPotion() {
@@ -3200,7 +4097,8 @@ async function cloudSyncOnLogin() {
 }
 
 function saveSummary(s) {
-  return `스테이지 ${stageLabel(Math.min(s.stage, MAX_STAGE))} · 골드 ${fmt(s.gold)} · 공격력 Lv ${s.lv.atk}<br>마지막 저장 ${s.savedAt ? hhmm(s.savedAt) : '-'}`;
+  const L = s.clv && s.leader && s.clv[s.leader] ? s.clv[s.leader] : s.lv || {};      // v3 이전 세이브는 lv
+  return `스테이지 ${stageLabel(Math.min(Math.max(1, s.stage || 1), MAX_STAGE))} · 골드 ${fmt(s.gold || 0)} · 리더 공격력 Lv ${L.atk || 0}<br>마지막 저장 ${s.savedAt ? hhmm(s.savedAt) : '-'}`;
 }
 
 function showSyncChoice(remote) {
@@ -3225,7 +4123,7 @@ function openSettings() {
   modalKind = 'settings';
   $('mTitle').textContent = '설정';
   $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
-    <div class="up"><div class="nm">리더<small>${esc(allyName(leaderId()))}</small></div><div class="val">주인공 없이 동료들이 싸움 · 강화·장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배</div>
+    <div class="up"><div class="nm">리더<small>${esc(allyName(leaderId()))}</small></div><div class="val">주인공 없이 동료들이 싸움 · 강화는 캐릭터마다 따로 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배</div>
       <button id="toLeader">리더 바꾸기</button></div>
     <div class="up"><div class="nm">소리</div><div class="val">배경음악 · 버튼 효과음</div>
       <div class="skbtns"><button id="tBgm" class="equip${Sound.bgm ? ' on' : ''}">음악 ${Sound.bgm ? '켜짐' : '꺼짐'}</button><button id="tSfx" class="equip${Sound.sfx ? ' on' : ''}">효과음 ${Sound.sfx ? '켜짐' : '꺼짐'}</button></div></div>
@@ -3245,7 +4143,7 @@ function openLeaderPick() {
   $('mClose').hidden = true;
   const ids = [...new Set(Object.keys(save.allies || {}).filter(allyById).concat(STARTERS))];
   $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
-    <p class="lead">이제 주인공 없이 동료들이 싸움 · 리더는 맨 앞에서 싸우고, 지금까지의 강화·장비·특성·전직·스킬·물약이 리더에게 그대로 적용 · 리더는 동료 페이지에서 언제든 변경 · 모두 쓰러지면 패배</p>
+    <p class="lead">이제 주인공 없이 동료들이 싸움 · 리더는 맨 앞에서 싸우고, 지금까지의 강화는 처음 고른 리더가 물려받음 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 리더는 동료 페이지에서 언제든 변경 · 모두 쓰러지면 패배</p>
     <div class="agrid">${ids.map(id => { const A = allyById(id), own = save.allies[id]; return `<button class="acard" style="--rc:${RARITY[A.r].color}" data-lead="${id}"><img src="${allyIcon(id, own ? allyStar(id) : 1)}"><b>${own ? allyName(id) : A.name}</b><small>${A.role}${own ? '' : ' · 새 동료'}</small></button>`; }).join('')}</div>`;
   $('modal').hidden = false;
   refreshModal();
@@ -3253,7 +4151,16 @@ function openLeaderPick() {
     const id = b.dataset.lead;
     save.astar = save.astar || {};
     if (!save.allies[id]) { save.allies[id] = 1; save.astar[id] = 1; }
+    if (save.leadLv) {                                    // 옛 전역 강화는 처음 고른 리더가 물려받음
+      const L = ensureLv(id);
+      for (const u of CHAR_UPS) L[u.id] = Math.min(u.max, Math.max(L[u.id] || 0, save.leadLv[u.id] || 0));
+      delete save.leadLv;
+    }
     setLeader(id);
+    // 고른 리더가 배치 동료였으면 빈 칸이 생김 → 보유 동료 중 강한 순(등급·각성 → 강화 레벨)으로 채움
+    const lvSum = x => CHAR_UPS.reduce((t, u) => t + (charLv(x)[u.id] || 0), 0);
+    const spare = Object.keys(save.allies).filter(x => save.allies[x] && allyById(x) && x !== save.leader && !save.party.includes(x)).sort((a, b) => allyPow(b) - allyPow(a) || lvSum(b) - lvSum(a));
+    while (save.party.length < partyMax() && spare.length) save.party.push(spare.shift());
     $('mClose').hidden = false;
     closeModal();
     refreshStats(); updateHud(); drawBattleIcon(); writeSave(); cloudUpload();
@@ -3269,7 +4176,7 @@ function drawBattleIcon() {
 }
 
 function refreshSettings() {
-  $('lPower').textContent = jobTitle() + ' · 전투력 ' + fmt(power(stats)) + (cloudOn() ? ' · ☁ 클라우드' : '');
+  $('lPower').textContent = jobTitle() + ' · 전투력 ' + fmt(power()) + (cloudOn() ? ' · ☁ 클라우드' : '');
   if (modalKind !== 'settings') return;
   const u = window.Cloud && window.Cloud.user;
   let acct;
@@ -3320,7 +4227,7 @@ function refreshSettings() {
 
 // ── 개발자 도구 ──
 // 테스트 모드(?test)이거나 개발자 계정으로 로그인했을 때만 설정 화면에 나온다. 계정은 이메일의 SHA-256 값으로만 비교
-const DEV_HASHES = ['410f5af8785efc48318b3aacfa7c970eb181d864cb673464afcea3bad172a571', '21c92c937c2c7eb9f2ce722ba4b6bf7762ae902ba1b8b382fccc5a21e33fb73c'];
+const DEV_HASHES = ['410f5af8785efc48318b3aacfa7c970eb181d864cb673464afcea3bad172a571', '21c92c937c2c7eb9f2ce722ba4b6bf7762ae902ba1b8b382fccc5a21e33fb73c', '26cee45acb2d5002ca29a5b9d4dde970cb147b39d8fc3393646589ba550d6c83'];
 async function isDev() {
   if (TEST) return true;
   const u = window.Cloud && window.Cloud.user;
@@ -3335,7 +4242,7 @@ async function devTools() {
   const f = (id, label, v, max) => `<label>${label}<input id="${id}" type="number" min="${id === 'dvStage' ? 1 : 0}" ${max ? `max="${max}"` : ''} value="${Math.floor(v)}"></label>`;
   box.innerHTML = `<div class="nm">개발자 도구<small>${TEST ? '테스트 모드' : '개발자 계정'}</small></div>
     <div class="devgrid">${f('dvGold', '골드', save.gold)}${f('dvDust', '별가루', save.dust)}${f('dvShards', '별조각', save.shards || 0)}${f('dvPot', '물약', save.potions)}${f('dvStage', '도달 스테이지', save.stage, MAX_STAGE + 1)}</div>
-    <div class="skbtns"><button id="dvApply">적용</button><button id="dvAllies" class="plain">모든 동료 획득</button><button id="dvCopies" class="plain">동료 조각 +5</button><button id="dvDaily" class="plain">일일 초기화</button></div>
+    <div class="skbtns"><button id="dvApply">적용</button><button id="dvAllies" class="plain">모든 동료 획득</button><button id="dvCopies" class="plain">동료 조각 +5</button><button id="dvSkills" class="plain">모든 스킬 획득</button><button id="dvSkCopies" class="plain">스킬 조각 +5</button><button id="dvDaily" class="plain">일일 초기화</button></div>
     <p class="note" id="dvMsg">도달 스테이지를 다음 챕터로 올리면 앞 챕터 보스도 처치한 것으로 바뀜</p>`;
   $('devSlot').appendChild(box);
   // 빈 칸이나 잘못된 숫자는 적용하지 않는다
@@ -3357,14 +4264,16 @@ async function devTools() {
       save.stage = st;
       for (const c of Object.keys(save.bosses)) if (st <= c * STAGES_PER) delete save.bosses[c];   // 아직 못 가는 챕터 보스는 처치 기록 삭제
       for (let c = 1; c < chOf(Math.min(st, MAX_STAGE)); c++) {
-        if (!save.bosses[c]) { save.bosses[c] = true; const id = CHAPTERS[c - 1].boss.ally; if (id) gainAlly(id); }
+        if (!save.bosses[c]) { save.bosses[c] = true; const id = CHAPTERS[c - 1].boss.ally; if (id) gainAlly(id); grantBossSkill(c); }
       }
       save.seenCh = Math.max(save.seenCh || 1, chOf(Math.min(st, MAX_STAGE)));
     }
     done('적용 완료');
   };
-  $('dvAllies').onclick = () => { save.astar = save.astar || {}; ALLIES.forEach(A => { if (!save.allies[A.id]) { save.allies[A.id] = 1; save.astar[A.id] = 1; } }); done('동료 20명 획득 완료'); };
+  $('dvAllies').onclick = () => { save.astar = save.astar || {}; ALLIES.forEach(A => { if (!save.allies[A.id]) { save.allies[A.id] = 1; save.astar[A.id] = 1; } }); done(`동료 ${ALLIES.length}명 획득 완료`); };
   $('dvCopies').onclick = () => { save.acopy = save.acopy || {}; Object.keys(save.allies).forEach(id => { if (allyById(id)) save.acopy[id] = (save.acopy[id] || 0) + 5; }); done('조각 +5 지급 완료'); };
+  $('dvSkills').onclick = () => { save.sk = save.sk || {}; SKILLS.forEach(sk => { if (!save.sk[sk.id]) gainSkill(sk.id); }); done(`스킬 ${SKILLS.length}종 획득 완료`); };
+  $('dvSkCopies').onclick = () => { Object.values(save.sk || {}).forEach(o => { o.copy += 5; }); done('스킬 조각 +5 지급 완료'); };
   $('dvDaily').onclick = () => { save.daily = null; ensureDaily(); done('일일 미션·던전 초기화 완료'); };
 }
 

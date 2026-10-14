@@ -1178,9 +1178,12 @@ function loadSprites() {
     icon_armor: drawArmorIcon(),
     icon_acc: drawRingIcon(),
   };
+  // 챕터 4~ 몬스터·보스 (monsters.js가 STAR_EXTRA_SPR에 이름 → 그리는 함수로 넣어 둠)
+  const extra = window.STAR_EXTRA_SPR || {};
+  for (const [k, f] of Object.entries(extra)) built[k] = f();
   Object.assign(SPR, built);
   // 이스터에그용 표정 그림: 이름_m1 (일자 입), 이름_m2 (거꾸로 미소)
-  const moody = { hero_m: drawBoy, hero_f: drawGirl, miru: () => drawAlly('miru', 1), serin: () => drawAlly('serin', 1), kai: () => drawAlly('kai', 1), scorpion: drawScorpion, slime: drawSlime, mushroom: drawMushroom, bee: drawBee, wisp: drawWisp };
+  const moody = { hero_m: drawBoy, hero_f: drawGirl, miru: () => drawAlly('miru', 1), serin: () => drawAlly('serin', 1), kai: () => drawAlly('kai', 1), scorpion: drawScorpion, slime: drawSlime, mushroom: drawMushroom, bee: drawBee, wisp: drawWisp, ...extra };
   for (const m of [1, 2]) {
     MOOD = m;
     for (const [k, f] of Object.entries(moody)) SPR[k + '_m' + m] = f();

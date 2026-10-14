@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>별의 설화 - 무료 방치형 판타지 RPG 웹게임</title>
-<meta name="description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG 웹게임. 부서진 별을 되찾는 모험 — 자동 사냥, 장비 수집, 전직 5종, 동료 20명, 챕터 보스. 구글 로그인으로 어느 기기에서든 이어서 플레이.">
+<meta name="description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG 웹게임. 부서진 별을 되찾는 모험 — 자동 사냥, 장비 수집, 전직 5종, 동료 14명, 챕터 보스. 구글 로그인으로 어느 기기에서든 이어서 플레이.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://querybot.kr/games/star/">
 <meta property="og:type" content="website">
@@ -91,7 +91,8 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .waves i.done{background:var(--good)}
 .waves i.now{background:#ffc83a}
 .hpbox{position:absolute;left:1.5%;bottom:3%;width:36%;padding:1cqw 1.4cqw}
-.hpbox .lab{display:flex;justify-content:space-between;font-size:1.5cqw;margin-bottom:.6cqw}
+.hpbox .lab{display:flex;justify-content:space-between;gap:.8cqw;font-size:1.5cqw;margin-bottom:.6cqw}
+.hpbox #bName{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hpbox #bHp{flex:none;white-space:nowrap}
 .hpbar{height:2cqw;border-radius:1cqw;background:#5a3a2240;overflow:hidden;border:2px solid #7a4f2a}
 .hpbar i{display:block;height:100%;background:linear-gradient(180deg,#8ff0a8,#3fb868);transition:width .15s}
 .hpbar.low i{background:linear-gradient(180deg,#ff9aa6,#d83a4a)}
@@ -294,6 +295,47 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 /* 리더 */
 .lead{background:#fff3c8;border:2px solid #f0c95a;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;color:#6a4a10;margin:6px 0}
 .acard .crown{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-style:normal;font-size:18px}
+/* 캐릭터별 강화 */
+.upsel{display:flex;flex-wrap:wrap;gap:6px;padding:10px 2px 8px}
+.upsel button{position:relative;flex:none;display:flex;flex-direction:column;align-items:center;width:74px;padding:3px 2px;border-radius:10px;border:2px solid var(--rc,#c8a060);background:#fffdf6;font:inherit;cursor:pointer;overflow:visible}
+.upsel button img{width:50px;height:50px}.upsel button b{font-size:11px;color:#4a2a10;white-space:nowrap;overflow:hidden;max-width:100%}.upsel button small{font-size:10px;color:var(--muted)}
+.upsel button.on{box-shadow:0 0 0 3px #ffd25e;background:#fff3c8}
+.upsel .rdot,#aUpg .rdot{top:2px;right:2px;width:12px;height:12px;min-width:0}
+.upsel .crown{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-style:normal;font-size:16px}
+#aUpg{position:relative;overflow:visible}
+.upsum{display:flex;gap:10px;align-items:center;background:#fff7e6;border:2px solid var(--wood);border-radius:12px;padding:8px 12px;margin-bottom:8px}
+.upsum img{width:64px;height:64px;flex:none}.upsum small{color:var(--muted);font-size:12px}
+.upsum .sts{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:13px;margin-top:4px}.upsum .sts b{color:#4a2a10}
+.ainfo p.stl{font-size:12px;color:var(--muted)}.ainfo p.stl b{color:#4a2a10}
+.abil{background:#f0f4ff;border:2px solid #9ab0e0;border-radius:10px;padding:6px 10px;font-size:13px;margin:6px 0}.abil b{color:#3a4a9a}
+/* 스킬 (대개편) */
+.skico{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;border-radius:12px;font-style:normal;font-size:24px;color:#fff;background:radial-gradient(circle at 35% 30%,#fff8,transparent 60%),var(--gc,#8a8f9e);border:2px solid #0003;box-shadow:0 0 8px var(--gc,#0000);text-shadow:0 1px 2px #0008}
+.skico.q{background:#cfc4ae;color:#8a7a62;box-shadow:none;font-weight:900}
+.gcard .skico{width:5cqw;height:5cqw;font-size:2.6cqw;border-radius:1cqw;position:relative}
+.skslots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.skslot{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;border:2px solid var(--gc,#c8a060);background:#fffdf6;font:inherit;text-align:left;cursor:pointer;min-height:58px}
+.skslot b{display:block;font-size:13px;color:#4a2a10}.skslot small{font-size:11px;color:var(--muted)}
+.skslot.sel{box-shadow:0 0 0 3px #ffd25e}.skslot.empty{border-style:dashed;cursor:default;flex-direction:column;justify-content:center;align-items:flex-start}
+.skslot.lock{opacity:.6;background:#e8dcc4;cursor:default;flex-direction:column;justify-content:center;align-items:flex-start;border-style:dashed}
+.gtabs.skf button{padding:6px 2px;font-size:13px}
+.skdet{display:flex;gap:12px;background:#fff7e6;border:2px solid var(--gc,var(--wood));border-radius:12px;padding:10px;margin-bottom:8px}
+.skdet>.skico{width:64px;height:64px;font-size:34px;border-radius:16px}
+.skinfo{flex:1}.skinfo h3{margin:2px 0;font-size:19px;color:#4a2a10}.skinfo h3 small{font-size:12px;color:#e0902a;font-weight:800}
+.skinfo p{margin:4px 0;font-size:13px}.skinfo p em{color:var(--good);font-style:normal;font-weight:900}
+.skinfo .skbtns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.skinfo .skbtns button{position:relative;padding:8px 12px;border-radius:8px;border:2px solid #b07818;background:linear-gradient(180deg,#ffe38a,#f0a828);color:#4a2a00;font-weight:900;font:inherit;font-weight:900}
+.skinfo .skbtns button:disabled{background:#e4d6b8;border-color:#cdb88e;color:#a08a68;cursor:not-allowed}
+.skgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+.skcard{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 3px;border-radius:10px;border:2px solid var(--gc);background:#fffdf6;font:inherit;cursor:pointer;overflow:visible}
+.skcard b{font-size:12px;color:#4a2a10;white-space:nowrap;overflow:hidden;max-width:100%}.skcard small{font-size:10px;color:#e0902a;text-align:center;line-height:1.25}
+.skcard.off{border-color:#cdbf9f;background:#f1e8d6}.skcard.off b{color:#9a8a70}.skcard.off small{color:var(--muted)}
+.skcard.sel{box-shadow:0 0 0 3px #ffd25e}.skcard.eq{background:#e6f8e6}
+.skcard .rdot{top:2px;right:2px;width:12px;height:12px;min-width:0}
+.skillbar .skbtn[style*="--gc"]{box-shadow:inset 0 2px 0 #c8e0ff,inset 0 -3px 0 #2f5ab0,0 .35cqw 0 #22407a,0 0 0 .25cqw var(--gc)}
+.skillbar .skbtn small{white-space:nowrap}
+.skillbar .skbtn>span:not(.cdn){max-width:94%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 대개편 안내 */
+.rwk{margin:8px 0 12px;padding-left:20px;font-size:14px;line-height:1.6}.rwk b{color:#6a3a10}.rwk em{color:var(--good);font-style:normal;font-weight:900}
 /* 다음 목표 */
 .goal{position:absolute;left:1.5%;top:22.3%;width:30%;height:5.4%;display:flex;align-items:center;gap:.8cqw;padding:0 1.2cqw;font-size:1.25cqw;text-align:left;overflow:hidden;background:linear-gradient(180deg,#f4fff0,#d8f0c8)}
 .goal #gText{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -429,7 +471,7 @@ table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
         <li><b>방치 사냥</b>접속하지 않아도 캠프 상자에 골드 적립</li>
         <li><b>챕터 3개 · 보스</b>들꽃 평원 · 속삭이는 숲 · 붉은 사막</li>
         <li><b>전직 5종</b>검사 · 마법사 · 궁수 · 성직자 · 주술사</li>
-        <li><b>동료 20명 · 장비</b>동료 뽑기와 각성, 6등급 장비 수집</li>
+        <li><b>동료 14명 · 장비</b>고유 능력과 캐릭터별 강화, 각성, 6등급 장비 수집</li>
       </ul>
       <p class="small">무료 · 설치 없이 브라우저에서 바로 플레이하는 방치형 판타지 RPG<br>로그인 후 시작 · 진행 상황은 계정에 저장되어 어느 기기에서든 이어서 플레이<br><a href="privacy.html" target="_blank">개인정보처리방침</a></p>
     </div>
@@ -522,10 +564,11 @@ table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">◀ 돌아가기</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261012l"></script>
-<script src="scenery.js?v=20261012l"></script>
-<script src="audio.js?v=20261012l"></script>
-<script src="game.js?v=20261012l"></script>
-<script type="module" src="cloud.js?v=20261012l"></script>
+<script src="sprites.js?v=20261014b"></script>
+<script src="scenery.js?v=20261014b"></script>
+<script src="audio.js?v=20261014b"></script>
+<script src="content.js?v=20261014b"></script>
+<script src="game.js?v=20261014b"></script>
+<script type="module" src="cloud.js?v=20261014b"></script>
 </body>
 </html>
