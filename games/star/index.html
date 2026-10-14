@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>별의 설화 - 무료 방치형 판타지 RPG 웹게임</title>
-<meta name="description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG 웹게임. 부서진 별을 되찾는 모험 — 자동 사냥, 장비 수집, 전직 5종, 동료 14명, 챕터 보스. 구글 로그인으로 어느 기기에서든 이어서 플레이.">
+<meta name="description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG 웹게임. 부서진 별을 되찾는 모험 — 자동 사냥, 챕터 10개와 챕터 보스, 전직 5종, 동료 14명, 스킬 55종, 6등급 장비 수집. 구글 로그인으로 어느 기기에서든 이어서 플레이.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://querybot.kr/games/star/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="QueryBot Games">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:title" content="별의 설화 - 무료 방치형 판타지 RPG 웹게임">
-<meta property="og:description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG. 자동 사냥, 장비 수집, 전직, 동료, 챕터 보스.">
+<meta property="og:description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG. 자동 사냥, 챕터 10개·보스, 전직 5종, 동료 14명, 스킬 55종, 6등급 장비.">
 <meta property="og:url" content="https://querybot.kr/games/star/">
 <meta property="og:image" content="https://querybot.kr/games/star/thumb.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="별의 설화 - 무료 방치형 판타지 RPG 웹게임">
-<meta name="twitter:description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG. 자동 사냥, 장비 수집, 전직, 동료, 챕터 보스.">
+<meta name="twitter:description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG. 자동 사냥, 챕터 10개·보스, 전직 5종, 동료 14명, 스킬 55종, 6등급 장비.">
 <meta name="twitter:image" content="https://querybot.kr/games/star/thumb.jpg">
 <script type="application/ld+json">
 {
@@ -26,7 +26,7 @@
   "alternateName": "Tale of the Stars",
   "url": "https://querybot.kr/games/star/",
   "image": "https://querybot.kr/games/star/thumb.jpg",
-  "description": "하늘의 별이 부서져 대륙에 흩어진 세계. 캠프에서 강화하고 전투에서 스테이지를 돌파하는 무료 방치형 판타지 RPG 웹게임.",
+  "description": "하늘의 별이 부서져 대륙에 흩어진 세계. 캠프에서 강화하고 챕터 10개(들꽃 평원 ~ 별의 제단)의 스테이지와 보스를 돌파하는 무료 방치형 판타지 RPG 웹게임. 전직 5종, 동료 14명, 스킬 55종, 6등급 장비.",
   "genre": ["방치형 RPG", "판타지 RPG"],
   "gamePlatform": "웹 브라우저",
   "applicationCategory": "Game",
@@ -121,6 +121,7 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .skillbar .cdn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.6cqw;pointer-events:none}
 .skillbar .skauto{flex:.7}
 .skillbar .cooling>span:first-of-type,.skillbar .cooling>small{opacity:.25}
+.skillbar .skbtn.dim{filter:grayscale(.85) brightness(.7);cursor:not-allowed}
 .skillbar .cdn{color:#fff;text-shadow:0 2px 0 #000,0 0 8px #000}
 .skillbar .skauto.on{background:linear-gradient(180deg,#8ae0a0,#3a9a58);border-color:#2a6a3a;color:#fff;text-shadow:0 2px 0 #2a6a3a}
 /* 대화창 */
@@ -150,8 +151,9 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .stg.boss img{width:44px;height:44px}
 .stg.boss b{font-size:14px;color:#a0304e}
 .stg.boss small{margin-left:auto}
-.chtabs{display:flex;gap:6px;margin-bottom:8px}
-.chtabs button{flex:1;padding:7px 4px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-weight:800;font-size:13px;color:var(--muted)}
+.chtabs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.chtabs button{flex:1 1 calc(20% - 5px);min-width:0;padding:6px 3px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-weight:800;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:560px){.chtabs button{flex-basis:calc(33.33% - 5px);font-size:11.5px}}
 .chtabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .chtabs button:disabled{opacity:.4;cursor:not-allowed}
 .ally .nm{display:flex;align-items:center;flex-wrap:wrap;gap:2px}
@@ -468,10 +470,10 @@ table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
       <button id="guestBtn" class="gbtn ghost">게스트로 시작</button>
       <div class="msg" id="loginMsg"></div>
       <ul class="intro">
-        <li><b>방치 사냥</b>접속하지 않아도 캠프 상자에 골드 적립</li>
-        <li><b>챕터 3개 · 보스</b>들꽃 평원 · 속삭이는 숲 · 붉은 사막</li>
+        <li><b>방치 사냥 · 6등급 장비</b>접속하지 않아도 골드 적립 · 일반~신화 장비 수집</li>
+        <li><b>챕터 10개 · 보스</b>들꽃 평원 ~ 별의 제단 · 보스마다 다른 특수 공격</li>
         <li><b>전직 5종</b>검사 · 마법사 · 궁수 · 성직자 · 주술사</li>
-        <li><b>동료 14명 · 장비</b>고유 능력과 캐릭터별 강화, 각성, 6등급 장비 수집</li>
+        <li><b>동료 14명 · 스킬 55종</b>고유 능력과 캐릭터별 강화, 각성, 보스 전용 스킬</li>
       </ul>
       <p class="small">무료 · 설치 없이 브라우저에서 바로 플레이하는 방치형 판타지 RPG<br>로그인 후 시작 · 진행 상황은 계정에 저장되어 어느 기기에서든 이어서 플레이<br><a href="privacy.html" target="_blank">개인정보처리방침</a></p>
     </div>
@@ -564,11 +566,13 @@ table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">◀ 돌아가기</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261014b"></script>
-<script src="scenery.js?v=20261014b"></script>
-<script src="audio.js?v=20261014b"></script>
-<script src="content.js?v=20261014b"></script>
-<script src="game.js?v=20261014b"></script>
-<script type="module" src="cloud.js?v=20261014b"></script>
+<script src="sprites.js?v=20261014c"></script>
+<script src="monsters.js?v=20261014c"></script>
+<script src="scenery.js?v=20261014c"></script>
+<script src="scenery2.js?v=20261014c"></script>
+<script src="audio.js?v=20261014c"></script>
+<script src="content.js?v=20261014c"></script>
+<script src="game.js?v=20261014c"></script>
+<script type="module" src="cloud.js?v=20261014c"></script>
 </body>
 </html>

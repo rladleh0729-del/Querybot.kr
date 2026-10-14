@@ -36,8 +36,16 @@ const Sound = (() => {
     }
   }, 100);
 
-  // theme: meadow | forest | desert | title, mode: camp | battle | boss | dungeon
-  function setScene(theme, mode) { want = mode === 'boss' || mode === 'dungeon' ? 'battle' : theme; }
+  // theme: 챕터 테마(meadow | forest | desert | snow | sea | …) 또는 title, mode: camp | battle | boss | dungeon
+  // 곡 파일은 TRACKS뿐 → 챕터 4~ 테마는 alias로 기존 곡에 연결 (game.js가 챕터 데이터의 bgm으로 덮어씀)
+  const TRACKS = ['meadow', 'forest', 'desert', 'battle', 'title'];
+  const alias = { snow: 'forest', sea: 'meadow', volcano: 'desert', sky: 'meadow', clock: 'desert', shadow: 'forest', cosmos: 'title' };
+  function setAlias(map) { for (const [k, v] of Object.entries(map || {})) if (TRACKS.includes(v)) alias[k] = v; }
+  function setScene(theme, mode) {
+    if (mode === 'boss' || mode === 'dungeon') { want = 'battle'; return; }
+    const t = TRACKS.includes(theme) ? theme : alias[theme];
+    want = TRACKS.includes(t) ? t : 'meadow';
+  }
 
   // ── 효과음 (Web Audio) ──
   let ac = null, sfx = null;
@@ -96,6 +104,6 @@ const Sound = (() => {
   }, true);
   document.addEventListener('keydown', init, { once: true });
 
-  return { setScene, click, coin, win, lose, levelUp, fanfare, claim, reveal, toggle,
+  return { setScene, alias: setAlias, click, coin, win, lose, levelUp, fanfare, claim, reveal, toggle,
     get bgm() { return opt.bgm; }, get sfx() { return opt.sfx; } };
 })();

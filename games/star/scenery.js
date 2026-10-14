@@ -611,7 +611,8 @@ const Scenery = (() => {
     setTheme('meadow');
   }
 
-  // 테마는 처음 쓸 때 한 번만 그려 둔다
+  // 테마는 처음 쓸 때 한 번만 그려 둔다. 챕터 4~ 배경(addTheme)은 최근 2개만 들고 있음 (테마마다 큰 캔버스 5장 · 다시 그려도 시드가 같아 같은 그림)
+  const extraOrder = [];
   function setTheme(name) {
     if (!BUILD[name]) name = 'meadow';
     if (!themes[name]) {
@@ -619,6 +620,7 @@ const Scenery = (() => {
       if (EXTRA[name]) seed = 7 + [...name].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 100000, 0);
       Object.assign(cur, BUILD[name]());
       themes[name] = cur;
+      if (EXTRA[name]) { extraOrder.push(name); while (extraOrder.length > 2) delete themes[extraOrder.shift()]; }
     }
     if (T === themes[name]) return;
     T = themes[name];

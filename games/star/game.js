@@ -19,10 +19,16 @@ const MECH_WARN = 1.2;      // 보스 특수 공격 전 경고 시간
 const ROOT_TIME = 2;        // 뿌리 감옥에 묶여 있는 시간
 const REPLAY_BONUS = 0.3;   // 이미 깬 스테이지의 클리어 보상 비율
 const SHARD_BONUS = 0.1;    // 별조각 1개당 공격력·체력 +10%
+const REFLECT_CAP = 0.02;   // 어둠의 힘 반발: 한 번에 리더 최대 체력의 2%까지
 
 // 밸런스 숫자 (시뮬레이션으로 맞춤)
 // 물약·스킬·장비 없이 시뮬레이션: 챕터 1 약 70분, 챕터 2 약 110분 (챕터 2부터 성장률 완만)
-const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.22, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30 };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
+const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.22, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30, hpGrow3: 1.23, atkGrow3: 1.21,
+  ch: { 4: [1.55, 1], 5: [1.75, 1], 6: [2.2, 1], 7: [1.65, 1], 8: [1.15, 1], 9: [2.1, 1], 10: [0.3, 1] },
+  king: { 4: [1, 1], 5: [0.5, 1], 6: [1, 1], 7: [0.32, 1], 8: [0.18, 1], 9: [0.26, 1], 10: [0.27, 0.4] } };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
+// 챕터 4~10 (시뮬레이션으로 맞춤, 2026-10-14): hpGrow3·atkGrow3 = 스테이지 61부터의 3단계 성장 · ch[챕터] = 그 챕터 몬스터 [체력, 공격력] 배율
+// (몬스터 몸 종류·계열·원거리에 따른 난이도 차이 고르기) · king[챕터] = 챕터 보스 [체력, 공격력] 배율 (특수 공격마다 난이도가 달라서)
+// 결과(토비 시작, 탐욕/고르게 강화 봇 평균): 챕터 3 약 10분 → 챕터 4 약 13분 → 챕터 10 약 40~60분, 1부 완결 약 3.5~4.5시간
 
 // ── 강화 항목 (캐릭터마다 따로, 비용은 그 캐릭터의 레벨 기준) ──
 // save.clv = { [동료 id]: { atk, hp, aspd, crit, agi } }
@@ -148,7 +154,7 @@ function skillDps() {
 }
 
 // ── 추가 콘텐츠 (content.js) ─────────────────
-// 시작할 때 한 번 깊은 복사로 읽고 전역에서 지운다. chapters(챕터 4~10)는 챕터 작업에서 CONTENT.chapters 로 씀
+// 시작할 때 한 번 깊은 복사로 읽고 전역에서 지운다. chapters(챕터 4~10)는 CHAPTERS 에 합쳐 씀 (chapterOf)
 const CONTENT = (() => {
   const src = window.STAR_CONTENT || { chapters: [], skills: [] };
   const c = JSON.parse(JSON.stringify({ chapters: src.chapters || [], skills: src.skills || [] }));
@@ -342,7 +348,7 @@ const TRAIT_TREES = [
     { id: 'h_revive', name: '부활의 기도',   max: 1,  req: 15, desc: () => '전투마다 한 번, 쓰러지면 체력 30%로 부활' },
   ] },
   { id: 'dark', name: '악 · 어둠 (악)', color: '#9a2a5a', nodes: [
-    { id: 'e_dark',   name: '어둠의 힘',     max: 10, desc: r => `모든 적에게 피해 +${r * 8}% · 단, 선·타락 천사 몬스터를 때리면 반발로 준 피해의 ${r}%를 받음` },
+    { id: 'e_dark',   name: '어둠의 힘',     max: 10, desc: r => `모든 적에게 피해 +${r * 8}% · 단, 선·타락 천사 몬스터를 때리면 반발로 준 피해의 ${r}%를 받음 (한 번에 최대 체력의 2%까지)` },
     { id: 'e_drain',  name: '피의 계약',     max: 5,  desc: r => `준 피해의 ${r}% 회복 (흡혈)` },
     { id: 'e_fear',   name: '공포',          max: 5,  desc: r => `공격할 때 ${r * 4}% 확률로 적이 1.5초 동안 얼어붙음` },
     { id: 'e_weak',   name: '역저주',        max: 3,  req: 10, desc: r => `적 공격력 -${r * 6}%` },
@@ -576,7 +582,7 @@ function startDungeon(id) {
   const top = topStage();
   const k = makeMonster(top, false);
   Object.assign(k, { name: D.name.split(' ').slice(0, -1).join(' '), sprite: D.sprite, body: D.body, align: 'neutral', king: true, size: 64, x: 200, ranged: false,
-    hp: 1e30, maxHp: 1e30, atk: Math.floor(k.atk * 0.25), gold: 0 });
+    hp: 1e300, maxHp: 1e300, atk: Math.floor(k.atk * 0.25), gold: 0 });   // 쓰러지지 않는 과녁
   battle = { stage: top, dungeon: id, king: true, mech: null, wave: 0, queue: [k], earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, buffs: [], loot: [],
     timeLeft: DUNGEON_TIME, mechCd: Infinity, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0, dealt: 0 };
   initAllyHp();
@@ -588,11 +594,11 @@ function startDungeon(id) {
 
 function endDungeon(result) {
   const r = battle, top = r.stage;
-  const hpRef = BAL.monHp * growth(top, BAL.hpGrow, BAL.hpGrow2);
-  const score = r.dealt / hpRef;                       // 일반 몬스터 몇 마리 분량의 피해를 줬나
+  const hpRef = BAL.monHp * hpGrowth(top);
+  const sc = r.dealt / hpRef, score = Number.isFinite(sc) && sc > 0 ? sc : 0;   // 일반 몬스터 몇 마리 분량의 피해를 줬나
   let text;
   if (r.dungeon === 'gold') {
-    const gold = Math.floor(monGold(top) * (5 + score * 3));
+    const g = Math.floor(monGold(top) * (5 + score * 3)), gold = Number.isFinite(g) ? g : 0;
     save.gold += gold;
     text = `준 피해 ${fmt(r.dealt)} · 획득 골드 <b>${fmt(gold)} G</b>`;
   } else {
@@ -960,19 +966,30 @@ const TALK = {
 };
 
 // ── 챕터 ─────────────────────────────────────
-// mech: 보스 특수 공격 (slam = 7초마다 강한 박치기, root = 8초마다 2초 동안 묶음, poison = 8초마다 독침, 4초 동안 독 피해)
-// 몬스터 ranged: true = 원거리 (줄 뒤에서도 파티원을 쏜다), shot: 투사체 색
+// mech: 보스 특수 공격 (MECHS · slam = 7초마다 강한 박치기, root = 8초마다 2초 동안 묶음, poison = 8초마다 독침, 4초 동안 독 피해, 챕터 4~10은 content.js)
+// 몬스터 ranged: true = 원거리 (줄 뒤에서도 파티원을 쏜다), shot: 투사체 색 · bgm: 캠프·전투 곡 (audio.js 곡 이름)
+// 챕터 4~10: content.js 데이터 (n 순서), 대사(talk)·혼잣말(lines)도 데이터에서
+const SHOT_COL = { snowowl: '#e8f4ff', jelly: '#9fe8ff', firebat: '#ff7a3a', windsprite: '#c8ffe8', gearbot: '#ff6a5a', batwitch: '#c070ff', stardust: '#fff0a0', voideye: '#b080ff' };
+function chapterOf(C) {
+  return { n: C.n, name: C.name, theme: C.theme, bgm: C.bgm || C.theme,
+    monsters: C.monsters.map(m => ({ ...m, ...(m.ranged ? { shot: m.shot || SHOT_COL[m.sprite] || '#ffb05a' } : {}) })),
+    boss: { ...C.boss }, talk: C.talk, lines: C.lines };
+}
 const CHAPTERS = [
-  { name: '들꽃 평원', theme: 'meadow',
+  { n: 1, name: '들꽃 평원', theme: 'meadow', bgm: 'meadow',
     monsters: [{ from: 1, sprite: 'slime', name: '풀잎 슬라임', align: 'neutral', body: 'soft' }, { from: 8, sprite: 'mushroom', name: '꽃버섯', align: 'neutral', body: 'plant' }, { from: 15, sprite: 'bee', name: '들벌', align: 'neutral', body: 'flying', ranged: true, shot: '#ffd84a' }],
     boss: { name: '거대 슬라임 왕', sprite: 'slime_king', mech: 'slam', every: 7, mechName: '몸통 박치기', ally: 'miru', align: 'neutral', body: 'soft' } },
-  { name: '속삭이는 숲', theme: 'forest',
+  { n: 2, name: '속삭이는 숲', theme: 'forest', bgm: 'forest',
     monsters: [{ from: 1, sprite: 'wisp', name: '숲 요정', align: 'good', body: 'spirit', ranged: true, shot: '#bfe8ff' }, { from: 8, sprite: 'toadstool', name: '독버섯', align: 'neutral', body: 'plant' }, { from: 15, sprite: 'sprout', name: '나무 정령', align: 'good', body: 'plant' }],
     boss: { name: '고목 수호자', sprite: 'treant', mech: 'root', every: 8, mechName: '뿌리 감옥', ally: 'serin', align: 'good', body: 'plant' } },
-  { name: '붉은 사막', theme: 'desert',
+  { n: 3, name: '붉은 사막', theme: 'desert', bgm: 'desert',
     monsters: [{ from: 1, sprite: 'cactus', name: '선인장 무사', align: 'neutral', body: 'plant', ranged: true, shot: '#9ad86a' }, { from: 8, sprite: 'scorpion', name: '모래 전갈', align: 'neutral', body: 'armored' }, { from: 15, sprite: 'mummy', name: '붕대 유령', align: 'evil', body: 'spirit' }],
     boss: { name: '사막 전갈 여왕', sprite: 'scorpion_queen', mech: 'poison', every: 8, mechName: '독침', ally: 'kai', align: 'neutral', breaker: true, body: 'armored' } },
-];
+].concat(CONTENT.chapters.filter(C => C && C.n > 3 && C.boss && Array.isArray(C.monsters) && C.monsters.length).sort((a, b) => a.n - b.n).map(chapterOf));
+CHAPTERS.forEach((C, i) => {                                           // 챕터 4~ 대사·전투 혼잣말
+  if (C.talk) TALK[i + 1] = C.talk;
+  if (Array.isArray(C.lines) && C.lines.length) LINES.battle[i + 1] = C.lines;
+});
 const MAX_STAGE = CHAPTERS.length * STAGES_PER;
 const chOf = stage => Math.ceil(stage / STAGES_PER);                 // 1부터
 const localOf = stage => stage - (chOf(stage) - 1) * STAGES_PER;      // 챕터 안의 번호 1~20
@@ -993,11 +1010,16 @@ const campChapter = () => chOf(topStage());
 
 function monsterType(stage) { return chapter(chOf(stage)).monsters.filter(m => localOf(stage) >= m.from).pop(); }
 
-// 몬스터 성장: 챕터 1은 빠르게(hpGrow), 챕터 2부터는 완만하게(hpGrow2)
-function growth(stage, g1, g2) {
-  const n = stage - 1, cap = STAGES_PER - 1;
-  return Math.pow(g1, Math.min(n, cap)) * Math.pow(g2, Math.max(0, n - cap));
+// 몬스터 성장: 챕터 1은 빠르게(g1), 챕터 2~3은 완만하게(g2), 스테이지 61부터 3단계(g3)
+const GROW2_END = 3 * STAGES_PER;                                      // 이 스테이지까지 2단계
+function growth(stage, g1, g2, g3) {
+  const n = stage - 1, a = STAGES_PER - 1, b = GROW2_END - 1;
+  return Math.pow(g1, Math.min(n, a)) * Math.pow(g2, Math.max(0, Math.min(n, b) - a)) * Math.pow(g3 ?? g2, Math.max(0, n - b));
 }
+// 챕터 4~10 몬스터 배율 BAL.ch[챕터] = [체력, 공격력] (몬스터 종류마다 다른 난이도 고르기)
+const chMul = (stage, i) => (BAL.ch[chOf(stage)] || [1, 1])[i];
+const hpGrowth = stage => growth(stage, BAL.hpGrow, BAL.hpGrow2, BAL.hpGrow3) * chMul(stage, 0);
+const atkGrowth = stage => growth(stage, BAL.atkGrow, BAL.atkGrow2, BAL.atkGrow3) * chMul(stage, 1);
 
 function monGold(stage) { return Math.ceil(BAL.monGold * Math.pow(BAL.goldGrow, stage - 1)); }
 
@@ -1014,12 +1036,17 @@ const BODY = {
   flying:  { name: '비행', weak: ['pierce'],        resist: ['slash'] },
   armored: { name: '갑각', weak: ['magic'],         resist: ['slash', 'pierce'] },
   spirit:  { name: '영체', weak: ['holy', 'fire'],  resist: ['slash', 'pierce'] },
+  beast:   { name: '야수', weak: ['pierce', 'fire'], resist: ['magic'] },
+  frost:   { name: '얼음', weak: ['fire'],          resist: ['pierce', 'slash'] },
+  flame:   { name: '화염체', weak: ['magic'],       resist: ['fire', 'slash'] },
 };
+// 화염은 마법 약점에도 통하지만, 화염 저항(화염체)이 먼저
 function elemMul(body, el) {
   const B = BODY[body];
   if (!B) return 1;
-  if (B.weak.includes(el) || (el === 'fire' && B.weak.includes('magic'))) return 1.5;
+  if (B.weak.includes(el)) return 1.5;
   if (B.resist.includes(el)) return 0.7;
+  if (el === 'fire' && B.weak.includes('magic')) return 1.5;
   return 1;
 }
 // 여러 속성이 섞인 공격은 가장 잘 통하는 속성으로
@@ -1059,12 +1086,12 @@ function eliteRoles(stage) {
 
 function makeMonster(stage, boss) {
   const type = monsterType(stage);
-  const hp = Math.floor(BAL.monHp * growth(stage, BAL.hpGrow, BAL.hpGrow2) * (boss ? BAL.bossHp : 1));
+  const hp = Math.floor(BAL.monHp * hpGrowth(stage) * (boss ? BAL.bossHp : 1));
   return {
     ...type,
     name: boss ? '대장 ' + type.name : type.name,
     boss, hp, maxHp: hp,
-    atk: Math.floor(BAL.monAtk * growth(stage, BAL.atkGrow, BAL.atkGrow2) * (boss ? BAL.bossAtk : 1)),
+    atk: Math.floor(BAL.monAtk * atkGrowth(stage) * (boss ? BAL.bossAtk : 1)),
     aspd: 0.8,
     gold: monGold(stage) * (boss ? BAL.bossGold : 1),
     critRes: critRes(stage),
@@ -1088,7 +1115,7 @@ let save = null;
 
 function newSave(starter) {
   return { name: '모험단', gender: 'm', leader: starter, gold: 0, stage: 1, clv: { [starter]: { ...ZERO_LV } }, saveV: 3,
-    chest: 0, chestAt: Date.now(), potions: 3, sk: { strike: { lv: 1, star: 1, copy: 0 } }, slots: ['strike', null, null, null], skV: 1, spity: 0, autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: { [starter]: 1 }, party: [], seenCh: 1, traits: {}, job: null, adv: null, traitsV: 2, astar: { [starter]: 1 }, acopy: {}, apity: 0, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
+    chest: 0, chestAt: Date.now(), potions: 3, sk: { strike: { lv: 1, star: 1, copy: 0 } }, slots: ['strike', null, null, null], skV: 1, chV: 1, spity: 0, autoSkill: true, items: [], gear: {}, nextItem: 1, gearV2: true, shards: 0, bosses: {}, allies: { [starter]: 1 }, party: [], seenCh: 1, traits: {}, job: null, adv: null, traitsV: 2, astar: { [starter]: 1 }, acopy: {}, apity: 0, dust: 100, stats: {}, daily: null, mainIdx: 0, mainBase: 0, savedAt: Date.now() };
 }
 
 // 탭이 여러 개면 서로 저장을 덮어쓰므로, 가장 나중에 연 탭만 저장한다
@@ -1108,14 +1135,35 @@ if (tabChannel) tabChannel.onmessage = e => {
   $('sleep').hidden = false;
 };
 
+// ── 세이브 서명 (브라우저 저장소를 직접 고친 세이브 찾기 → 랭킹 제외) ──
+// sig = cyrb53(JSON(세이브에서 sig 뺀 것) + SAVE_SALT). JSON.parse 는 키 순서를 그대로 지켜서 읽은 뒤 다시 계산해도 같은 값.
+// 서명 없는 옛 세이브(sigV 없음)는 통과 후 다음 저장 때 서명. 불일치 → save.tamper = true (코드로 지우지 않음, 새 게임만 초기화)
+const SAVE_SALT = 'star-tale|별의 설화|2026-10-14|✦ 몰래 고친 세이브는 랭킹 제외';
+function cyrb53(str, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < str.length; i++) { const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+function saveSig(s) { const { sig, ...rest } = s; return cyrb53(JSON.stringify(rest) + SAVE_SALT).toString(36); }
+function signSave(s) { s.sigV = 1; s.sig = saveSig(s); return s; }
+// 읽은 세이브 검사 (localStorage·클라우드 모두): 서명이 틀리거나, 서명했던 세이브(sigV)에서 서명이 빠졌으면 변조
+function checkSave(s) {
+  if (!s || typeof s !== 'object') return s;
+  if (s.sig === undefined ? s.sigV !== undefined : s.sig !== saveSig(s)) s.tamper = true;
+  return s;
+}
+
 function writeSave() {
   if (!save || sleeping) return;
   save.savedAt = Date.now();
+  signSave(save);
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* 저장 불가 환경 */ }
 }
 
 function readSave() {
-  try { return migrateSave(JSON.parse(localStorage.getItem(SAVE_KEY))); }
+  try { return migrateSave(checkSave(JSON.parse(localStorage.getItem(SAVE_KEY)))); }
   catch (e) { return null; }
 }
 
@@ -1164,6 +1212,7 @@ function migrateSave(s) {
     }
     if (s.saveV !== 3) migrateV3(s);
     if (s.skV !== 1) migrateSkills(s);
+    if (s.chV !== 1) { if (s.bosses && s.bosses[3]) s.chNotice = 1; s.chV = 1; }   // 챕터 4~10 개방 안내 (챕터 3을 이미 끝낸 세이브에 한 번)
     // 스킬 정리 (이상한 값이 섞여도 버티게)
     if (!s.sk || typeof s.sk !== 'object') s.sk = {};
     for (const id of Object.keys(s.sk)) {
@@ -1362,12 +1411,13 @@ function showAway(next) {
   $('awayOk').onclick = () => take(false);
   $('awayX2').onclick = () => take(true);
 }
-// 접속 순서: 대개편 안내(한 번) → 접속 보상 → 출석
+// 접속 순서: 대개편 안내(한 번) → 스킬 대개편 안내 → 새 챕터 안내 → 접속 보상 → 출석
 function showWelcome() {
   if (!save.leader) return;
   const att = () => { if (attendReady()) openAttend(); };
   const away = () => { if (checkAway()) showAway(att); else att(); };
-  const skn = () => { if (save.skillNotice) openSkillNotice(away); else away(); };
+  const chn = () => { if (save.chNotice && CHAPTERS.length > 3) openChNotice(away); else { delete save.chNotice; away(); } };
+  const skn = () => { if (save.skillNotice) openSkillNotice(chn); else chn(); };
   if (save.reworkNotice) openRework(skn); else skn();
 }
 // 대개편 안내 (세이브 이전 v3 후 한 번). 확인·바깥 클릭·Esc 어느 쪽으로 닫아도 다시 안 뜸 (closeModal)
@@ -1422,6 +1472,27 @@ function openSkillNotice(next) {
   $('rwOk').onclick = closeModal;
 }
 
+// 새 챕터 안내 (챕터 4~10 업데이트, 챕터 3 보스를 이미 깬 세이브에 한 번)
+function openChNotice(next) {
+  const news = CHAPTERS.slice(3);
+  modalKind = 'notice';
+  noticeKey = 'chNotice';
+  noticeNext = next || null;
+  $('mTitle').textContent = '새 챕터 안내';
+  $('mClose').hidden = true;
+  $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
+    <p class="lead">챕터 4~${CHAPTERS.length} 개방 · ${news[0].name} ~ ${news[news.length - 1].name} · 새 보스 ${news.length}종 · 보스 전용 스킬</p>
+    <ul class="rwk">
+      ${news.map(C => `<li><b>챕터 ${C.n} · ${C.name}</b> 보스 ${C.boss.name} · 특수 공격 ${C.boss.mechName}</li>`).join('')}
+      <li><b>보스 첫 처치 보상</b> 별조각 +1 · 별가루 +50 · 레벨 +3 · 보스 전용 스킬</li>
+    </ul>
+    <p class="note">지금 진행 그대로 챕터 4부터 이어서</p>
+    <div class="gbtns"><button id="rwOk">확인</button></div>`;
+  $('modal').hidden = false;
+  refreshModal();
+  $('rwOk').onclick = closeModal;
+}
+
 // ── 다음 목표 ──
 function nextGoal() {
   const cleared = save.stage - 1;
@@ -1442,7 +1513,7 @@ function nextGoal() {
     const t = ms[0], prev = Math.max(0, ...learn.map(s => s.unlock).concat(CHAPTERS.map((C, i) => (i + 1) * STAGES_PER)).filter(x => x <= cleared));
     return { text: `${stageLabel(t.at)} 클리어까지 ${t.at - cleared}스테이지 → ${t.label}`, prog: (cleared - prev) / Math.max(1, t.at - prev), go: () => openStages() };
   }
-  return { text: '다음 챕터는 업데이트 예정 · 랭킹 올리기!', prog: 1, go: () => openRank() };
+  return { text: '다음 이야기는 업데이트 예정 · 랭킹 올리기!', prog: 1, go: () => openRank() };
 }
 function updateGoal() {
   if (!$('goalBar')) return;
@@ -1588,7 +1659,7 @@ function startBattle(stage) {
   }
   $('result').hidden = true;
   showScreen('battle');
-  if (Math.random() < 0.6) say('hero', pick(LINES.battle[chOf(stage)]));
+  if (Math.random() < 0.6) say('hero', pick(LINES.battle[chOf(stage)] || LINES.battle[1]));
 }
 
 // 챕터 보스 (c = 챕터 번호)
@@ -1596,7 +1667,7 @@ let talkCh = 1;                    // 대화창의 'boss'가 어느 챕터 보�
 function startBoss(c) {
   c = c || campChapter();
   if (!bossOpen(c)) return;
-  const B = chapter(c).boss, last = c * STAGES_PER;
+  const B = chapter(c).boss, last = c * STAGES_PER, M = MECHS[B.mech] || {}, KM = BAL.king[c] || [1, 1];   // KM: 챕터 보스 배율 [체력, 공격력]
   SEALED = false;
   refreshStats();
   hero.hp = stats.maxHp;
@@ -1605,20 +1676,21 @@ function startBoss(c) {
   const k = makeMonster(last, true);
   Object.assign(k, {
     name: B.name, sprite: B.sprite, king: true, size: 64, x: 200, align: B.align, body: B.body, ranged: !!B.ranged,
-    hp: Math.floor(BAL.monHp * growth(last, BAL.hpGrow, BAL.hpGrow2) * BAL.kingHp),
-    atk: Math.floor(BAL.monAtk * growth(last, BAL.atkGrow, BAL.atkGrow2) * BAL.kingAtk),
+    hp: Math.floor(BAL.monHp * hpGrowth(last) * BAL.kingHp * KM[0] * (M.hpMul || 1)),               // 별의 붕괴: 체력 ×1.5
+    atk: Math.floor(BAL.monAtk * atkGrowth(last) * BAL.kingAtk * KM[1]),
     gold: monGold(last) * BAL.kingGold,
     critRes: critRes(last) + 5,
   });
   k.maxHp = k.hp;
   battle = { stage: last, ch: c, king: true, mech: B.mech, every: B.every, wave: 0, queue: [k], earned: 0, state: 'talk', delay: 0, potionCd: 0, skillCd: {}, buffs: [], loot: [],
-    timeLeft: BOSS_TIME, mechCd: B.every, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0 };
+    timeLeft: bossTime(B), mechCd: B.every, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0, frozen: {}, mt: 0, cos: 0 };
   initAllyHp();
   $('result').hidden = true;
   showScreen('battle');
   talkCh = c;
   giveShield();
-  playDialog(bossBeaten(c) ? TALK[c].again : TALK[c].intro, () => { if (battle && battle.state === 'talk') battle.state = 'fight'; });
+  const T = TALK[c] || {};
+  playDialog(talkLines(bossBeaten(c) ? T.again : T.intro), () => { if (battle && battle.state === 'talk') battle.state = 'fight'; });
 }
 
 function spawnWave() {
@@ -1750,6 +1822,7 @@ function updateBattle(dt) {
   battle.potionCd = Math.max(0, battle.potionCd - dt);
   battle.curse = Math.max(0, (battle.curse || 0) - dt);
   battle.rally = Math.max(0, (battle.rally || 0) - dt);
+  updateHolds(dt);
   if (battle.cleanse && (battle.cleanse.t -= dt) <= 0) {
     const id = battle.cleanse.id;
     battle.cleanse = null;
@@ -1773,35 +1846,17 @@ function updateBattle(dt) {
     return;
   }
 
-  // 보스: 제한 시간과 특수 공격
+  // 보스: 제한 시간과 특수 공격 (MECHS)
   if (battle.king) {
     battle.timeLeft -= dt;
     battle.bound = Math.max(0, battle.bound - dt);
     if (battle.timeLeft <= 0) { battle.timeLeft = 0; return endBattle('timeout'); }
-    const k = battle.queue[0];
-    if (k && k.dead <= 0 && k.x <= hero.x + 40 && !(k.ice > 0)) {        // 스킬 빙결·정지 중에는 특수 공격 대기도 멈춤
-      battle.mechCd -= dt;
-      if (battle.mechCd <= MECH_WARN && !battle.mechWarn) {
-        battle.mechWarn = 1;
-        addFloat('!', k.x + 32, GROUND - 74, '#ff5a6e', true);
-        say('hero', { root: '발밑이…!', poison: '꼬리를 치켜든다…!' }[battle.mech] || '온다…!', 1.4);
-      }
-      if (battle.mechCd <= 0) {
-        const mult = { root: 1.5, poison: 1.2 }[battle.mech] || 3;
-        shake = battle.mech === 'slam' ? 0.45 : 0.25;
-        if (battle.mech === 'root') { battle.bound = ROOT_TIME; addFloat('묶임!', hero.x + 16, GROUND - 60, '#c8a060', true); }
-        if (battle.mech === 'poison') { battle.poison = 4 * (1 - stats.mods.purify / 3); battle.poisonDps = k.atk * 0.5; addFloat('독!', hero.x + 16, GROUND - 60, '#b070e0', true); }
-        battle.mechCd = battle.every;
-        battle.mechWarn = 0;
-        if (battle.mech === 'slam') for (const id in battle.ahp) hurtAlly(id, battle.ahp[id].max * 0.25, true);
-        const tw = battle.mech === 'slam' ? tauntOn(k) : null;
-        if (tw) { tankHit(tw, k.atk * mult, k); addFloat(allyName(tw) + ' 막아냄!', hero.x - 10, GROUND - 64, '#ffb08a', true); }
-        else if (takeHit(Math.floor(k.atk * mult), '#ff3a4a', true, true, k)) return endBattle('lost');
-      }
-    }
-    // 룰 브레이커: 챕터 3 보스가 체력 절반 아래로 폭주하면 14초마다 6초 동안 특성·전직 봉인
+    const k = battle.queue.find(m => m.king);
+    if (k && k.dead <= 0) { if (battle.mech && MECHS[battle.mech] && updateMech(dt, k)) return endBattle('lost'); }
+    else mirrorVanish();                                                // 보스가 쓰러지면 그림자 분신도 사라짐
+    // 룰 브레이커: 챕터 3·10 보스가 체력 절반 아래로 폭주하면 14초마다 6초 동안 특성·전직 봉인
     if (k && k.dead <= 0 && chapter(battle.ch || 1).boss.breaker && !battle.dungeon && k.hp < k.maxHp * 0.5) {
-      if (!battle.phase2) { battle.phase2 = true; battle.rbCd = 1.5; shake = 0.4; addFloat('폭주!', k.x + 32, GROUND - 80, '#ff5a6e', true); say('boss', '감히… 내 사막의 법칙을 따르거라!', 2.5); }
+      if (!battle.phase2) { battle.phase2 = true; battle.rbCd = 1.5; shake = 0.4; addFloat('폭주!', k.x + 32, GROUND - 80, '#ff5a6e', true); say('boss', RAGE_LINE[battle.ch] || RAGE_LINE[3], 2.5); }
       if ((battle.rbCd -= dt) <= 0) {
         battle.rbCd = 14;
         const singer = team().find(id => allyById(id).type === 'support' && !allyDown(id));
@@ -1819,6 +1874,14 @@ function updateBattle(dt) {
       if (battle.poisonTick >= 1) {
         battle.poisonTick -= 1;
         if (takeHit(battle.poisonDps, '#b070e0', false, true)) return endBattle('lost');
+      }
+    }
+    // 화염 숨결 화상: 파티 전원, 초마다
+    if (battle.pburn > 0) {
+      battle.pburn -= dt;
+      if ((battle.pburnT = (battle.pburnT || 0) + dt) >= 1) {
+        battle.pburnT -= 1;
+        if (partyHit(battle.pburnDps, '#ff8a3a', null, true)) return endBattle('lost');
       }
     }
   }
@@ -1893,17 +1956,18 @@ function updateBattle(dt) {
     battle.hypCd = (battle.hypCd ?? 3) - dt;
     if (battle.hypCd <= 0) {
       battle.hypCd = 8;
-      const others = q.filter(m => m !== mon && m.dead <= 0);
+      const others = q.filter(m => m !== mon && m.dead <= 0 && !m.king);   // 챕터 보스는 최면 공격 대상 아님 (그림자 분신)
       if (!mon.king && others.length) { mon.charm = 4; addFloat('최면!', mon.x + 16, GROUND - 56, '#ff9ae0', true); }
       else { mon.stun = 1.5; addFloat('최면… 멍', mon.x + (mon.size || 32) / 2, GROUND - (mon.size || 32) - 14, '#ff9ae0', true); }
       battle.fx.push({ kind: 'hypno', x: mon.x + (mon.size || 32) / 2, t: 0, dur: 0.6 });
     }
   }
 
-  // 주인공 공격 (뿌리에 묶여 있으면 못 함). 암살자가 있으면 먼저 처리
+  // 주인공 공격 (뿌리에 묶여 있거나 빙결·기절·시간 정지면 못 함). 암살자가 있으면 먼저 처리
   const tgt = sneakOn ? battle.sneak : mon;
-  if (hero.hp > 0) hero.cd -= dt; else hero.cd = Math.max(hero.cd, 0);
-  if (hero.cd <= 0 && !battle.bound && hero.hp > 0) {
+  const lh = held(save.leader);                          // 빙결·기절·시간 정지
+  if (hero.hp > 0 && !lh) hero.cd -= dt; else hero.cd = Math.max(hero.cd, 0);
+  if (hero.cd <= 0 && !battle.bound && hero.hp > 0 && !lh) {
     const m = stats.mods;
     const spd = (1 + buffSum('aspd', true)) * (battle.curse > 0 ? 0.5 : 1) * (tgt.align === 'evil' ? 1 + m.smiteSpd / 100 : 1);
     hero.cd += 1 / (stats.aspd * spd);
@@ -1932,7 +1996,7 @@ function updateBattle(dt) {
   if (mon.cd <= 0) {
     mon.cd += 1 / mon.aspd;
     if (mon.charm > 0) {
-      const o = q.find(x => x !== mon && x.dead <= 0);
+      const o = q.find(x => x !== mon && x.dead <= 0 && !x.king);
       if (o) {
         const d = Math.floor(o.maxHp * 0.2);
         o.hp -= d; o.hurt = 1; o.kb = 6;
@@ -1999,6 +2063,177 @@ function updateMonsterRoles(dt) {
       break;
     }
   }
+}
+
+// ── 챕터 보스 특수 공격 (MECHS) ──
+// 이름 → { warn 경고 초(기본 MECH_WARN), line 경고 대사, fire(k) 발동(파티 전멸이면 true), every(k) 다음 주기(기본 보스 every),
+//          tick(k, dt) 매 프레임, onWarn(k) 경고 시작, warnTick(k) 경고 중(true면 취소), time 제한 시간, hpMul 체력 배율 }
+// 챕터 1~3 slam·root·poison · 4~9 freeze·tide·breath·gust·rewind·mirror · 10 cosmos(아래 순서로 돌아가며)
+const COSMOS_SEQ = ['slam', 'root', 'poison', 'freeze', 'tide', 'breath', 'gust'];
+const REWIND_BACK = 6, REWIND_BREAK = 0.06;          // 되감기: 6초 전 체력 · 경고 중 최대 체력 6% 피해면 시계 파괴
+const MIRROR_MAX = 2, ECLIPSE_EVERY = 20, ECLIPSE_TIME = 5;
+const RAGE_LINE = { 3: '감히… 내 사막의 법칙을 따르거라!', 10: '법칙 따위… 공허가 전부 삼켜 주마!' };
+const bossTime = B => (MECHS[B.mech] || {}).time || BOSS_TIME;
+const memberX = id => allyX(id === save.leader ? -1 : save.party.indexOf(id)) + 16;
+const mechNow = () => battle.mech === 'cosmos' ? COSMOS_SEQ[(battle.cos || 0) % COSMOS_SEQ.length] : battle.mech;
+const mechTitle = id => { const C = CHAPTERS.find(C => C.boss.mech === id); return C ? C.boss.mechName : ''; };
+const mechLabel = () => battle.mech === 'cosmos' ? `${mechTitle('cosmos')}(${mechTitle(mechNow())})` : mechTitle(battle.mech);
+// 묶인 상태: frozen(파티원별 빙결) · daze(리더 기절) · stop(시간 정지, 파티 전원) · eclipse(일식)
+const held = id => !!battle && (battle.stop > 0 || !!(battle.frozen && battle.frozen[id] > 0) || (id === save.leader && battle.daze > 0));
+function updateHolds(dt) {
+  if (battle.frozen) for (const id in battle.frozen) if ((battle.frozen[id] -= dt) <= 0) delete battle.frozen[id];
+  if (battle.daze > 0) battle.daze -= dt;
+  if (battle.stop > 0) battle.stop -= dt;
+  if (battle.eclipse > 0) battle.eclipse -= dt;
+}
+// 파티 전원에게 피해 (회피 불가). 파티 전멸이면 true
+function partyHit(raw, color, k, small) {
+  for (const id of team()) if (!allyDown(id) && hitMember(id, raw, color, !small, true, k)) return true;
+  return partyWiped();
+}
+// 보스 일격 (회피 불가): tank면 도발 중인 전사형이 막아냄
+function bossStrike(k, mult, tank) {
+  const tw = tank ? tauntOn(k) : null;
+  if (tw) { tankHit(tw, k.atk * mult, k); addFloat(allyName(tw) + ' 막아냄!', hero.x - 10, GROUND - 64, '#ffb08a', true); return false; }
+  return takeHit(Math.floor(k.atk * mult), '#ff3a4a', true, true, k);
+}
+function mirrorVanish() { for (const m of battle.queue) if (m.mirror && m.dead <= 0) { m.hp = 0; m.dead = 0.5; } }
+const MECHS = {
+  slam: { line: '온다…!', fire(k) {                                    // 몸통 박치기: 리더 ×3 (도발 전사가 막음) + 동료 최대 체력 25%
+    shake = 0.45;
+    for (const id in battle.ahp) hurtAlly(id, battle.ahp[id].max * 0.25, true);
+    return bossStrike(k, 3, true);
+  } },
+  root: { line: '발밑이…!', fire(k) {                                  // 뿌리 감옥: 2초 묶임
+    shake = 0.25;
+    battle.bound = ROOT_TIME; addFloat('묶임!', hero.x + 16, GROUND - 60, '#c8a060', true);
+    return bossStrike(k, 1.5);
+  } },
+  poison: { line: '꼬리를 치켜든다…!', fire(k) {                       // 독침: 4초 독
+    shake = 0.25;
+    battle.poison = 4 * (1 - stats.mods.purify / 3); battle.poisonDps = k.atk * 0.5; addFloat('독!', hero.x + 16, GROUND - 60, '#b070e0', true);
+    return bossStrike(k, 1.2);
+  } },
+  freeze: { line: '냉기가 몰려온다…!', fire(k) {                       // 빙결: 파티원 2명 3초 (화염 속성 동료가 있으면 절반) + 공격력 80%
+    shake = 0.3;
+    const alive = team().filter(id => !allyDown(id)), ts = [];
+    while (ts.length < 2 && alive.length) ts.push(alive.splice(Math.floor(Math.random() * alive.length), 1)[0]);
+    const melt = team().some(id => !allyDown(id) && allyEl(id) === 'fire');
+    if (melt) addFloat('불꽃이 얼음을 녹임', hero.x - 10, GROUND - 84, '#ffb07a', true);
+    battle.frozen = battle.frozen || {};
+    for (const id of ts) {
+      battle.frozen[id] = Math.max(battle.frozen[id] || 0, melt ? 1.5 : 3);
+      battle.fx.push({ kind: 'ice', x: memberX(id), t: 0, dur: 0.55 });
+      addFloat('빙결!', memberX(id), GROUND - 60, '#9fe0ff', true);
+      if (hitMember(id, k.atk * 0.8, '#7ad0ff', true, true, k)) return true;
+    }
+    return false;
+  } },
+  tide: { line: '바닷물이 차오른다…!', fire(k) {                       // 해일: 파티 전원 90% (도발 중이면 -30%) + 모든 행동 대기 +1.5초
+    shake = 0.35;
+    battle.fx.push({ kind: 'tide', t: 0, dur: 1 });
+    const tw = tauntOn(k);
+    if (tw) addFloat(allyName(tw) + ' 버팀! 피해 -30%', hero.x - 10, GROUND - 84, '#ffb08a', true);
+    if (hero.hp > 0) hero.cd += 1.5;
+    for (const id of team()) if (!allyDown(id)) battle.allyCd[id] = (battle.allyCd[id] ?? 0) + 1.5;
+    addFloat('해일! 행동 지연', hero.x + 16, GROUND - 72, '#7ac8ff', true);
+    return partyHit(k.atk * 0.9 * (tw ? 0.7 : 1), '#5aa8ff', k);
+  } },
+  breath: { warn: 1.6, line: '숨을 크게 들이쉰다…!',                 // 화염 숨결: 파티 전원 130% + 화상 3초 (방패 전사가 도발 중이면 40%만) · 체력 절반 아래 주기 -3초
+    every: k => Math.max(3, battle.every - (k.hp < k.maxHp * 0.5 ? 3 : 0)),
+    tick(k) { if (!battle.rage && k.hp < k.maxHp * 0.5) { battle.rage = true; shake = 0.3; addFloat('격노! 숨결 가속', k.x + 32, GROUND - 80, '#ff7a3a', true); } },
+    fire(k) {
+      shake = 0.45;
+      battle.fx.push({ kind: 'breath', from: k.x + 4, t: 0, dur: 0.8 });
+      const tw = tauntOn(k), wall = !!tw && ALLY_LOOKS[tw].weapon === 'shield';
+      if (wall) addFloat(allyName(tw) + ' 방패로 막아냄!', hero.x - 10, GROUND - 84, '#ffb08a', true);
+      battle.pburn = 3; battle.pburnDps = k.atk * 0.15; battle.pburnT = 0;
+      return partyHit(k.atk * 1.3 * (wall ? 0.4 : 1), '#ff7a3a', k);
+    } },
+  gust: { line: '거센 바람이 분다…!', fire(k) {                        // 돌풍: 리더 1.5초 기절 + 동료 행동 대기 +2초 + 버프·보호막 날아감
+    shake = 0.3;
+    battle.fx.push({ kind: 'gust', t: 0, dur: 0.9 });
+    if (hero.hp > 0) { battle.daze = Math.max(battle.daze || 0, 1.5); addFloat('기절!', hero.x + 16, GROUND - 60, '#ffe27a', true); }
+    for (const id of save.party || []) if (!allyDown(id)) battle.allyCd[id] = (battle.allyCd[id] ?? 0) + 2;
+    const had = (battle.buffs || []).length > 0 || battle.shield > 0 || Object.values(battle.ahp || {}).some(a => a.sh > 0);
+    battle.buffs = []; battle.shield = 0;
+    for (const a of Object.values(battle.ahp || {})) a.sh = 0;
+    if (had) addFloat('버프·보호막 날아감!', hero.x + 16, GROUND - 74, '#c8f0ff', true);
+    return false;
+  } },
+  rewind: { warn: 3, line: '시곗바늘이 거꾸로 돈다…!',               // 시간 되감기: 6초 전 체력으로 (경고 3초 동안 최대 체력 6% 피해면 시계 파괴 + 2초 기절)
+    tick(k, dt) {
+      if ((battle.rwT = (battle.rwT || 0) + dt) >= 0.25) {              // 체력 기록 (0.25초마다 10초치)
+        battle.rwT = 0;
+        (battle.hpHist = battle.hpHist || []).push([battle.mt, k.hp]);
+        if (battle.hpHist.length > 40) battle.hpHist.shift();
+      }
+      if (!battle.tstop && k.hp < k.maxHp * 0.5) {                      // 체력 절반 아래가 되는 순간 한 번: 시간 정지 (파티 2초)
+        battle.tstop = true; battle.stop = 2; shake = 0.3;
+        addFloat('시간 정지!', hero.x + 16, GROUND - 84, '#c8b8ff', true);
+        battle.fx.push({ kind: 'time', x: hero.x + 16, t: 0, dur: 1.2 });
+      }
+    },
+    onWarn(k) { battle.rwHp0 = k.hp; },
+    warnTick(k) {
+      if (battle.rwHp0 - k.hp < k.maxHp * REWIND_BREAK) return false;
+      battle.mechWarn = 0; battle.mechCd = battle.every;
+      k.stun = Math.max(k.stun || 0, 2); shake = 0.35;
+      addFloat('시계 파괴!', k.x + 32, GROUND - 84, '#ffe27a', true);
+      battle.fx.push({ kind: 'spark', x: k.x + 32, y: GROUND - 40, color: '#ffe27a', big: true, t: 0, dur: 0.5 });
+      return true;
+    },
+    fire(k) {
+      const h = battle.hpHist || [], t0 = battle.mt - REWIND_BACK;
+      let back = h.length ? h[0][1] : k.hp;
+      for (const [tt, hp] of h) if (tt <= t0) back = hp;
+      battle.fx.push({ kind: 'time', x: k.x + 32, t: 0, dur: 0.9 });
+      if (back > k.hp) { const up = Math.min(k.maxHp, back) - k.hp; k.hp += up; addFloat('시간 되감기! +' + fmt(up), k.x + 32, GROUND - 84, '#c8b8ff', true); }
+      else addFloat('되감기 실패', k.x + 32, GROUND - 84, '#c8c8d0', true);
+      return false;
+    } },
+  mirror: { line: '그림자가 일렁인다…!',                                // 그림자 분신: 파티원 1명의 분신(체력 150%·공격력 60%)을 보스 앞에, 최대 2 · 체력 절반 아래 20초마다 5초 일식
+    tick(k, dt) {
+      if (k.hp >= k.maxHp * 0.5) return;
+      if ((battle.eclCd = (battle.eclCd ?? 0) - dt) <= 0) {
+        battle.eclCd = ECLIPSE_EVERY; battle.eclipse = ECLIPSE_TIME; shake = 0.25;
+        addFloat('일식! 치명타 봉인', hero.x + 16, GROUND - 84, '#b8a0ff', true);
+      }
+    },
+    fire(k) {
+      const alive = team().filter(id => !allyDown(id));
+      if (!alive.length || battle.queue.filter(m => m.mirror && m.dead <= 0).length >= MIRROR_MAX) return false;
+      const id = pick(alive), hp = Math.floor((id === save.leader ? stats.maxHp : battle.ahp[id].max) * 1.5);
+      const c = { name: '그림자 ' + allyName(id), mirror: id, sprite: null, align: 'evil', body: 'spirit', boss: false, hp, maxHp: hp,
+        atk: Math.floor(srcOf(id).atk * 0.6), aspd: 0.8, gold: 0, noDrop: true, critRes: k.critRes, x: k.x - 4, cd: 1, hurt: 0, dead: 0, size: 32 };
+      battle.queue.splice(battle.queue.indexOf(k), 0, c);
+      battle.fx.push({ kind: 'smoke', x: k.x + 16, t: 0, dur: 0.6 });
+      addFloat('그림자 분신!', k.x + 16, GROUND - 70, '#b48cff', true);
+      return false;
+    } },
+  cosmos: { time: 90, hpMul: 1.5, every: k => battle.every - (k.hp < k.maxHp * 0.5 ? 2 : 0) },   // 별의 붕괴: COSMOS_SEQ 차례로 · 체력 절반 아래 주기 -2초(+ 룰 브레이커)
+};
+// 특수 공격 타이머: 붙어 싸우는 중에만 줄어듦 (보스가 스킬 빙결·정지면 멈춤). 파티 전멸이면 true
+function updateMech(dt, k) {
+  const M = MECHS[battle.mech];
+  battle.mt = (battle.mt || 0) + dt;
+  if (M.tick) M.tick(k, dt);
+  const f = battle.queue.find(m => m.dead <= 0);
+  if (!f || f.x > hero.x + 40 || k.ice > 0) return false;
+  battle.mechCd -= dt;
+  const S = MECHS[mechNow()] || M;
+  if (battle.mechCd <= (S.warn || MECH_WARN) && !battle.mechWarn) {
+    battle.mechWarn = 1;
+    addFloat('!', k.x + 32, GROUND - 74, '#ff5a6e', true);
+    say('hero', S.line || '온다…!', 1.4);
+    if (S.onWarn) S.onWarn(k);
+  }
+  if (battle.mechWarn && S.warnTick && S.warnTick(k, dt)) return false;
+  if (battle.mechCd > 0) return false;
+  battle.mechCd = M.every ? M.every(k) : battle.every;
+  battle.mechWarn = 0;
+  if (battle.mech === 'cosmos') battle.cos = (battle.cos || 0) + 1;
+  return !!(S.fire && S.fire(k));
 }
 
 function spawnShadow() {
@@ -2073,7 +2308,7 @@ function hit(mon, mult, color, kind, els, src) {
     if (ab) mult *= 1 + ab;
   }
   const lead = src === stats, bc = lead ? buffSum('crit', true) * 100 : 0, bcd = lead ? buffSum('critDmg', true) : 0;
-  const crit = !fixed && Math.random() * 100 < src.crit + bc - Math.max(0, (mon.critRes || 0) - (src.pierce || 0));
+  const crit = !fixed && !(battle.eclipse > 0) && Math.random() * 100 < src.crit + bc - Math.max(0, (mon.critRes || 0) - (src.pierce || 0));   // 일식: 치명타 0
   const dmg = Math.floor(src.atk * mult * (crit ? src.critDmg + bcd : 1) * (fixed ? 1 : 0.9 + Math.random() * 0.2));
   if (aff < 0.99 && !crit) color = '#b8b8c0';
   const drain = lead ? m.drain + buffSum('drain', true) * 100 : 0;
@@ -2086,7 +2321,7 @@ function hit(mon, mult, color, kind, els, src) {
     battle.fx.push({ kind: 'spark', x: mon.x + (mon.size || 32) / 2, y: GROUND - (mon.size || 32) / 2, color: crit ? '#ffd25e' : color || '#ffffff', big: crit, t: 0, dur: 0.25 });
   }
   if (repel && !m.noReflect && kind === 'basic') {
-    const back = Math.floor(dmg * m.reflect / 100);
+    const back = Math.floor(Math.min(dmg * m.reflect / 100, stats.maxHp * REFLECT_CAP));   // 한 번에 최대 체력의 2%까지
     if (back > 0 && hero.hp > 0) { hero.hp = Math.max(1, hero.hp - back); addFloat('반발 -' + fmt(back), hero.x + 16, GROUND - 44, '#ff7aa8'); }
   }
   if (kind === 'basic' && m.fear && !mon.king && mon.hp > 0 && Math.random() * 100 < m.fear) { mon.stun = 1.5; addFloat('공포!', mon.x + 16, GROUND - 56, '#c070ff'); }
@@ -2155,7 +2390,7 @@ function updateAllies(dt, q) {
   team().forEach(id => {
     const lead = id === save.leader, i = lead ? -1 : save.party.indexOf(id);
     const A = allyById(id);
-    if (!A || allyDown(id)) return;
+    if (!A || allyDown(id) || held(id)) return;                   // 빙결·기절·시간 정지 중에는 행동 대기도 멈춤
     if (A.type === 'warrior' && !lead) {
       battle.tauntCd[id] = (battle.tauntCd[id] ?? 2) - dt;
       const front = q.find(m => m.dead <= 0 && m.x <= hero.x + 45);
@@ -2388,7 +2623,7 @@ function skAutoOk(sk, F) {
 }
 function castSkill(slot, auto) {
   const id = save.slots[slot];
-  if (!id || !skSlotOpen(slot) || !battle || battle.state !== 'fight' || battle.delay > 0 || hero.hp <= 0) return false;
+  if (!id || !skSlotOpen(slot) || !battle || battle.state !== 'fight' || battle.delay > 0 || hero.hp <= 0 || held(save.leader)) return false;
   const sk = skillById(id), o = skOf(id);
   if (!sk || !o || (battle.skillCd[id] || 0) > 0) return false;
   const F = skFoes();
@@ -2660,12 +2895,12 @@ function endBoss(result) {
   let text = `획득 골드 ${fmt(r.earned)} G`
     + (first ? `<br>✦ 별조각 +1 · 공격력·체력 영구 +10% · 별가루 +50<br>레벨 +3 · 특성 포인트 +3${ally ? `<br>${ally.name} 합류 · 동료 탭에서 확인${c >= 2 && c <= 3 ? ' · 동료 배치 칸 +1' : ''}` : ''}`
       + (bsk ? `<br>보스 전용 스킬 <b style="color:${GRADES[bsk.grade].color}">${bsk.name}</b> 획득 · 스킬 탭에서 확인${c === 3 ? ' · 스킬 칸 +1' : ''}` : '')
-      + (c < CHAPTERS.length ? `<br>챕터 ${c + 1} · ${chapter(c + 1).name} 해금` : '<br>다음 챕터는 업데이트 예정') : ' (재도전 보상 30%)');
+      + (c < CHAPTERS.length ? `<br>챕터 ${c + 1} · ${chapter(c + 1).name} 해금` : '<br>별조각 모두 회수 · 다음 이야기는 업데이트 예정') : ' (재도전 보상 30%)');
   if (r.loot.length) text += '<br>획득 장비: ' + r.loot.map(it => `<b style="color:${GRADES[it.grade].color}">${itemName(it)}</b>`).join(', ');
   const btns = [['캠프로', () => showScreen('lobby'), !(first && c < CHAPTERS.length)]];
   if (first && c < CHAPTERS.length) btns.unshift([`챕터 ${c + 1} 시작 ▶`, () => startBattle(c * STAGES_PER + 1), true]);
-  const finish = () => showResult(first ? `챕터 ${c} 클리어!` : `${B.name} 처치!`, '#ffd25e', text, btns);
-  const outro = TALK[c].outro.filter(L => !(B.ally === leaderId() && (L.who === B.ally || (L.who === 'narr' && L.text.includes('동료가 되었다')))));
+  const finish = () => showResult(first ? (c === CHAPTERS.length ? '별의 설화 1부 완결!' : `챕터 ${c} 클리어!`) : `${B.name} 처치!`, '#ffd25e', text, btns);
+  const outro = talkLines((TALK[c] || {}).outro).filter(L => !(B.ally === leaderId() && L.who === 'narr' && L.text.includes('동료가 되었다')));
   if (first) playDialog(outro, finish); else finish();
   updateHud();
 }
@@ -2697,9 +2932,12 @@ const SPEAKERS = {
 };
 let dlg = null;   // { lines, i, chars, onDone }
 
-function lineText(L) { return L.text.replace('{name}', allyName(leaderId())); }
+function lineText(L) { return L.text.replaceAll('{name}', allyName(leaderId())); }
+// 대사 목록에서 지금 리더인 동료가 말하는 줄은 뺌 (리더 대사는 hero 가 맡음)
+const talkLines = lines => (lines || []).filter(L => L.who !== leaderId());
 
 function playDialog(lines, onDone) {
+  if (!lines || !lines.length) { if (onDone) onDone(); return; }
   dlg = { lines, i: 0, chars: 0, onDone };
   $('dialog').hidden = false;
   showLine();
@@ -2707,7 +2945,7 @@ function playDialog(lines, onDone) {
 
 function showLine() {
   const L = dlg.lines[dlg.i];
-  const sp = SPEAKERS[L.who]();
+  const sp = (SPEAKERS[L.who] || SPEAKERS.narr)();
   $('dBox').classList.toggle('narr', L.who === 'narr');
   $('dName').textContent = sp.name;
   const c = $('dPortrait').getContext('2d');
@@ -2816,7 +3054,7 @@ function openStages(c) {
   const B = chapter(c).boss, bo = bossOpen(c), done = bossBeaten(c);
   html += `</div><button class="stg boss${done ? ' clear' : ''}${bo && !done ? ' next' : ''}" id="bossStg" ${bo ? '' : 'disabled'}>
     <img src="${ICON_URL[B.sprite]}"><b>👑 챕터 보스 · ${B.name}</b>
-    <small>${done ? '✓ 처치 · 재도전 가능' : bo ? '도전 가능 · 제한 시간 60초' : `${c}-20 클리어 시 해금`}</small></button>
+    <small>${done ? '✓ 처치 · 재도전 가능' : bo ? `도전 가능 · 제한 시간 ${bossTime(B)}초` : `${c}-20 클리어 시 해금`}</small></button>
     <p class="note">클리어한 스테이지 재도전 가능 · 클리어 보상은 첫 클리어 100%, 이후 30%</p>`;
   $('mBody').innerHTML = html;
   $('mBody').querySelectorAll('[data-ch]').forEach(b => b.onclick = () => openStages(+b.dataset.ch));
@@ -3291,7 +3529,7 @@ function renderBattle() {
   const paintHero = () => { if (style === 'melee' && ha && !down && Math.abs(hdx) > 4) { drawHero(hdx * 0.3, 0.25, true); drawHero(hdx * 0.65, 0.4, true); } drawHero(hdx, 1, false); };
   if (!heroOnTop) paintHero();
   // 뿌리 감옥 경고(발밑 빛)와 묶임
-  if (battle.mech === 'root' && battle.mechWarn) {
+  if (battle.mechWarn && mechNow() === 'root') {
     ctx.fillStyle = `rgba(200,160,90,${0.35 + 0.25 * Math.sin(time * 20)})`;
     ctx.beginPath(); ctx.ellipse((hx + 16) * SCALE, (GROUND + 1) * SCALE, 18 * SCALE, 4 * SCALE, 0, 0, Math.PI * 2); ctx.fill();
   }
@@ -3384,6 +3622,7 @@ function renderBattle() {
     }
     if (hp) hpBar(x + 9, GROUND - 36 + (i % 2) * 2, 14, down ? 1 : hp.hp / hp.max, down ? '#6a6a70' : hp.hp < hp.max * 0.3 ? '#ff8a5a' : '#6fe39a');   // 동료 체력바 (걷는 중에도)
   });
+  drawHolds(hx);
   // 이펙트
   const S = SCALE, Y = v => v * S;
   for (const f of battle.fx) {
@@ -3584,6 +3823,33 @@ function renderBattle() {
       ctx.beginPath(); ctx.arc(tx, cy, 30 + Math.sin(pr * Math.PI) * 30, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#b080ff'; ctx.lineWidth = 4;
       ctx.beginPath(); for (let a = 0; a < 16; a += 0.3) ctx.lineTo(tx + Math.cos(a - pr * 10) * (90 - a * 5), cy + Math.sin(a - pr * 10) * (90 - a * 5) * 0.6); ctx.stroke();
+    } else if (f.kind === 'tide') {                     // 보스 해일: 파란 물결이 화면을 가로지름 (오른쪽 → 왼쪽)
+      const x0 = cv.width * (1.1 - pr * 1.5), top = Y(GROUND - 70), yy = k => top + Math.sin(k * 1.3 + time * 8) * 14 + (k === 0 ? 40 : 0);
+      ctx.globalAlpha = Math.min(1, (1 - pr) * 2) * 0.75;
+      const gr = ctx.createLinearGradient(0, top, 0, Y(GROUND + 10));
+      gr.addColorStop(0, 'rgba(150,220,255,0.9)'); gr.addColorStop(1, 'rgba(30,90,200,0.85)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.moveTo(x0, Y(GROUND + 10));
+      for (let k = 0; k <= 14; k++) ctx.lineTo(x0 + k * 60, yy(k));
+      ctx.lineTo(x0 + 14 * 60, Y(GROUND + 10)); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#eaf8ff'; ctx.lineWidth = 5;
+      ctx.beginPath(); for (let k = 0; k <= 14; k++) k ? ctx.lineTo(x0 + k * 60, yy(k)) : ctx.moveTo(x0, yy(0)); ctx.stroke();
+    } else if (f.kind === 'breath') {                   // 보스 화염 숨결: 입에서 파티까지 불꽃 부채꼴
+      const fx0 = f.from * S, fy0 = Y(GROUND - 44), ex = (hero.x - 70) * S, reach = fx0 + (ex - fx0) * Math.min(1, pr / 0.35);
+      ctx.globalAlpha = pr < 0.6 ? 0.85 : 0.85 * (1 - (pr - 0.6) / 0.4);
+      const gr = ctx.createLinearGradient(fx0, 0, ex, 0);
+      gr.addColorStop(0, '#fff3a0'); gr.addColorStop(0.35, '#ffb03a'); gr.addColorStop(1, 'rgba(255,70,30,0.6)');
+      ctx.fillStyle = gr; ctx.shadowColor = '#ff7a3a'; ctx.shadowBlur = 30;
+      ctx.beginPath(); ctx.moveTo(fx0, fy0); ctx.lineTo(reach, Y(GROUND - 78)); ctx.quadraticCurveTo(reach - 40, Y(GROUND - 34), reach, Y(GROUND + 6)); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffe27a';
+      for (let k = 0; k < 8; k++) { const q = (k * 0.13 + pr * 2) % 1, px = fx0 + (reach - fx0) * q; ctx.beginPath(); ctx.arc(px, fy0 + Math.sin(k * 2.1 + time * 12) * 34 * q, 8, 0, Math.PI * 2); ctx.fill(); }
+    } else if (f.kind === 'gust') {                     // 보스 돌풍: 오른쪽에서 왼쪽으로 바람 줄기
+      ctx.globalAlpha = 0.85 * (1 - pr); ctx.strokeStyle = '#f0fbff'; ctx.lineWidth = 5; ctx.shadowColor = '#bfe8ff'; ctx.shadowBlur = 12;
+      for (let n = 0; n < 9; n++) {
+        const yy = Y(GROUND - 80 + n * 9), x0 = cv.width * (1.05 - pr * 1.4) + (n % 3) * 70;
+        ctx.beginPath(); ctx.moveTo(x0, yy); ctx.quadraticCurveTo(x0 - 110, yy - 22, x0 - 240, yy); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x0 - 240, yy - 12, 12, Math.PI * 0.5, Math.PI * 2); ctx.stroke();
+      }
     }
     ctx.restore();
   }
@@ -3614,10 +3880,15 @@ function renderBattle() {
     shadow(m.x + size / 2, m.king ? 26 : m.boss ? 15 : 11);
     if (m.slow > 0) ctx.filter = 'hue-rotate(160deg) saturate(1.4)';
     else if (m.undead) ctx.filter = 'grayscale(0.6) sepia(0.5) hue-rotate(60deg) brightness(0.85)';
-    drawImg(face(m.sprite), m.x + (m.kb || 0), GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
+    if (m.mirror) {                                   // 그림자 분신: 그 파티원 그림을 어둡게 (왼쪽을 봄)
+      const sx = m.x + (m.kb || 0);
+      ctx.translate((sx + 16) * SCALE * 2, 0); ctx.scale(-1, 1);
+      ctx.filter = 'brightness(0.3) saturate(0.5) hue-rotate(220deg)';
+      drawImg(allyImg(m.mirror), sx, GROUND - 31 + wob, 32, m.hurt);
+    } else drawImg(face(m.sprite), m.x + (m.kb || 0), GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
     ctx.restore();
     if (m.dead <= 0) drawMonMarks(m, size);
-    if (i === 0 && m.dead <= 0 && !battle.dungeon) {
+    if ((i === 0 || m.king) && m.dead <= 0 && !battle.dungeon) {         // 분신이 앞에 서도 보스 체력바는 보이게
       hpBar(m.x + 2, GROUND - size - 5, size - 4, m.hp / m.maxHp, '#ff6b7a');
       label(m.name + (ALIGN[m.align] && !m.name.includes(ALIGN[m.align][0]) ? ' · ' + ALIGN[m.align][0] : '') + (BODY[m.body] ? ' · ' + BODY[m.body].name : '') + (m.ranged ? ' · 원거리' : ''), m.x + size / 2, GROUND - size - 9, m.role ? ROLES[m.role].color : m.boss ? '#ffb0b8' : '#fff');
     }
@@ -3642,10 +3913,89 @@ function renderBattle() {
     ctx.restore();
     if (sn.dead <= 0) { drawMonMarks(sn, 32); hpBar(sx + 2, GROUND - 37, 28, sn.hp / sn.maxHp, '#ff6b7a'); label(sn.name, sx + 16, GROUND - 41, ROLES.assassin.color); }
   }
+  drawMechOverlay();
   drawFloats(floats);
   const pos = { hero: [hx + 16, GROUND - 36] };
+  const kb = battle.king && !battle.dungeon ? battle.queue.find(m => m.king && m.dead <= 0) : null;
+  if (kb) pos.boss = [kb.x + (kb.size || 32) / 2, GROUND - (kb.size || 32) - 16];
   (save.party || []).forEach((id, i) => { pos[id] = [allyX(i) + 16, GROUND - 40]; });
   drawBubbles(pos);
+}
+
+// 빙결된 파티원(얼음 덩어리) · 리더 기절(별) · 화염 숨결 화상
+function drawHolds(hx) {
+  ctx.save();
+  for (const id of team()) {
+    const x = id === save.leader ? hx : allyX(save.party.indexOf(id)), fz = battle.frozen && battle.frozen[id] > 0;
+    if (fz && !allyDown(id)) {
+      ctx.globalAlpha = Math.min(1, battle.frozen[id] * 3);
+      ctx.fillStyle = 'rgba(170,225,255,0.42)'; ctx.strokeStyle = 'rgba(225,248,255,0.95)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect((x + 1) * SCALE, (GROUND - 34) * SCALE, 30 * SCALE, 35 * SCALE, 10); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo((x + 6) * SCALE, (GROUND - 29) * SCALE); ctx.lineTo((x + 12) * SCALE, (GROUND - 18) * SCALE); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (battle.pburn > 0 && !allyDown(id)) {
+      ctx.fillStyle = `rgba(255,120,40,${0.35 + 0.2 * Math.sin(time * 18 + x)})`;
+      ctx.beginPath(); ctx.arc((x + 16) * SCALE, (GROUND - 4) * SCALE, 9 + Math.random() * 4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (battle.daze > 0 && hero.hp > 0) {
+    ctx.fillStyle = '#ffe27a';
+    for (let k = 0; k < 3; k++) { const an = time * 6 + k * 2.1; ctx.beginPath(); ctx.arc((hx + 16) * SCALE + Math.cos(an) * 26, (GROUND - 40) * SCALE + Math.sin(an) * 7, 5, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.restore();
+}
+// 보스 특수 공격 경고와 화면 효과 (경고 중 그림 · 시간 정지 · 일식)
+function drawMechOverlay() {
+  const k = battle.king && !battle.dungeon ? battle.queue.find(m => m.king && m.dead <= 0) : null, S = SCALE, W = cv.width, H = cv.height;
+  ctx.save();
+  if (k && battle.mechWarn) {
+    const id = mechNow(), fl = 0.5 + 0.5 * Math.sin(time * 16), kx = (k.x + 32) * S;
+    if (id === 'freeze') {                                      // 발밑에 서리
+      ctx.fillStyle = `rgba(190,235,255,${0.25 + 0.2 * fl})`;
+      for (const m of team()) if (!allyDown(m)) { ctx.beginPath(); ctx.ellipse(memberX(m) * S, (GROUND + 1) * S, 16 * S, 4 * S, 0, 0, Math.PI * 2); ctx.fill(); }
+    } else if (id === 'tide') {                                 // 오른쪽에서 물이 차오름
+      const g = ctx.createLinearGradient(W, 0, W * 0.55, 0);
+      g.addColorStop(0, `rgba(60,140,230,${0.45 + 0.2 * fl})`); g.addColorStop(1, 'rgba(60,140,230,0)');
+      ctx.fillStyle = g; ctx.fillRect(W * 0.55, (GROUND - 24) * S, W * 0.45, 30 * S);
+    } else if (id === 'breath') {                               // 숨결 범위 (부채꼴 테두리)
+      const fx0 = (k.x + 4) * S, ex = (hero.x - 70) * S;
+      ctx.strokeStyle = `rgba(255,120,40,${0.4 + 0.4 * fl})`; ctx.lineWidth = 4; ctx.setLineDash([14, 10]);
+      ctx.beginPath(); ctx.moveTo(fx0, (GROUND - 44) * S); ctx.lineTo(ex, (GROUND - 78) * S); ctx.lineTo(ex, (GROUND + 6) * S); ctx.closePath(); ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (id === 'gust') {                                 // 보스 주위로 바람이 모임
+      ctx.strokeStyle = `rgba(230,250,255,${0.35 + 0.35 * fl})`; ctx.lineWidth = 3;
+      for (let n = 0; n < 5; n++) { const r = 20 + (time * 60 + n * 18) % 90; ctx.beginPath(); ctx.arc(kx, (GROUND - 40) * S, r, 0, Math.PI * 1.5); ctx.stroke(); }
+    } else if (id === 'rewind') {                               // 시계 원 + 시계 파괴 게이지
+      const cy = (GROUND - 40) * S, r = 100, p = Math.min(1, Math.max(0, (battle.rwHp0 || 0) - k.hp) / (k.maxHp * REWIND_BREAK));
+      ctx.strokeStyle = '#e0d0ff'; ctx.lineWidth = 5; ctx.shadowColor = '#a090ff'; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.arc(kx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      for (let n = 0; n < 12; n++) { const an = n * Math.PI / 6; ctx.beginPath(); ctx.moveTo(kx + Math.cos(an) * r * 0.86, cy + Math.sin(an) * r * 0.86); ctx.lineTo(kx + Math.cos(an) * r, cy + Math.sin(an) * r); ctx.stroke(); }
+      ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(kx, cy); ctx.lineTo(kx + Math.cos(-time * 9) * r * 0.8, cy + Math.sin(-time * 9) * r * 0.8); ctx.stroke();
+      ctx.strokeStyle = '#ffe27a'; ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(kx, cy, r + 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.fillStyle = '#fff3c0'; ctx.font = '900 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(`시계 파괴 ${Math.floor(p * 100)}%`, kx, cy - r - 22);
+    } else if (id === 'mirror') {                               // 발밑 그림자
+      ctx.fillStyle = `rgba(80,30,120,${0.3 + 0.25 * fl})`;
+      ctx.beginPath(); ctx.ellipse(kx, (GROUND + 1) * S, 40 * S, 6 * S, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (battle.stop > 0) {                                        // 시간 정지: 푸른 회색 화면
+    ctx.fillStyle = 'rgba(120,110,190,0.28)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#e8e0ff'; ctx.font = '900 34px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`⏱ 시간 정지 ${Math.max(0, battle.stop).toFixed(1)}초`, W / 2, 150);
+  }
+  if (battle.eclipse > 0) {                                     // 일식: 어두운 화면 + 검은 해
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.95);
+    g.addColorStop(0, 'rgba(10,0,30,0.25)'); g.addColorStop(1, 'rgba(10,0,30,0.62)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#05000f'; ctx.shadowColor = '#b8a0ff'; ctx.shadowBlur = 30;
+    ctx.beginPath(); ctx.arc(W / 2, 70, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#d8c8ff'; ctx.font = '900 26px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`일식 · 치명타 0 · ${Math.ceil(battle.eclipse)}초`, W / 2, 130);
+  }
+  ctx.restore();
 }
 
 let camX = 0;            // 배경 카메라 위치 (웨이브 사이에 앞으로 걸어가면 커진다)
@@ -3737,10 +4087,17 @@ function updateBattleBars() {
   if (battle && battle.king) {
     const s = Math.ceil(battle.timeLeft);
     if (battle.dungeon) $('bWave').textContent = `남은 시간 ${s}초 · 준 피해 ${fmt(battle.dealt)}`;
-    else $('bWave').textContent = `제한 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · ${chapter(battle.ch).boss.mechName} ${Math.max(0, battle.mechCd).toFixed(1)}초 후`;
+    else {
+      const k = battle.queue.find(m => m.king), rw = !!(battle.mechWarn && mechNow() === 'rewind' && k);
+      $('bWave').textContent = `제한 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · `
+        + (rw ? `시간 되감기 경고 · 시계 파괴 ${Math.min(100, Math.floor(Math.max(0, battle.rwHp0 - k.hp) / (k.maxHp * REWIND_BREAK) * 100))}%` : `${mechLabel()} ${Math.max(0, battle.mechCd).toFixed(1)}초 후`)
+        + (battle.eclipse > 0 ? ' · 일식' : '') + (battle.stop > 0 ? ' · 시간 정지' : '');
+    }
   }
+  const stuck = !!battle && (hero.hp <= 0 || held(save.leader));     // 리더가 빙결·기절·시간 정지·쓰러짐 → 스킬 못 씀 표시
   $('skillBar').querySelectorAll('.skbtn').forEach(b => {
     const id = save.slots[b.dataset.slot], sk = id && skillById(id);
+    b.classList.toggle('dim', stuck && !!sk);
     if (!sk || !battle || !b.querySelector('.cd')) return;
     const left = battle.skillCd[id] || 0;
     b.querySelector('.cd').style.setProperty('--p', Math.min(100, left / skCd(sk) * 100) + '%');
@@ -3754,7 +4111,7 @@ function showScreen(name) {
   $('lobbyUI').hidden = name !== 'lobby';
   $('battleUI').hidden = name !== 'battle';
   closeModal();
-  if (name === 'lobby') { battle = null; endDialog(true); bubbles = []; refreshStats(); }
+  if (name === 'lobby') { battle = null; SEALED = false; endDialog(true); bubbles = []; refreshStats(); }
   updateHud();
   updateBattleHud();
 }
@@ -4089,7 +4446,7 @@ async function cloudSyncOnLogin() {
   if (!cloudOn() || cloudBusy) return;
   cloudBusy = true;
   let remote;
-  try { remote = await window.Cloud.load(); }
+  try { remote = checkSave(await window.Cloud.load()); }
   catch (e) { console.warn(e); cloudMsg = '클라우드 불러오기 실패'; cloudBusy = false; refreshSettings(); return; }
   cloudBusy = false;
   if (!remote || remote.cloudRev === save.cloudRev) return cloudUpload();   // 첫 로그인이거나 이 기기가 이어서 진행한 것
@@ -4260,14 +4617,7 @@ async function devTools() {
     if ([gold, dust, sh, pot, st].some(v => v === null)) return ($('dvMsg').textContent = '빈 칸 없이 숫자 입력 필요');
     save.astar = save.astar || {}; save.acopy = save.acopy || {};
     Object.assign(save, { gold, dust, shards: sh, potions: pot });
-    if (st !== save.stage) {
-      save.stage = st;
-      for (const c of Object.keys(save.bosses)) if (st <= c * STAGES_PER) delete save.bosses[c];   // 아직 못 가는 챕터 보스는 처치 기록 삭제
-      for (let c = 1; c < chOf(Math.min(st, MAX_STAGE)); c++) {
-        if (!save.bosses[c]) { save.bosses[c] = true; const id = CHAPTERS[c - 1].boss.ally; if (id) gainAlly(id); grantBossSkill(c); }
-      }
-      save.seenCh = Math.max(save.seenCh || 1, chOf(Math.min(st, MAX_STAGE)));
-    }
+    if (st !== save.stage) devSetStage(st);
     done('적용 완료');
   };
   $('dvAllies').onclick = () => { save.astar = save.astar || {}; ALLIES.forEach(A => { if (!save.allies[A.id]) { save.allies[A.id] = 1; save.astar[A.id] = 1; } }); done(`동료 ${ALLIES.length}명 획득 완료`); };
@@ -4275,6 +4625,16 @@ async function devTools() {
   $('dvSkills').onclick = () => { save.sk = save.sk || {}; SKILLS.forEach(sk => { if (!save.sk[sk.id]) gainSkill(sk.id); }); done(`스킬 ${SKILLS.length}종 획득 완료`); };
   $('dvSkCopies').onclick = () => { Object.values(save.sk || {}).forEach(o => { o.copy += 5; }); done('스킬 조각 +5 지급 완료'); };
   $('dvDaily').onclick = () => { save.daily = null; ensureDaily(); done('일일 미션·던전 초기화 완료'); };
+}
+
+// 도달 스테이지 바꾸기 (개발자 도구, 1 ~ MAX_STAGE+1): 그 스테이지 앞 챕터 보스는 처치(동료·보스 스킬 지급), 아직 못 가는 챕터 보스 기록은 삭제
+function devSetStage(st) {
+  save.stage = st;
+  for (const c of Object.keys(save.bosses)) if (st <= c * STAGES_PER) delete save.bosses[c];
+  for (let c = 1; c < chOf(Math.min(st, MAX_STAGE)); c++) {
+    if (!save.bosses[c]) { save.bosses[c] = true; const id = CHAPTERS[c - 1].boss.ally; if (id) gainAlly(id); grantBossSkill(c); }
+  }
+  save.seenCh = Math.max(save.seenCh || 1, chOf(Math.min(st, MAX_STAGE)));
 }
 
 function resetGame() {
@@ -4301,7 +4661,7 @@ async function afterLogin(user) {
   useAccountKey(user.uid);
   const local = readSave();
   let remote = null;
-  try { remote = migrateSave(await window.Cloud.load()); }
+  try { remote = migrateSave(checkSave(await window.Cloud.load())); }
   catch (e) { console.warn(e); return showLogin('세이브 불러오기 실패 · 새로고침 후 다시 시도'); }
   $('start').hidden = true;
   booted = true;
@@ -4381,7 +4741,9 @@ function showStart() {
 const ICON_URL = {};
 
 function begin() {
-  for (const id of ['slime', 'mushroom', 'bee', 'slime_king', 'wisp', 'toadstool', 'sprout', 'treant', 'miru', 'serin', 'kai', 'cactus', 'scorpion', 'mummy', 'scorpion_queen', 'gold_slime', 'golem']) ICON_URL[id] = SPR[id].toDataURL ? SPR[id].toDataURL() : SPR[id].src;
+  const icons = new Set(CHAPTERS.flatMap(C => C.monsters.map(m => m.sprite).concat(C.boss.sprite)).concat(['miru', 'serin', 'kai'], DUNGEONS.map(D => D.sprite)));
+  for (const id of icons) if (SPR[id]) ICON_URL[id] = SPR[id].toDataURL ? SPR[id].toDataURL() : SPR[id].src;
+  if (Sound.alias) Sound.alias(Object.fromEntries(CHAPTERS.map(C => [C.theme, C.bgm || C.theme])));   // 챕터 테마 → 배경음악
   for (const sl of GEAR_SLOTS) {
     const img = SPR['icon_' + sl.id];
     ICON_URL[sl.id] = img.toDataURL ? img.toDataURL() : img.src;
