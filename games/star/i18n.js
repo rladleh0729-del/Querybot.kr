@@ -936,6 +936,14 @@
   "연결할 이메일": "Email to link",
   "사용할 비밀번호 (6자 이상)": "Password to use (at least 6 characters)"
 });
+  Object.assign(translations, {
+  "특성": "Traits",
+  "특성 봉인": "Traits sealed",
+  "시계 파괴": "Clock destruction",
+  "일식": "Eclipse",
+  "해일": "Tidal Wave",
+  "빙결": "Freeze"
+});
   const sortedTranslations = Object.entries(translations).sort((a,b) => b[0].length - a[0].length);
   const rules = [["공격력","ATK"],["최대 체력","Max HP"],["체력","HP"],["공격 속도","Attack Speed"],["치명타 피해","Critical Damage"],["치명타","Critical"],["별가루","Stardust"],["별조각","Star Shard"],["스테이지","Stage"],["챕터","Chapter"],["동료","Ally"],["파티","Party"],["장비","Equipment"],["강화","Upgrade"],["능력치","Stats"],["스킬","Skill"],["골드","Gold"],["회복","Restore"],["획득","Obtained"],["보상","Reward"],["공격","Attack"],["피해","Damage"],["보호막","Shield"],["회피","Dodge"],["적","Enemy"],["몬스터","Monster"],["보스","Boss"],["대장","Captain"],["사용","Use"],["완료","Complete"],["남음","left"],["부족","Not enough"],["잠김","Locked"],["미보유","Not owned"],["구매","Buy"],["판매","Sell"],["판매하기","Sell"],["무료","Free"],["자동","Auto"],["대기","Waiting"],["결과","Results"],["도전","Challenge"],["입장","Enter"],["나가기","Leave"],["취소","Cancel"],["확인","Confirm"],["닫기","Close"],["뒤로","Back"],["돌아가기","Return"],["전투","Battle"],["캠프","Camp"],["상점","Shop"],["도감","Codex"],["가방","Inventory"],["랭킹","Ranking"],["저장","Save"],["출석","Attendance"],["미션","Mission"],["특성","Traits"],["전직","Class"],["동굴","Cave"],["유적","Ruins"],["회","times"],["초","sec"],["분","min"],["레벨","Level"],["Lv","Lv"],["경험치","EXP"],["확률","Chance"],["확률","Chance"],["일일","Daily"],["오늘","Today"],["내일","Tomorrow"],["보유","Owned"],["필요","Required"],["적용","Apply"],["선택","Select"],["모두","All"],["새로","New"],["최고","Best"],["현재","Current"],["다음","Next"],["이전","Previous"],["강력","Powerful"],["쉬움","Easy"],["보통","Normal"],["어려움","Hard"],["효과","Effect"],["효과음","Sound effects"],["배경음악","Background music"],["무작위","Random"],["치유","Healing"],["독","Poison"],["저주","Curse"],["속박","Bind"],["기절","Stun"],["둔화","Slow"],["넉백","Knockback"],["즉시","Instantly"],["영구","Permanent"],["최종","Final"],["각성","Awakening"]];
   let language = 'ko';
@@ -952,11 +960,11 @@
     const leading = value.match(/^\s*/)[0], trailing = value.match(/\s*$/)[0];
     const core = trimmed;
     if (Object.prototype.hasOwnProperty.call(translations, core)) return leading + translations[core] + trailing;
-    let out = core;
+    let out = core.replace(/(\d+(?:\.\d+)?)초/g, '$1 sec').replace(/(\d+(?:\.\d+)?)회/g, '$1 times').replace(/(\d+(?:\.\d+)?)분/g, '$1 min').replace(/(\d+(?:\.\d+)?)시간/g, '$1 hr');
     for (const [ko, en] of sortedTranslations) {
       if (ko.length > 1 && out.includes(ko)) out = out.split(ko).join(en);
     }
-    for (const [ko, en] of rules) if (out.includes(ko)) out = out.split(ko).join(en);
+    for (const [ko, en] of rules) if (ko.length > 1 && out.includes(ko)) out = out.split(ko).join(en);
     return leading + out + trailing;
   }
   function processText(node, force = false) {
