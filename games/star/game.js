@@ -6,6 +6,7 @@ function getLanguage() { try { return localStorage.getItem(LANG_KEY) === 'en' ? 
 function setLanguage(lang) { try { localStorage.setItem(LANG_KEY, lang === 'en' ? 'en' : 'ko'); } catch (_) {} document.documentElement.lang = lang === 'en' ? 'en' : 'ko'; if (window.StarI18n) window.StarI18n.setLanguage(lang); if (modalKind === 'settings') openSettings(); }
 const LANG = { ko:{settings:'설정',language:'언어 / Language',korean:'한국어',english:'English',leader:'리더',leaderHelp:'주인공 없이 동료들이 싸움 · 강화는 캐릭터마다 따로 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배',changeLeader:'리더 바꾸기',sound:'소리',bgm:'음악',sfx:'효과음',on:'켜짐',off:'꺼짐'}, en:{settings:'Settings',language:'Language / 언어',korean:'한국어',english:'English',leader:'Leader',leaderHelp:'Allies fight without a separate protagonist. Upgrades are character-specific; gear, traits, class, skills and potions apply to the leader. Defeat occurs when everyone falls.',changeLeader:'Change leader',sound:'Sound',bgm:'Music',sfx:'Sound effects',on:'On',off:'Off'} };
 function tr(key) { return (LANG[getLanguage()] || LANG.ko)[key] || key; }
+function msg(ko, en) { return getLanguage() === 'en' ? en : ko; }
 
 // 주소에 ?test를 붙이면 테스트용 저장을 따로 쓴다 (진짜 진행을 건드리지 않음)
 const TEST = new URLSearchParams(location.search).has('test');
@@ -275,7 +276,7 @@ function rerollPrice() { return monGold(save.stage) * 20; }
 function buyShopItem(i) {
   const it = save.shop.items[i];
   if (!it || it.sold || save.gold < shopPrice(it)) return;
-  if (save.items.length >= BAG_MAX) return alert('가방 공간 부족 · 장비 판매 필요');
+  if (save.items.length >= BAG_MAX) return alert(msg('가방 공간 부족 · 장비 판매 필요', 'Inventory full · sell equipment'));
   save.gold -= shopPrice(it);
   save.items.push({ ...it, id: save.nextItem++ });
   it.sold = true;
@@ -524,7 +525,7 @@ const againPrice = (base, k) => Math.ceil(base * (1 - againDisc(k) / 100));
 function payGacha(kind, base, again) {
   const k = again && gStreak.kind === kind ? gStreak.n + 1 : 0;
   const cost = againPrice(base, k);
-  if (save.dust < cost) { alert('별가루 부족'); return false; }
+  if (save.dust < cost) { alert(msg('별가루 부족', 'Not enough stardust')); return false; }
   save.dust -= cost;
   gStreak = { kind, n: k };
   return true;
@@ -578,7 +579,7 @@ const dunLeft = id => { ensureDaily(); return DUNGEON_TRIES - (save.daily['d' + 
 
 function startDungeon(id) {
   const D = DUNGEONS.find(x => x.id === id);
-  if (dunLeft(id) <= 0) return alert('오늘 도전 횟수 소진 · 내일 다시');
+  if (dunLeft(id) <= 0) return alert(msg('오늘 도전 횟수 소진 · 내일 다시', 'No attempts left today · come back tomorrow'));
   ensureDaily();
   save.daily['d' + id] = (save.daily['d' + id] || 0) + 1;
   track('dungeon');
@@ -888,7 +889,7 @@ function equipSkill(id, slot) {
   if (at >= 0 && slot === undefined) save.slots[at] = null;
   else {
     const i = slot !== undefined ? slot : save.slots.findIndex((x, k) => !x && skSlotOpen(k));
-    if (i < 0 || !skSlotOpen(i)) { alert('스킬 칸 부족 · 다른 스킬 해제 필요'); return false; }
+    if (i < 0 || !skSlotOpen(i)) { alert(msg('스킬 칸 부족 · 다른 스킬 해제 필요', 'No skill slots available · unequip another skill')); return false; }
     if (at >= 0) save.slots[at] = null;
     save.slots[i] = id;
   }
@@ -1558,7 +1559,7 @@ async function openRank() {
         <td>${allyById(r.leader) || GONE[r.leader] ? `<img src="${allyIcon(r.leader, Math.min(5, Math.max(1, r.star | 0)))}"> ${allyById(r.leader) ? allyById(r.leader).name : GONE[r.leader][0]}` : '-'}</td><td>${esc(r.job || '')}</td>
         <td>${r.stage > 0 ? stageLabel(Math.min(r.stage, MAX_STAGE)) : '-'}</td><td>${fmt(r.power)}</td></tr>`).join('')}</table>`;
     $('rkName').onclick = () => {
-      const n = (prompt('모험단 이름 (최대 8자)', save.name) || '').trim().slice(0, 8);
+      const n = (prompt(msg('모험단 이름 (최대 8자)', 'Party name (max 8 characters)'), save.name) || '').trim().slice(0, 8);
       if (!n) return;
       save.name = n; writeSave(); rankSent = 0; rankUpload(); setTimeout(openRank, 600);
     };
@@ -3168,8 +3169,8 @@ function refreshTraits() {
   });
   if ($('tReset')) $('tReset').onclick = () => {
     const cost = resetCost();
-    if (save.gold < cost) return alert('골드 부족');
-    if (!confirm(`특성과 전직 초기화\n비용 ${fmt(cost)} G`)) return;
+    if (save.gold < cost) return alert(msg('골드 부족', 'Not enough gold'));
+    if (!confirm(msg(`특성과 전직 초기화\n비용 ${fmt(cost)} G`, `Reset traits and class\nCost ${fmt(cost)} G`))) return;
     save.gold -= cost;
     save.traits = {}; save.job = null; save.adv = null;
     refreshStats(); updateHud(); writeSave();
@@ -4580,9 +4581,9 @@ function refreshSettings() {
     refreshSettings(); cloudUpload();
   };
   if ($('linkE')) $('linkE').onclick = async () => {
-    const em = prompt('연결할 이메일');
+    const em = prompt(msg('연결할 이메일', 'Email to link'));
     if (!em) return;
-    const pw = prompt('사용할 비밀번호 (6자 이상)');
+    const pw = prompt(msg('사용할 비밀번호 (6자 이상)', 'Password to use (at least 6 characters)'));
     if (!pw) return;
     cloudMsg = '';
     try { await window.Cloud.linkEmail(em.trim(), pw); cloudMsg = '이메일 연결 완료'; } catch (e) { cloudMsg = authError(e); }
@@ -4646,7 +4647,7 @@ function devSetStage(st) {
 }
 
 function resetGame() {
-  if (!confirm('처음부터 시작\n이 기기의 진행 상황 전체 삭제' + (cloudOn() ? '\n(클라우드 세이브는 유지)' : ''))) return;
+  if (!confirm(msg('처음부터 시작\n이 기기의 진행 상황 전체 삭제' + (cloudOn() ? '\n(클라우드 세이브는 유지)' : ''), 'Start over\nDelete all progress on this device' + (cloudOn() ? '\n(Cloud save will be kept)' : ''))) return;
   save = null;
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ }
   location.reload();
@@ -4849,7 +4850,7 @@ loadSprites().then(() => {
     tryLogin(async () => { await window.Cloud.resetPw(em); $('loginMsg').textContent = '비밀번호 재설정 메일 발송 완료'; });
   };
   $('guestBtn').onclick = () => {
-    if (!confirm('게스트로 시작\n이 브라우저에만 계정이 묶임 · 나중에 설정에서 구글·이메일 계정으로 연결 가능')) return;
+    if (!confirm(msg('게스트로 시작\n이 브라우저에만 계정이 묶임 · 나중에 설정에서 구글·이메일 계정으로 연결 가능', 'Start as guest\nAccount is limited to this browser · link Google or email later in Settings'))) return;
     tryLogin(() => window.Cloud.guest());
   };
   Sound.setScene('title', 'camp');
