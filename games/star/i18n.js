@@ -1067,12 +1067,22 @@
   window.StarI18n = { translate, setLanguage, getLanguage: () => language, refresh: () => scan(document.body, true) };
   document.documentElement.lang = language;
   scan(document.body);
+  // Observe inserted/changed text only. Attribute writes are not observed,
+  // preventing translation updates from feeding back into the observer.
+  let queued = false;
+  const pending = [];
   const observer = new MutationObserver(records => {
     for (const record of records) {
-      if (record.type === 'characterData') processText(record.target);
-      else record.addedNodes.forEach(node => scan(node));
-      if (record.type === 'attributes') processElement(record.target);
+      if (record.type === 'characterData') pending.push(record.target);
+      else record.addedNodes.forEach(node => pending.push(node));
     }
+    if (queued) return;
+    queued = true;
+    Promise.resolve().then(() => {
+      queued = false;
+      const batch = pending.splice(0, pending.length);
+      for (const node of batch) scan(node);
+    });
   });
-  observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
 })();
