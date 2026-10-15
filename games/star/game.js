@@ -1,6 +1,12 @@
 // 별의 설화 — 로비(캠프·방치 상자·강화·상점) + 전투(웨이브 3개 스테이지 도전)
 'use strict';
 
+const LANG_KEY = 'starTale.language.v1';
+function getLanguage() { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ko'; } catch (_) { return 'ko'; } }
+function setLanguage(lang) { try { localStorage.setItem(LANG_KEY, lang === 'en' ? 'en' : 'ko'); } catch (_) {} document.documentElement.lang = lang === 'en' ? 'en' : 'ko'; if (modalKind === 'settings') openSettings(); }
+const LANG = { ko:{settings:'설정',language:'언어 / Language',korean:'한국어',english:'English',leader:'리더',leaderHelp:'주인공 없이 동료들이 싸움 · 강화는 캐릭터마다 따로 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배',changeLeader:'리더 바꾸기',sound:'소리',bgm:'음악',sfx:'효과음',on:'켜짐',off:'꺼짐'}, en:{settings:'Settings',language:'Language / 언어',korean:'한국어',english:'English',leader:'Leader',leaderHelp:'Allies fight without a separate protagonist. Upgrades are character-specific; gear, traits, class, skills and potions apply to the leader. Defeat occurs when everyone falls.',changeLeader:'Change leader',sound:'Sound',bgm:'Music',sfx:'Sound effects',on:'On',off:'Off'} };
+function tr(key) { return (LANG[getLanguage()] || LANG.ko)[key] || key; }
+
 // 주소에 ?test를 붙이면 테스트용 저장을 따로 쓴다 (진짜 진행을 건드리지 않음)
 const TEST = new URLSearchParams(location.search).has('test');
 const SAVE_BASE = 'starTale.save.v1';
@@ -4478,15 +4484,17 @@ function showSyncChoice(remote) {
 
 function openSettings() {
   modalKind = 'settings';
-  $('mTitle').textContent = '설정';
+  $('mTitle').textContent = tr('settings');
+  const lang = getLanguage();
   $('mBody').innerHTML = `<div class="mgold" id="mGold"></div>
-    <div class="up"><div class="nm">리더<small>${esc(allyName(leaderId()))}</small></div><div class="val">주인공 없이 동료들이 싸움 · 강화는 캐릭터마다 따로 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배</div>
-      <button id="toLeader">리더 바꾸기</button></div>
-    <div class="up"><div class="nm">소리</div><div class="val">배경음악 · 버튼 효과음</div>
-      <div class="skbtns"><button id="tBgm" class="equip${Sound.bgm ? ' on' : ''}">음악 ${Sound.bgm ? '켜짐' : '꺼짐'}</button><button id="tSfx" class="equip${Sound.sfx ? ' on' : ''}">효과음 ${Sound.sfx ? '켜짐' : '꺼짐'}</button></div></div>
+    <div class="up"><div class="nm">${tr('language')}</div><div class="val">${lang === 'en' ? 'Choose the language for supported settings text.' : '설정 화면에서 사용할 언어를 선택하세요.'}</div><div class="skbtns"><button id="langKo" class="equip${lang === 'ko' ? ' on' : ''}">${tr('korean')}</button><button id="langEn" class="equip${lang === 'en' ? ' on' : ''}">${tr('english')}</button></div></div>
+    <div class="up"><div class="nm">${tr('leader')}<small>${esc(allyName(leaderId()))}</small></div><div class="val">${tr('leaderHelp')}</div><button id="toLeader">${tr('changeLeader')}</button></div>
+    <div class="up"><div class="nm">${tr('sound')}</div><div class="val">${lang === 'en' ? 'Background music · Button sound effects' : '배경음악 · 버튼 효과음'}</div><div class="skbtns"><button id="tBgm" class="equip${Sound.bgm ? ' on' : ''}">${tr('bgm')} ${Sound.bgm ? tr('on') : tr('off')}</button><button id="tSfx" class="equip${Sound.sfx ? ' on' : ''}">${tr('sfx')} ${Sound.sfx ? tr('on') : tr('off')}</button></div></div>
     <div id="devSlot"></div><div id="setBody"></div>`;
-  $('tBgm').onclick = () => { const on = Sound.toggle('bgm'); $('tBgm').textContent = '음악 ' + (on ? '켜짐' : '꺼짐'); $('tBgm').classList.toggle('on', on); };
-  $('tSfx').onclick = () => { const on = Sound.toggle('sfx'); $('tSfx').textContent = '효과음 ' + (on ? '켜짐' : '꺼짐'); $('tSfx').classList.toggle('on', on); };
+  $('langKo').onclick = () => setLanguage('ko');
+  $('langEn').onclick = () => setLanguage('en');
+  $('tBgm').onclick = () => { const on = Sound.toggle('bgm'); $('tBgm').textContent = tr('bgm') + ' ' + (on ? tr('on') : tr('off')); $('tBgm').classList.toggle('on', on); };
+  $('tSfx').onclick = () => { const on = Sound.toggle('sfx'); $('tSfx').textContent = tr('sfx') + ' ' + (on ? tr('on') : tr('off')); $('tSfx').classList.toggle('on', on); };
   $('toLeader').onclick = () => { closeModal(); openAllies(leaderId()); };
   $('modal').hidden = false;
   refreshSettings();
