@@ -3,11 +3,9 @@
 
 const LANG_KEY = 'starTale.language.v1';
 function getLanguage() { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ko'; } catch (_) { return 'ko'; } }
-function setLanguage(lang) { try { localStorage.setItem(LANG_KEY, lang === 'en' ? 'en' : 'ko'); } catch (_) {} document.documentElement.lang = lang === 'en' ? 'en' : 'ko'; if (window.StarI18n) window.StarI18n.setLanguage(lang); if (modalKind === 'settings') openSettings(); }
+function setLanguage(lang) { try { localStorage.setItem(LANG_KEY, lang === 'en' ? 'en' : 'ko'); } catch (_) {} document.documentElement.lang = lang === 'en' ? 'en' : 'ko'; if (modalKind === 'settings') openSettings(); }
 const LANG = { ko:{settings:'설정',language:'언어 / Language',korean:'한국어',english:'English',leader:'리더',leaderHelp:'주인공 없이 동료들이 싸움 · 강화는 캐릭터마다 따로 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배',changeLeader:'리더 바꾸기',sound:'소리',bgm:'음악',sfx:'효과음',on:'켜짐',off:'꺼짐'}, en:{settings:'Settings',language:'Language / 언어',korean:'한국어',english:'English',leader:'Leader',leaderHelp:'Allies fight without a separate protagonist. Upgrades are character-specific; gear, traits, class, skills and potions apply to the leader. Defeat occurs when everyone falls.',changeLeader:'Change leader',sound:'Sound',bgm:'Music',sfx:'Sound effects',on:'On',off:'Off'} };
 function tr(key) { return (LANG[getLanguage()] || LANG.ko)[key] || key; }
-function msg(ko, en) { return getLanguage() === 'en' ? en : ko; }
-function localizeText(value) { return window.StarI18n ? window.StarI18n.translate(String(value)) : value; }
 
 // 주소에 ?test를 붙이면 테스트용 저장을 따로 쓴다 (진짜 진행을 건드리지 않음)
 const TEST = new URLSearchParams(location.search).has('test');
@@ -277,7 +275,7 @@ function rerollPrice() { return monGold(save.stage) * 20; }
 function buyShopItem(i) {
   const it = save.shop.items[i];
   if (!it || it.sold || save.gold < shopPrice(it)) return;
-  if (save.items.length >= BAG_MAX) return alert(msg('가방 공간 부족 · 장비 판매 필요', 'Inventory full · sell equipment'));
+  if (save.items.length >= BAG_MAX) return alert('가방 공간 부족 · 장비 판매 필요');
   save.gold -= shopPrice(it);
   save.items.push({ ...it, id: save.nextItem++ });
   it.sold = true;
@@ -526,7 +524,7 @@ const againPrice = (base, k) => Math.ceil(base * (1 - againDisc(k) / 100));
 function payGacha(kind, base, again) {
   const k = again && gStreak.kind === kind ? gStreak.n + 1 : 0;
   const cost = againPrice(base, k);
-  if (save.dust < cost) { alert(msg('별가루 부족', 'Not enough stardust')); return false; }
+  if (save.dust < cost) { alert('별가루 부족'); return false; }
   save.dust -= cost;
   gStreak = { kind, n: k };
   return true;
@@ -580,7 +578,7 @@ const dunLeft = id => { ensureDaily(); return DUNGEON_TRIES - (save.daily['d' + 
 
 function startDungeon(id) {
   const D = DUNGEONS.find(x => x.id === id);
-  if (dunLeft(id) <= 0) return alert(msg('오늘 도전 횟수 소진 · 내일 다시', 'No attempts left today · come back tomorrow'));
+  if (dunLeft(id) <= 0) return alert('오늘 도전 횟수 소진 · 내일 다시');
   ensureDaily();
   save.daily['d' + id] = (save.daily['d' + id] || 0) + 1;
   track('dungeon');
@@ -890,7 +888,7 @@ function equipSkill(id, slot) {
   if (at >= 0 && slot === undefined) save.slots[at] = null;
   else {
     const i = slot !== undefined ? slot : save.slots.findIndex((x, k) => !x && skSlotOpen(k));
-    if (i < 0 || !skSlotOpen(i)) { alert(msg('스킬 칸 부족 · 다른 스킬 해제 필요', 'No skill slots available · unequip another skill')); return false; }
+    if (i < 0 || !skSlotOpen(i)) { alert('스킬 칸 부족 · 다른 스킬 해제 필요'); return false; }
     if (at >= 0) save.slots[at] = null;
     save.slots[i] = id;
   }
@@ -1560,7 +1558,7 @@ async function openRank() {
         <td>${allyById(r.leader) || GONE[r.leader] ? `<img src="${allyIcon(r.leader, Math.min(5, Math.max(1, r.star | 0)))}"> ${allyById(r.leader) ? allyById(r.leader).name : GONE[r.leader][0]}` : '-'}</td><td>${esc(r.job || '')}</td>
         <td>${r.stage > 0 ? stageLabel(Math.min(r.stage, MAX_STAGE)) : '-'}</td><td>${fmt(r.power)}</td></tr>`).join('')}</table>`;
     $('rkName').onclick = () => {
-      const n = (prompt(msg('모험단 이름 (최대 8자)', 'Party name (max 8 characters)'), save.name) || '').trim().slice(0, 8);
+      const n = (prompt('모험단 이름 (최대 8자)', save.name) || '').trim().slice(0, 8);
       if (!n) return;
       save.name = n; writeSave(); rankSent = 0; rankUpload(); setTimeout(openRank, 600);
     };
@@ -3017,7 +3015,7 @@ function drawBubble(b, cx, topY) {
   ctx.fillStyle = '#22263f';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(localizeText(b.text), x + w / 2, y + h / 2 + 1);
+  ctx.fillText(b.text, x + w / 2, y + h / 2 + 1);
   ctx.restore();
 }
 
@@ -3170,8 +3168,8 @@ function refreshTraits() {
   });
   if ($('tReset')) $('tReset').onclick = () => {
     const cost = resetCost();
-    if (save.gold < cost) return alert(msg('골드 부족', 'Not enough gold'));
-    if (!confirm(msg(`특성과 전직 초기화\n비용 ${fmt(cost)} G`, `Reset traits and class\nCost ${fmt(cost)} G`))) return;
+    if (save.gold < cost) return alert('골드 부족');
+    if (!confirm(`특성과 전직 초기화\n비용 ${fmt(cost)} G`)) return;
     save.gold -= cost;
     save.traits = {}; save.job = null; save.adv = null;
     refreshStats(); updateHud(); writeSave();
@@ -3307,9 +3305,9 @@ function label(text, cx, y, color) {
   ctx.font = 'bold 20px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#000a';
-  ctx.fillText(localizeText(text), cx * SCALE + 2, y * SCALE + 2);
+  ctx.fillText(text, cx * SCALE + 2, y * SCALE + 2);
   ctx.fillStyle = color;
-  ctx.fillText(localizeText(text), cx * SCALE, y * SCALE);
+  ctx.fillText(text, cx * SCALE, y * SCALE);
 }
 
 function hpBar(x, y, w, ratio, color, h = 2) {
@@ -3326,9 +3324,9 @@ function drawFloats(list, defaultX, defaultY) {
     ctx.font = `900 ${f.big ? 34 : 26}px "Malgun Gothic", sans-serif`;
     const x = (f.x ?? defaultX) * SCALE, y = ((f.y ?? defaultY) - f.t * 18) * SCALE;
     ctx.lineWidth = 5; ctx.strokeStyle = '#000';
-    ctx.strokeText(localizeText(f.text), x, y);
+    ctx.strokeText(f.text, x, y);
     ctx.fillStyle = f.color || '#ffd25e';
-    ctx.fillText(localizeText(f.text), x, y);
+    ctx.fillText(f.text, x, y);
   }
   ctx.globalAlpha = 1;
 }
@@ -3873,7 +3871,7 @@ function renderBattle() {
     gr.addColorStop(0, 'rgba(60,0,40,0)'); gr.addColorStop(1, `rgba(120,0,60,${0.45 + 0.1 * Math.sin(time * 6)})`);
     ctx.fillStyle = gr; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = '#ffb0c8'; ctx.font = '900 34px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(localizeText(`⛓ 특성 봉인 ${Math.ceil(battle.seal)}초`), cv.width / 2, 150);
+    ctx.fillText(`⛓ 특성 봉인 ${Math.ceil(battle.seal)}초`, cv.width / 2, 150);
     ctx.restore();
   }
 
@@ -3983,7 +3981,7 @@ function drawMechOverlay() {
       ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(kx, cy); ctx.lineTo(kx + Math.cos(-time * 9) * r * 0.8, cy + Math.sin(-time * 9) * r * 0.8); ctx.stroke();
       ctx.strokeStyle = '#ffe27a'; ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(kx, cy, r + 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p); ctx.stroke();
       ctx.shadowBlur = 0; ctx.fillStyle = '#fff3c0'; ctx.font = '900 20px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(localizeText(`시계 파괴 ${Math.floor(p * 100)}%`), kx, cy - r - 22);
+      ctx.fillText(`시계 파괴 ${Math.floor(p * 100)}%`, kx, cy - r - 22);
     } else if (id === 'mirror') {                               // 발밑 그림자
       ctx.fillStyle = `rgba(80,30,120,${0.3 + 0.25 * fl})`;
       ctx.beginPath(); ctx.ellipse(kx, (GROUND + 1) * S, 40 * S, 6 * S, 0, 0, Math.PI * 2); ctx.fill();
@@ -3992,7 +3990,7 @@ function drawMechOverlay() {
   if (battle.stop > 0) {                                        // 시간 정지: 푸른 회색 화면
     ctx.fillStyle = 'rgba(120,110,190,0.28)'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#e8e0ff'; ctx.font = '900 34px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(localizeText(`⏱ 시간 정지 ${Math.max(0, battle.stop).toFixed(1)}초`), W / 2, 150);
+    ctx.fillText(`⏱ 시간 정지 ${Math.max(0, battle.stop).toFixed(1)}초`, W / 2, 150);
   }
   if (battle.eclipse > 0) {                                     // 일식: 어두운 화면 + 검은 해
     const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.95);
@@ -4001,7 +3999,7 @@ function drawMechOverlay() {
     ctx.fillStyle = '#05000f'; ctx.shadowColor = '#b8a0ff'; ctx.shadowBlur = 30;
     ctx.beginPath(); ctx.arc(W / 2, 70, 30, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0; ctx.fillStyle = '#d8c8ff'; ctx.font = '900 26px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(localizeText(`일식 · 치명타 0 · ${Math.ceil(battle.eclipse)}초`), W / 2, 130);
+    ctx.fillText(`일식 · 치명타 0 · ${Math.ceil(battle.eclipse)}초`, W / 2, 130);
   }
   ctx.restore();
 }
@@ -4582,9 +4580,9 @@ function refreshSettings() {
     refreshSettings(); cloudUpload();
   };
   if ($('linkE')) $('linkE').onclick = async () => {
-    const em = prompt(msg('연결할 이메일', 'Email to link'));
+    const em = prompt('연결할 이메일');
     if (!em) return;
-    const pw = prompt(msg('사용할 비밀번호 (6자 이상)', 'Password to use (at least 6 characters)'));
+    const pw = prompt('사용할 비밀번호 (6자 이상)');
     if (!pw) return;
     cloudMsg = '';
     try { await window.Cloud.linkEmail(em.trim(), pw); cloudMsg = '이메일 연결 완료'; } catch (e) { cloudMsg = authError(e); }
@@ -4648,7 +4646,7 @@ function devSetStage(st) {
 }
 
 function resetGame() {
-  if (!confirm(msg('처음부터 시작\n이 기기의 진행 상황 전체 삭제' + (cloudOn() ? '\n(클라우드 세이브는 유지)' : ''), 'Start over\nDelete all progress on this device' + (cloudOn() ? '\n(Cloud save will be kept)' : ''))) return;
+  if (!confirm('처음부터 시작\n이 기기의 진행 상황 전체 삭제' + (cloudOn() ? '\n(클라우드 세이브는 유지)' : ''))) return;
   save = null;
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ }
   location.reload();
@@ -4851,7 +4849,7 @@ loadSprites().then(() => {
     tryLogin(async () => { await window.Cloud.resetPw(em); $('loginMsg').textContent = '비밀번호 재설정 메일 발송 완료'; });
   };
   $('guestBtn').onclick = () => {
-    if (!confirm(msg('게스트로 시작\n이 브라우저에만 계정이 묶임 · 나중에 설정에서 구글·이메일 계정으로 연결 가능', 'Start as guest\nAccount is limited to this browser · link Google or email later in Settings'))) return;
+    if (!confirm('게스트로 시작\n이 브라우저에만 계정이 묶임 · 나중에 설정에서 구글·이메일 계정으로 연결 가능')) return;
     tryLogin(() => window.Cloud.guest());
   };
   Sound.setScene('title', 'camp');
