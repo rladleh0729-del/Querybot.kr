@@ -7,6 +7,7 @@ function setLanguage(lang) { try { localStorage.setItem(LANG_KEY, lang === 'en' 
 const LANG = { ko:{settings:'설정',language:'언어 / Language',korean:'한국어',english:'English',leader:'리더',leaderHelp:'주인공 없이 동료들이 싸움 · 강화는 캐릭터마다 따로 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배',changeLeader:'리더 바꾸기',sound:'소리',bgm:'음악',sfx:'효과음',on:'켜짐',off:'꺼짐'}, en:{settings:'Settings',language:'Language / 언어',korean:'한국어',english:'English',leader:'Leader',leaderHelp:'Allies fight without a separate protagonist. Upgrades are character-specific; gear, traits, class, skills and potions apply to the leader. Defeat occurs when everyone falls.',changeLeader:'Change leader',sound:'Sound',bgm:'Music',sfx:'Sound effects',on:'On',off:'Off'} };
 function tr(key) { return (LANG[getLanguage()] || LANG.ko)[key] || key; }
 function msg(ko, en) { return getLanguage() === 'en' ? en : ko; }
+function localizeText(value) { return window.StarI18n ? window.StarI18n.translate(String(value)) : value; }
 
 // 주소에 ?test를 붙이면 테스트용 저장을 따로 쓴다 (진짜 진행을 건드리지 않음)
 const TEST = new URLSearchParams(location.search).has('test');
@@ -3016,7 +3017,7 @@ function drawBubble(b, cx, topY) {
   ctx.fillStyle = '#22263f';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(b.text, x + w / 2, y + h / 2 + 1);
+  ctx.fillText(localizeText(b.text), x + w / 2, y + h / 2 + 1);
   ctx.restore();
 }
 
@@ -3306,9 +3307,9 @@ function label(text, cx, y, color) {
   ctx.font = 'bold 20px "Malgun Gothic", sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#000a';
-  ctx.fillText(text, cx * SCALE + 2, y * SCALE + 2);
+  ctx.fillText(localizeText(text), cx * SCALE + 2, y * SCALE + 2);
   ctx.fillStyle = color;
-  ctx.fillText(text, cx * SCALE, y * SCALE);
+  ctx.fillText(localizeText(text), cx * SCALE, y * SCALE);
 }
 
 function hpBar(x, y, w, ratio, color, h = 2) {
@@ -3325,9 +3326,9 @@ function drawFloats(list, defaultX, defaultY) {
     ctx.font = `900 ${f.big ? 34 : 26}px "Malgun Gothic", sans-serif`;
     const x = (f.x ?? defaultX) * SCALE, y = ((f.y ?? defaultY) - f.t * 18) * SCALE;
     ctx.lineWidth = 5; ctx.strokeStyle = '#000';
-    ctx.strokeText(f.text, x, y);
+    ctx.strokeText(localizeText(f.text), x, y);
     ctx.fillStyle = f.color || '#ffd25e';
-    ctx.fillText(f.text, x, y);
+    ctx.fillText(localizeText(f.text), x, y);
   }
   ctx.globalAlpha = 1;
 }
@@ -3872,7 +3873,7 @@ function renderBattle() {
     gr.addColorStop(0, 'rgba(60,0,40,0)'); gr.addColorStop(1, `rgba(120,0,60,${0.45 + 0.1 * Math.sin(time * 6)})`);
     ctx.fillStyle = gr; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = '#ffb0c8'; ctx.font = '900 34px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(`⛓ 특성 봉인 ${Math.ceil(battle.seal)}초`, cv.width / 2, 150);
+    ctx.fillText(localizeText(`⛓ 특성 봉인 ${Math.ceil(battle.seal)}초`), cv.width / 2, 150);
     ctx.restore();
   }
 
@@ -3982,7 +3983,7 @@ function drawMechOverlay() {
       ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(kx, cy); ctx.lineTo(kx + Math.cos(-time * 9) * r * 0.8, cy + Math.sin(-time * 9) * r * 0.8); ctx.stroke();
       ctx.strokeStyle = '#ffe27a'; ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(kx, cy, r + 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p); ctx.stroke();
       ctx.shadowBlur = 0; ctx.fillStyle = '#fff3c0'; ctx.font = '900 20px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(`시계 파괴 ${Math.floor(p * 100)}%`, kx, cy - r - 22);
+      ctx.fillText(localizeText(`시계 파괴 ${Math.floor(p * 100)}%`), kx, cy - r - 22);
     } else if (id === 'mirror') {                               // 발밑 그림자
       ctx.fillStyle = `rgba(80,30,120,${0.3 + 0.25 * fl})`;
       ctx.beginPath(); ctx.ellipse(kx, (GROUND + 1) * S, 40 * S, 6 * S, 0, 0, Math.PI * 2); ctx.fill();
@@ -3991,7 +3992,7 @@ function drawMechOverlay() {
   if (battle.stop > 0) {                                        // 시간 정지: 푸른 회색 화면
     ctx.fillStyle = 'rgba(120,110,190,0.28)'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#e8e0ff'; ctx.font = '900 34px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(`⏱ 시간 정지 ${Math.max(0, battle.stop).toFixed(1)}초`, W / 2, 150);
+    ctx.fillText(localizeText(`⏱ 시간 정지 ${Math.max(0, battle.stop).toFixed(1)}초`), W / 2, 150);
   }
   if (battle.eclipse > 0) {                                     // 일식: 어두운 화면 + 검은 해
     const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.95);
@@ -4000,7 +4001,7 @@ function drawMechOverlay() {
     ctx.fillStyle = '#05000f'; ctx.shadowColor = '#b8a0ff'; ctx.shadowBlur = 30;
     ctx.beginPath(); ctx.arc(W / 2, 70, 30, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0; ctx.fillStyle = '#d8c8ff'; ctx.font = '900 26px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(`일식 · 치명타 0 · ${Math.ceil(battle.eclipse)}초`, W / 2, 130);
+    ctx.fillText(localizeText(`일식 · 치명타 0 · ${Math.ceil(battle.eclipse)}초`), W / 2, 130);
   }
   ctx.restore();
 }
