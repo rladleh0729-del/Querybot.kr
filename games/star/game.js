@@ -3,7 +3,7 @@
 
 const LANG_KEY = 'starTale.language.v1';
 function getLanguage() { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ko'; } catch (_) { return 'ko'; } }
-function setLanguage(lang) { try { localStorage.setItem(LANG_KEY, lang === 'en' ? 'en' : 'ko'); } catch (_) {} document.documentElement.lang = lang === 'en' ? 'en' : 'ko'; if (modalKind === 'settings') openSettings(); }
+function setLanguage(lang) { lang = lang === 'en' ? 'en' : 'ko'; try { localStorage.setItem(LANG_KEY, lang); } catch (_) {} document.documentElement.lang = lang; if (window.StarI18n) window.StarI18n.setLanguage(lang); if (modalKind === 'settings') openSettings(); }
 const LANG = { ko:{settings:'설정',language:'언어 / Language',korean:'한국어',english:'English',leader:'리더',leaderHelp:'주인공 없이 동료들이 싸움 · 강화는 캐릭터마다 따로 · 장비·특성·전직·스킬·물약은 리더에게 적용 · 모두 쓰러지면 패배',changeLeader:'리더 바꾸기',sound:'소리',bgm:'음악',sfx:'효과음',on:'켜짐',off:'꺼짐'}, en:{settings:'Settings',language:'Language / 언어',korean:'한국어',english:'English',leader:'Leader',leaderHelp:'Allies fight without a separate protagonist. Upgrades are character-specific; gear, traits, class, skills and potions apply to the leader. Defeat occurs when everyone falls.',changeLeader:'Change leader',sound:'Sound',bgm:'Music',sfx:'Sound effects',on:'On',off:'Off'} };
 function tr(key) { return (LANG[getLanguage()] || LANG.ko)[key] || key; }
 
