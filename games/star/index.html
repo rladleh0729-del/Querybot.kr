@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>별의 설화 - 무료 방치형 판타지 RPG 웹게임</title>
 <link rel="icon" href="/games/star/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/games/star/apple-touch-icon.png">
-<meta name="description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG 웹게임. 부서진 별을 되찾는 모험 — 자동 사냥, 챕터 10개와 챕터 보스, 전직 5종, 동료 14명, 스킬 55종, 6등급 장비 수집. 구글 로그인으로 어느 기기에서든 이어서 플레이.">
+<meta name="description" content="설치 없이 브라우저에서 바로 하는 무료 방치형 판타지 RPG 웹게임. 부서진 별을 되찾는 모험 — 자동 사냥, 챕터 10개와 챕터 보스, 전직 5종, 동료 14명, 스킬 55종, 6등급 장비 수집, 다른 모험단과 겨루는 결투장 PvP. 구글 로그인으로 어느 기기에서든 이어서 플레이.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://querybot.kr/games/star/">
 <meta property="og:type" content="website">
@@ -205,8 +205,8 @@ button.stone:not(.lock):hover{filter:brightness(1.06);transform:translateY(-1px)
 .mission .mbar b{display:block;height:100%;background:linear-gradient(90deg,#ffc83a,#ff8a3a)}
 .mission.ready{animation:glowp 1s infinite;background:linear-gradient(180deg,#fff6c8,#ffd870)}
 @keyframes glowp{50%{box-shadow:inset 0 2px 0 #fff,0 0 1.6cqw #ffc83a,0 .35cqw 0 #7a4f2a}}
-.lside{position:absolute;right:1.5%;top:31%;display:flex;flex-direction:column;gap:1cqw;width:8%}
-.lside button{position:relative;height:7cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.4cqw;padding:0}
+.lside{position:absolute;right:1.5%;top:27.5%;display:flex;flex-direction:column;gap:.8cqw;width:8%}
+.lside button{position:relative;height:6.2cqw;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:1.4cqw;padding:0}
 .lside button b{font-size:2.2cqw;line-height:1}
 .lside small{font-size:1cqw;color:var(--muted)}
 .dot{position:absolute;top:.4cqw;right:.5cqw;width:1.1cqw;height:1.1cqw;border-radius:50%;background:#ff4a5a;border:2px solid #fff}
@@ -361,6 +361,8 @@ button.awk{background:linear-gradient(180deg,#ffe27a,#e0902a)!important;color:#4
 table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
 .rank th,.rank td{padding:6px 10px;border-bottom:1px solid #e2c896;text-align:left}.rank td img{width:30px;height:30px;vertical-align:middle}
 .rank tr.top td{font-weight:900}.rank tr.me{background:#fff3c8}
+.pvphead small{color:var(--muted)}.pvpteam{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.pvpteam img{width:34px;height:34px}
+.rank td.pvpteam img{width:26px;height:26px}.pvpopp .nm small{display:block}.pvpopp em.bot{font-style:normal;font-size:12px;background:#8a7a6a;color:#fff;border-radius:6px;padding:1px 6px;margin-right:6px}
 /* 픽업·세트 */
 .pickup{display:flex;gap:10px;align-items:center;background:linear-gradient(90deg,#fff3c8,#ffd870);border:2px solid #e0902a;border-radius:12px;padding:6px 12px;margin-bottom:8px}
 .pickup img{width:64px;height:64px}.pickup small{display:block;color:#6a4a10}
@@ -475,6 +477,7 @@ table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
         <li><b>챕터 10개 · 보스</b>들꽃 평원 ~ 별의 제단 · 보스마다 다른 특수 공격</li>
         <li><b>전직 5종</b>검사 · 마법사 · 궁수 · 성직자 · 주술사</li>
         <li><b>동료 14명 · 스킬 55종</b>고유 능력과 캐릭터별 강화, 각성, 보스 전용 스킬</li>
+        <li><b>결투장 PvP</b>다른 모험단의 파티와 겨루는 자동 대전 · 결투 순위</li>
       </ul>
       <p class="small">무료 · 설치 없이 브라우저에서 바로 플레이하는 방치형 판타지 RPG<br>로그인 후 시작 · 진행 상황은 계정에 저장되어 어느 기기에서든 이어서 플레이<br><a href="privacy.html" target="_blank">개인정보처리방침</a></p>
     </div>
@@ -513,6 +516,7 @@ table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
       <div class="lside">
         <button class="stone" data-open="gacha"><b>✦</b>뽑기</button>
         <button class="stone" data-open="dungeon"><b>🏰</b>던전<small id="dunLeft"></small></button>
+        <button class="stone" data-open="arena"><b>⚔</b>결투장<small id="pvpLeft"></small></button>
         <button class="stone" data-open="missions"><b>📜</b>미션<em class="dot" id="msDot" hidden></em></button>
       </div>
       <button class="stone" id="toBattle"><canvas id="battleIcon" width="96" height="96"></canvas>전투<small id="lBattleSub"></small></button>
@@ -567,14 +571,14 @@ table.rank{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
 <div id="modal" hidden>
   <div class="mbox"><header><span id="mTitle"></span><button id="mClose">◀ 돌아가기</button></header><div class="mbody" id="mBody"></div></div>
 </div>
-<script src="sprites.js?v=20261015g"></script>
-<script src="monsters.js?v=20261015g"></script>
-<script src="scenery.js?v=20261015g"></script>
-<script src="scenery2.js?v=20261015g"></script>
-<script src="audio.js?v=20261015g"></script>
-<script src="content.js?v=20261015g"></script>
-<script src="game.js?v=20261015g"></script>
-<script src="i18n.js?v=20261015h"></script>
-<script type="module" src="cloud.js?v=20261015g"></script>
+<script src="sprites.js?v=20261017a"></script>
+<script src="monsters.js?v=20261017a"></script>
+<script src="scenery.js?v=20261017a"></script>
+<script src="scenery2.js?v=20261017a"></script>
+<script src="audio.js?v=20261017a"></script>
+<script src="content.js?v=20261017a"></script>
+<script src="game.js?v=20261017a"></script>
+<script src="i18n.js?v=20261017a"></script>
+<script type="module" src="cloud.js?v=20261017a"></script>
 </body>
 </html>

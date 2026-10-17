@@ -623,6 +623,213 @@ function endDungeon(result) {
   showResult({ retreat: '던전 종료', lost: '쓰러짐 · 던전 종료' }[result] || '시간 종료!', '#ffd25e', text, btns);
 }
 
+// ── 결투장 (PvP): 다른 모험단의 방어 팀과 자동 전투 ──
+// 방어 팀 = 리더 + 배치 동료. 캐릭터마다 [id, 각성, 초당 피해, 버티는 힘, 초당 치유] (전투력 공식과 같은 계산) → arena/{uid}
+// 전투: 상대 파티를 몬스터 줄로 바꿈. 맨 앞은 근접, 뒤는 원거리로 같은 초당 피해, 치유형·흡혈은 가장 다친 아군 치유
+// 물약 금지 · 60초 제한 (시간이 다 되면 남은 체력 비율이 높은 쪽 승리) · 하루 5번 · 점수는 엘로 방식
+// 전투 길이 맞추기: 그대로 두면 서로 0.1초 만에 끝나서, 상대 체력·치유 ×K, 상대 초당 피해 ÷K
+//   (내가 상대를 쓰러뜨리는 시간·상대가 나를 쓰러뜨리는 시간이 똑같이 K배 → 누가 이기는지는 그대로)
+//   K = 두 시간의 기하 평균이 PVP_LEN 초가 되게
+// 결투 열기: 15초가 지나면 양쪽이 주는 피해가 초마다 +15%p (치유가 강한 팀끼리 끝나지 않는 싸움 방지, 60초면 ×7.75)
+const PVP_TRIES = 5, PVP_TIME = 60, PVP_RES = 20, PVP_LEN = 15, PVP_RAMP_AT = 15, PVP_RAMP = 0.15;
+// 상대 초당 피해·체력 배율: 상대는 스킬·고유 능력 없이 싸우므로 보정 (2026-10-17 시험, 같은 강화 수준 리더 단비·토비·카이·미르 + 스킬 AUTO:
+//   이길 수 있는 상대 전투력 한계 = 1.6·1.5·1.5·1.3배 (보정 없음) → 1.35 보정 후 약 1.2·1.1·1.1·1.0배 · 스킬 끄면 0.8배)
+const PVP_DPS = 1.35, PVP_HP = 1.35, PVP_HEAL = 1;
+const PVP_ORDER = { warrior: 1, shot: 2, magic: 3, support: 4, heal: 5 };
+const PVP_TIERS = [[0, '브론즈', '#a0683a'], [1100, '실버', '#7a8a9a'], [1250, '골드', '#c8900a'], [1450, '플래티넘', '#2a9a8a'], [1700, '다이아', '#3a7ad0'], [2000, '별빛', '#9a50d0']];
+const BOT_NAMES = ['그림자 모험단', '거울 기사단', '별먼지 원정대', '달빛 용병단', '안개 사냥꾼', '새벽 순례단'];
+const pvpLeft = () => { ensureDaily(); return PVP_TRIES - (save.daily.pvp || 0); };
+const arenaOf = () => save.arena || (save.arena = { pts: 1000, w: 0, l: 0, best: 1000 });
+function pvpTier(p) { let t = PVP_TIERS[0]; for (const x of PVP_TIERS) if (p >= x[0]) t = x; return t; }
+const tierHtml = p => { const t = pvpTier(p); return `<b style="color:${t[2]}">${t[1]}</b> ${Math.round(p)}점`; };
+
+function pvpTeam() {
+  const m = stats.mods, lid = leaderId(), out = [];
+  for (const id of [...new Set([lid].concat(save.party || []))]) {
+    const A = allyById(id);
+    if (!A) continue;
+    const lead = id === lid, s = lead ? stats : allyStats(id), ce = critExp(s, PVP_RES), act = lead ? s.act : s.aspd;
+    const tm = A.type === 'magic' ? 1 + m.magicAlly / 100 : A.type === 'shot' ? 1 + m.shotAlly / 100 : 1;
+    let dps = s.atk * ce * act * ACT_MUL[A.type] * tm, heal = 0;
+    if (lead) { const b = s.atk * ce * s.aspd * (1 + m.double / 100); dps += b + s.atk * ce * skillDps() * (1 + m.skill / 100); heal += b * m.drain / 100; }
+    const hp = lead ? s.maxHp : s.maxHp * (1 + m.allyHp / 100), guard = lead ? m.guard : Math.min(60, stats.pg.guard);
+    const ehp = hp / (1 - guard / 100) / (1 - s.dodge / 100) / (lead && id === 'bron' ? 1 - BRON_LEAD_GUARD : 1);
+    if (A.type === 'heal') heal += s.atk * 1.1 * (1 + m.healAlly / 100) * (1 + m.healMul / 100) * act;
+    out.push([id, allyStar(id), Math.round(dps), Math.round(ehp), Math.round(heal)]);
+  }
+  return out;
+}
+// 연습 상대: 진짜 상대가 부족할 때 내 팀 능력치 × k 로 만든 다른 동료 파티
+function pvpBot(i, k) {
+  const mine = pvpTeam(), used = new Set(), pts = arenaOf().pts;
+  const team = mine.map(t => {
+    const pool = ALLIES.filter(A => !used.has(A.id)), A = pick(pool);
+    used.add(A.id);
+    return [A.id, 1 + Math.floor(Math.random() * 3), Math.round(t[2] * k), Math.round(t[3] * k), Math.round(t[4] * k)];
+  });
+  return { uid: 'bot' + i, bot: true, name: BOT_NAMES[(i + new Date().getDate()) % BOT_NAMES.length], leader: team[0][0], star: team[0][1],
+    power: Math.floor(power() * k), pts: Math.max(0, Math.round(pts + (k - 1) * 300)), team, job: '' };
+}
+
+// 남이 올린 팀 기록 읽기: 모르는 동료·이상한 숫자는 걸러냄 (숫자는 0 ~ 1e150)
+function cleanTeam(str) {
+  let T;
+  try { T = JSON.parse(str); } catch (_) { return []; }
+  if (!Array.isArray(T)) return [];
+  const num = v => { v = +v; return Number.isFinite(v) ? Math.min(1e150, Math.max(0, v)) : 0; };
+  return T.filter(t => Array.isArray(t) && typeof t[0] === 'string' && allyById(t[0])).slice(0, PARTY_MAX + 1)
+    .map(t => [t[0], Math.min(5, Math.max(1, Math.floor(num(t[1])) || 1)), num(t[2]), num(t[3]), num(t[4])]);
+}
+let pvpOpps = null, pvpMsg = '', pvpAt = 0, pvpTab = 'fight', pvpTop = null, pvpLoading = false;
+const PVP_REFRESH = 10000;
+async function loadOpps() {
+  if (pvpLoading) return;
+  pvpLoading = true; pvpAt = Date.now(); pvpMsg = ''; pvpOpps = null;
+  let real = [];
+  if (cloudOn() && window.Cloud.arenaNear) {
+    try {
+      await arenaUpload(true);
+      const me = window.Cloud.user.uid, p = power();
+      real = (await window.Cloud.arenaNear(p)).filter(r => r.uid !== me && typeof r.team === 'string')
+        .map(r => ({ ...r, name: String(r.name || '모험단').slice(0, 10), power: Math.max(0, +r.power || 0), pts: Math.max(0, +r.pts || 0), team: cleanTeam(r.team) }))
+        .filter(r => r.team.length)
+        .sort((a, b) => Math.abs(Math.log((a.power + 1) / (p + 1))) - Math.abs(Math.log((b.power + 1) / (p + 1))))
+        .slice(0, 8);
+      real.sort(() => Math.random() - 0.5);
+      real = real.slice(0, 3);
+    } catch (e) { console.warn(e); pvpMsg = '결투장 서버 준비 중 · 지금은 연습 상대만'; real = []; }
+  } else pvpMsg = TEST ? '테스트 모드 · 연습 상대만' : '로그인 필요 · 지금은 연습 상대만';
+  pvpLoading = false;
+  if (!pvpMsg && real.length < 3) pvpMsg = '근처 전투력의 모험단이 부족해 연습 상대로 채움';
+  const ks = [0.8, 1, 1.2];
+  pvpOpps = real.concat(ks.slice(real.length).map((k, i) => pvpBot(i, k)));
+  if (modalKind === 'arena') refreshModal();
+}
+
+// 방어 팀 올리기: 1분에 한 번까지, 바뀐 게 있을 때만 (force: 결투 직후·상대 찾기 전)
+let arenaSent = 0, arenaLast = '';
+async function arenaUpload(force) {
+  if (!cloudOn() || !window.Cloud.arenaSave || window.Cloud.user.isAnonymous) return;   // 게스트는 상대 목록에 안 올라감
+  if (!force && Date.now() - arenaSent < 60000) return;
+  const a = arenaOf();
+  const data = { name: String(save.name || '모험단').slice(0, 10), leader: leaderId(), star: allyStar(leaderId()), power: power(),
+    stage: save.stage - 1, job: jobTitle(), team: JSON.stringify(pvpTeam()), pts: Math.round(a.pts), w: a.w, l: a.l };
+  const key = JSON.stringify(data);
+  if (key === arenaLast) return;
+  arenaSent = Date.now();
+  try { await window.Cloud.arenaSave({ ...data, at: Date.now() }); arenaLast = key; }
+  catch (e) { console.warn(e); if (e && e.code === 'permission-denied') arenaSent = Date.now() + 30 * 60000; }   // 서버 규칙이 아직 없으면 30분 쉼
+}
+
+function teamIcons(team) { return team.map(t => `<img src="${allyIcon(t[0], Math.min(5, Math.max(1, t[1] | 0)))}" title="${esc(allyById(t[0]).name)}">`).join(''); }
+function refreshArena() {
+  const a = arenaOf(), left = pvpLeft();
+  const tabs = `<div class="gtabs">${[['fight', '⚔ 대전'], ['top', '🏆 결투 순위']].map(([k, n]) => `<button data-pt="${k}" class="${pvpTab === k ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+  const head = `<div class="lead pvphead">${tierHtml(a.pts)} · ${a.w}승 ${a.l}패 · 남은 도전 <b>${left}</b> / ${PVP_TRIES}<br><small>내 방어 팀 = 지금 리더 + 배치 동료 · 전투력 ${fmt(power())}</small><div class="pvpteam">${teamIcons(pvpTeam())}</div></div>`;
+  let body;
+  if (pvpTab === 'top') {
+    if (!pvpTop) {
+      body = '<p class="note">불러오는 중…</p>';
+      pvpTop = 'loading';
+      (cloudOn() && window.Cloud.arenaTop ? window.Cloud.arenaTop(30) : Promise.reject(new Error('off')))
+        .then(list => { pvpTop = list; }).catch(e => { console.warn(e); pvpTop = 'fail'; })
+        .then(() => { if (modalKind === 'arena') refreshModal(); });
+    } else if (pvpTop === 'loading') body = '<p class="note">불러오는 중…</p>';
+    else if (pvpTop === 'fail') body = '<p class="note">결투 순위 서버 준비 중</p>';
+    else {
+      const me = window.Cloud.user && window.Cloud.user.uid;
+      body = `<table class="rank"><tr><th>순위</th><th>이름</th><th>팀</th><th>점수</th><th>전적</th></tr>${pvpTop.map((r, i) => {
+        const team = cleanTeam(r.team);
+        return `<tr class="${r.uid === me ? 'me' : ''}${i < 3 ? ' top' : ''}"><td>${['🥇', '🥈', '🥉'][i] || i + 1}</td><td>${esc(String(r.name || '').slice(0, 10))}</td><td class="pvpteam">${teamIcons(team)}</td><td>${tierHtml(Math.max(0, +r.pts || 0))}</td><td>${r.w | 0}승 ${r.l | 0}패</td></tr>`;
+      }).join('')}</table>`;
+    }
+  } else if (!pvpOpps) {
+    body = '<p class="note">상대 찾는 중…</p>';
+    if (!pvpLoading) setTimeout(loadOpps, 0);                // 그리기를 마친 뒤 (바로 끝나면 결과를 다시 그림)
+  } else {
+    body = pvpOpps.map((o, i) => `<div class="up pvpopp"><div class="nm">${o.bot ? '<em class="bot">연습</em>' : ''}${esc(o.name)}<small>${tierHtml(o.pts)} · 전투력 ${fmt(o.power)}${o.job ? ' · ' + esc(o.job) : ''}</small></div>
+      <div class="val pvpteam">${teamIcons(o.team)}</div><button data-pvp="${i}" ${left <= 0 ? 'disabled' : ''}>도전</button></div>`).join('')
+      + `<div class="baghead"><span class="note">${esc(pvpMsg)}</span><button id="pvpRe">상대 바꾸기</button></div>`;
+  }
+  $('pBody').innerHTML = tabs + head + body
+    + '<p class="note">승리 시 별가루 +8 · 골드 · 점수 상승 / 패배 시 별가루 +2 · 점수 하락 · 연습 상대는 보상·점수 절반<br>전투 중 물약 사용 불가 · 60초가 지나면 남은 체력 비율이 높은 쪽 승리 · 자정에 도전 횟수 초기화</p>';
+  $('pBody').querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { pvpTab = b.dataset.pt; if (pvpTab === 'top') pvpTop = null; refreshModal(); });
+  $('pBody').querySelectorAll('[data-pvp]').forEach(b => b.onclick = () => { const o = pvpOpps[+b.dataset.pvp]; closeModal(); startPvp(o); });
+  const re = $('pvpRe');
+  if (re) re.onclick = () => { if (Date.now() - pvpAt < PVP_REFRESH) return notify(`${Math.ceil((PVP_REFRESH - Date.now() + pvpAt) / 1000)}초 뒤 다시`); pvpOpps = null; refreshModal(); };
+}
+
+function pvpK(mine, theirs) {
+  const sum = (T, j) => Math.max(1, T.reduce((s, t) => s + (t[j] || 0), 0));
+  const base = Math.sqrt(sum(theirs, 3) / sum(mine, 2) * (sum(mine, 3) / sum(theirs, 2)));
+  return Math.min(1e15, Math.max(1e-9, PVP_LEN / base));
+}
+function pvpMon(t, i, K) {
+  const A = allyById(t[0]), hp = Math.max(1, Math.floor(t[3] * K * PVP_HP));
+  return { name: (i === 0 ? '👑 ' : '') + A.name, pvp: { id: A.id, star: Math.min(5, Math.max(1, t[1] | 0)), type: A.type }, lead: i === 0, size: 32, align: 'neutral', body: null,
+    hp, maxHp: hp, atk: t[2] * PVP_DPS / K, atk0: t[2] * PVP_DPS / K, aspd: 1, heal: t[4] * K * PVP_HEAL, hcd: 1.5, critRes: PVP_RES, ranged: i > 0 && t[2] > 0,
+    shot: A.type === 'magic' ? '#c890ff' : A.type === 'heal' ? '#9ef0b0' : '#ffb05a', gold: 0, noDrop: true, x: 220 + i * 30, cd: 0.8, hurt: 0, dead: 0 };
+}
+function startPvp(o) {
+  if (pvpLeft() <= 0) return alert('오늘 결투 횟수 소진 · 내일 다시');
+  save.daily.pvp = (save.daily.pvp || 0) + 1;
+  SEALED = false;
+  refreshStats();
+  hero.hp = stats.maxHp; hero.cd = 0; floats = [];
+  const team = [o.team[0]].concat(o.team.slice(1).sort((a, b) => PVP_ORDER[allyById(a[0]).type] - PVP_ORDER[allyById(b[0]).type]));
+  const K = pvpK(pvpTeam(), team), queue = team.map((t, i) => pvpMon(t, i, K));
+  battle = { stage: topStage(), pvp: o, king: true, mech: null, wave: 0, queue, pvpK: K, pvpT: 0, pvpRamp: 1, pvpN: queue.length, pvpMax: queue.reduce((s, m) => s + m.maxHp, 0), earned: 0, state: 'fight', delay: 0, potionCd: 0, skillCd: {}, buffs: [], loot: [],
+    timeLeft: PVP_TIME, mechCd: Infinity, mechWarn: 0, bound: 0, allyCd: {}, fx: [], shield: 0, revived: false, poison: 0 };
+  initAllyHp();
+  $('result').hidden = true;
+  showScreen('battle');
+  giveShield();
+  say('hero', pick(['정정당당하게 겨뤄 보자!', '이번엔 사람 상대야. 방심하지 마!', `${o.name}… 상대해 주지!`]), 2.5);
+}
+// 상대 치유: 치유량을 가진 캐릭터가 1.5초마다 가장 다친 아군을 치유 · 결투 열기
+function updatePvp(dt) {
+  battle.pvpT += dt;
+  const r = 1 + Math.max(0, battle.pvpT - PVP_RAMP_AT) * PVP_RAMP;
+  if (r > 1 && battle.pvpRamp === 1) { addFloat('결투 열기! 피해 증가', hero.x + 60, GROUND - 90, '#ff8a3a', true); shake = 0.25; }
+  battle.pvpRamp = r;
+  for (const m of battle.queue) if (m.atk0 !== undefined) m.atk = m.atk0 * r;
+  const q = battle.queue.filter(m => m.dead <= 0);
+  for (const m of q) {
+    if (!(m.heal > 0) || m.stun > 0 || (m.hcd -= dt) > 0) continue;
+    m.hcd = 1.5;
+    const t = q.filter(o => o.hp < o.maxHp).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+    if (!t) continue;
+    const h = Math.floor(Math.min(t.maxHp - t.hp, m.heal * 1.5));
+    t.hp += h;
+    if (h >= 1) { addFloat('+' + fmt(h), t.x + 16, GROUND - 44, '#6fe39a'); battle.fx.push({ kind: 'mheal', x: t.x + 16, t: 0, dur: 0.5 }); }
+  }
+}
+function endPvp(result) {
+  const r = battle, o = r.pvp, a = arenaOf();
+  let won = result === 'won';
+  if (result === 'timeout') {
+    const P = partyHp(), en = r.queue.reduce((s, m) => s + (m.dead > 0 ? 0 : Math.max(0, m.hp)), 0);   // 쓰러진 상대는 줄에서 빠져 있음
+    won = P.hp / P.max > en / Math.max(1, r.pvpMax);
+  }
+  if (won) Sound.win(); else if (result !== 'retreat') Sound.lose();
+  const half = o.bot ? 0.5 : 1, op = Number.isFinite(o.pts) ? o.pts : 1000;
+  const exp = 1 / (1 + Math.pow(10, (op - a.pts) / 400));
+  let d = Math.round(32 * ((won ? 1 : 0) - exp) * half);
+  if (won) d = Math.max(Math.round(5 * half), d);
+  a.pts = Math.max(0, a.pts + d);
+  a.best = Math.max(a.best || 0, a.pts);
+  if (won) a.w++; else a.l++;
+  const dust = Math.round((won ? 8 : 2) * half), gold = won ? Math.floor(monGold(topStage()) * 25 * half) : 0;
+  save.dust += dust; save.gold += gold;
+  writeSave(); cloudUpload(); arenaUpload(true);
+  pvpOpps = null;
+  const left = pvpLeft();
+  const text = `${result === 'timeout' ? '시간 종료 · 남은 체력 비교<br>' : ''}점수 <b>${d >= 0 ? '+' : ''}${d}</b> → ${tierHtml(a.pts)} · ${a.w}승 ${a.l}패<br>별가루 +${dust}${gold ? ` · 골드 +${fmt(gold)} G` : ''}${o.bot ? ' (연습 상대 · 절반)' : ''}`;
+  const btns = [['캠프로', () => showScreen('lobby'), left <= 0]];
+  if (left > 0) btns.unshift([`다음 상대 (남은 ${left})`, () => { showScreen('lobby'); openModal('arena'); }, true]);
+  showResult(won ? `${o.name} 상대로 승리!` : result === 'retreat' ? '항복' : '패배…', won ? '#ffd25e' : '#ff9aa6', text, btns);
+}
+
 // ── 성장 연출 ─────────────────────────────────
 function fanfare(title, sub, sound) {
   const el = $('fanfare');
@@ -1533,6 +1740,7 @@ function updateGoal() {
 let rankSent = 0;
 function rankUpload() {
   if (!cloudOn() || !window.Cloud.rankSave) return;
+  arenaUpload();
   const p = power();
   if (p === rankSent) return;
   rankSent = p;
@@ -1857,6 +2065,7 @@ function updateBattle(dt) {
     battle.timeLeft -= dt;
     battle.bound = Math.max(0, battle.bound - dt);
     if (battle.timeLeft <= 0) { battle.timeLeft = 0; return endBattle('timeout'); }
+    if (battle.pvp) updatePvp(dt);
     const k = battle.queue.find(m => m.king);
     if (k && k.dead <= 0) { if (battle.mech && MECHS[battle.mech] && updateMech(dt, k)) return endBattle('lost'); }
     else mirrorVanish();                                                // 보스가 쓰러지면 그림자 분신도 사라짐
@@ -1894,8 +2103,9 @@ function updateBattle(dt) {
 
   const q = battle.queue;
   // 쓰러진 몬스터 치우기
-  for (const m of q) if (m.dead > 0) m.dead -= dt;
-  while (q.length && q[0].dead < 0) q.shift();
+  // 다 사라진 몬스터는 줄 어디에 있든 뺌 (예전엔 맨 앞만 빼서, 범위 공격에 먼저 쓰러진 뒤쪽 몬스터가 체력 0으로 되살아나 공격·재처치됨)
+  for (const m of q) if (m.dead > 0 && (m.dead -= dt) <= 0) m.dead = -1;
+  for (let i = q.length - 1; i >= 0; i--) if (q[i].dead < 0) q.splice(i, 1);
   const sn = battle.sneak;
   if (sn && sn.dead > 0 && (sn.dead -= dt) <= 0) battle.sneak = null;
   if (!q.length && !battle.sneak) return waveCleared();
@@ -2308,6 +2518,7 @@ function hit(mon, mult, color, kind, els, src) {
     if (m.soul && battle.souls) mult *= 1 + battle.souls * m.soul / 100;
     if (battle.curse > 0) mult *= 0.8;
     if (battle.rally > 0) mult *= 1.4;                                              // 모모: 응원
+    if (battle.pvp) mult *= battle.pvpRamp;                                         // 결투 열기
     if (src.id === 'kai' && (mon.ranged || mon.role === 'healer')) mult *= 1.5;     // 카이: 보물 사냥꾼
     if (mon.vuln) mult *= 1 + mon.vuln.v;                                           // 스킬: 받는 피해 증가
     const ab = buffSum('atk', src === stats);                                       // 스킬 버프: 공격력 (party면 동료도)
@@ -2343,7 +2554,7 @@ function hit(mon, mult, color, kind, els, src) {
   mon.dead = 0.5;
   if (m.soul) battle.souls = Math.min(30, (battle.souls || 0) + 1);
   const burned = mon.burn > 0 || (els && els.includes('fire'));
-  if (!mon.king && !mon.boss && !mon.undead && !mon.role && !mon.intruder && !battle.dungeon && !burned) (battle.corpses = battle.corpses || []).push(mon);
+  if (!mon.king && !mon.boss && !mon.undead && !mon.role && !mon.intruder && !battle.dungeon && !battle.pvp && !burned) (battle.corpses = battle.corpses || []).push(mon);
   if (m.shadow) spawnShadow();
   const gold = Math.floor(mon.gold * (1 + m.gold / 100 + buffSum('gold', true)) * (src.id === 'kai' ? 1.3 : 1));   // 카이가 처치하면 골드 +30% · 스킬 골드 버프
   save.gold += gold;              // 얻은 골드는 바로 저장 (져도 남는다)
@@ -2513,16 +2724,17 @@ function allyAct(id, A, src, i, q, sn) {
 function updateRanged(dt, q) {
   const first = q.find(m => m.dead <= 0);
   for (const m of q) {
-    if (!m.ranged || m === first || m.dead > 0 || m.stun > 0 || m.charm > 0 || m.x > hero.x + 170) continue;
-    if (m.scd === undefined) m.scd = (0.5 + Math.random() * 0.5) / (m.aspd * 0.6);
+    if (!m.ranged || m === first || m.dead > 0 || m.stun > 0 || m.charm > 0 || m.x > hero.x + (battle.pvp ? 400 : 170)) continue;
+    const rk = battle.pvp ? 1 : 0.6;                                   // 결투장: 뒤에 있어도 앞과 같은 초당 피해
+    if (m.scd === undefined) m.scd = (0.5 + Math.random() * 0.5) / (m.aspd * rk);
     if ((m.scd -= dt * (m.slow > 0 ? 0.6 : 1)) > 0) continue;
-    m.scd = 1 / (m.aspd * 0.6);
+    m.scd = 1 / (m.aspd * rk);
     const alive = team().filter(id => !allyDown(id));
     if (!alive.length) return true;
     const id = pick(alive), tx = allyX(id === save.leader ? -1 : save.party.indexOf(id)) + 16;
     battle.fx.push({ kind: 'mshot', from: m.x + (m.size || 32) / 2, x: tx, color: m.shot || '#ffb05a', t: 0, dur: 0.45 });
     if (team().includes('baram') && !allyDown('baram') && Math.random() < 0.2) { addFloat('빗나감', tx, GROUND - 46, '#9fe0ff'); continue; }   // 바람의 노래
-    if (hitMember(id, m.atk * 0.6 * (1 - stats.mods.weak / 100), '#ffb05a', false, false, m)) return true;
+    if (hitMember(id, m.atk * rk * (1 - stats.mods.weak / 100), m.shot || '#ffb05a', false, false, m)) return true;
   }
   return false;
 }
@@ -2834,6 +3046,7 @@ function waveCleared() {
 // result: 'won'(승리) | 'lost'(쓰러짐) | 'retreat'(후퇴) | 'timeout'(보스 시간 초과)
 function endBattle(result) {
   if (SEALED) { SEALED = false; refreshStats(); }
+  if (battle.pvp) { battle.state = result; return endPvp(result); }
   const won = result === 'won';
   if (won) Sound.win(); else if (result !== 'retreat') Sound.lose();
   battle.state = result;
@@ -3268,6 +3481,7 @@ function refreshAllies() {
 
 function usePotion() {
   if (!battle || battle.state !== 'fight') return;
+  if (battle.pvp) return toast('결투장에서는 물약 사용 불가');
   if (save.potions <= 0) return toast('물약 없음 · 캠프 상점에서 구매');
   if (battle.potionCd > 0) return;
   if (hero.hp <= 0) return toast('리더 쓰러짐 · 웨이브를 깨면 일어남');
@@ -3402,6 +3616,7 @@ function updateDots() {
   setDot('[data-open=gear]', save.items.some(it => !Object.values(save.gear).includes(it.id) && itemScore(it) > itemScore(equipped(it.slot))));
   setDot('[data-open=gacha]', save.dust >= GACHA_COST);
   setDot('#lAttend', attendReady());
+  setDot('[data-open=arena]', pvpLeft() >= PVP_TRIES);                 // 오늘 아직 결투 안 함
   if (setReward()) setDot('[data-open=allies]', true);
   updateGoal();
 }
@@ -3891,9 +4106,14 @@ function renderBattle() {
       ctx.translate((sx + 16) * SCALE * 2, 0); ctx.scale(-1, 1);
       ctx.filter = 'brightness(0.3) saturate(0.5) hue-rotate(220deg)';
       drawImg(allyImg(m.mirror), sx, GROUND - 31 + wob, 32, m.hurt);
+    } else if (m.pvp) {                               // 결투장 상대: 그 동료 그림 (왼쪽을 봄)
+      const sx = m.x + (m.kb || 0);
+      ctx.translate((sx + 16) * SCALE * 2, 0); ctx.scale(-1, 1);
+      drawImg(allySprite(m.pvp.id, m.pvp.star, m.pvp.type, 0), sx, GROUND - 31 + wob, 32, m.hurt);
     } else drawImg(face(m.sprite), m.x + (m.kb || 0), GROUND - size + 1 + wob, size, Math.max(m.hurt, warn));
     ctx.restore();
     if (m.dead <= 0) drawMonMarks(m, size);
+    if (battle.pvp && i > 0 && m.dead <= 0) hpBar(m.x + 2, GROUND - size - 5, size - 4, m.hp / m.maxHp, '#ff6b7a');   // 결투장: 뒤 상대도 체력바
     if ((i === 0 || m.king) && m.dead <= 0 && !battle.dungeon) {         // 분신이 앞에 서도 보스 체력바는 보이게
       hpBar(m.x + 2, GROUND - size - 5, size - 4, m.hp / m.maxHp, '#ff6b7a');
       label(m.name + (ALIGN[m.align] && !m.name.includes(ALIGN[m.align][0]) ? ' · ' + ALIGN[m.align][0] : '') + (BODY[m.body] ? ' · ' + BODY[m.body].name : '') + (m.ranged ? ' · 원거리' : ''), m.x + size / 2, GROUND - size - 9, m.role ? ROLES[m.role].color : m.boss ? '#ffb0b8' : '#fff');
@@ -4031,6 +4251,7 @@ function updateHud() {
   $('lShards').textContent = save.shards || 0;
   $('lDust').textContent = fmt(save.dust || 0);
   $('dunLeft').textContent = `${dunLeft('gold') + dunLeft('gear')}/${DUNGEON_TRIES * 2}`;
+  $('pvpLeft').textContent = `${pvpLeft()}/${PVP_TRIES}`;
   updateMissionBanner();
   $('lBattleSub').textContent = allDone ? '스테이지 선택' : atBoss ? '👑 챕터 보스 도전' : `${chapter(c).name} ${stageLabel(top)}`;
   $('lName').textContent = `Lv ${heroLevel()} ${allyName(leaderId())}`;
@@ -4060,7 +4281,7 @@ function updateChest() {
 function updateBattleHud() {
   if (!battle) return;
   $('waves').hidden = !!battle.king;
-  $('bStage').textContent = battle.dungeon ? `🏰 일일 던전 · ${DUNGEONS.find(x => x.id === battle.dungeon).name}` : battle.king ? `👑 챕터 보스 · ${chapter(battle.ch).boss.name}` : `${chapter(chOf(battle.stage)).name} ${stageLabel(battle.stage)}`;
+  $('bStage').textContent = battle.pvp ? `⚔ 결투장 · ${battle.pvp.name}${battle.pvp.bot ? ' (연습)' : ''}` : battle.dungeon ? `🏰 일일 던전 · ${DUNGEONS.find(x => x.id === battle.dungeon).name}` : battle.king ? `👑 챕터 보스 · ${chapter(battle.ch).boss.name}` : `${chapter(chOf(battle.stage)).name} ${stageLabel(battle.stage)}`;
   if (!battle.king) $('bWave').textContent = `웨이브 ${battle.wave + 1} / ${WAVES.length}` + (battle.wave === WAVES.length - 1 ? ' · 대장 등장!' : '') + ` · 몬스터 치명타 저항 ${critRes(battle.stage).toFixed(1)}%`;
   $('skillBar').innerHTML = save.slots.map((id, i) => {
     const sk = id && skillById(id), o = sk && skOf(id), open = skSlotOpen(i);
@@ -4093,6 +4314,7 @@ function updateBattleBars() {
   if (battle && battle.king) {
     const s = Math.ceil(battle.timeLeft);
     if (battle.dungeon) $('bWave').textContent = `남은 시간 ${s}초 · 준 피해 ${fmt(battle.dealt)}`;
+    else if (battle.pvp) { const al = battle.queue.filter(m => m.dead <= 0).length; $('bWave').textContent = `남은 시간 ${s}초 · 남은 상대 ${al} / ${battle.pvpN}` + (battle.pvpRamp > 1 ? ` · 🔥 결투 열기 피해 ×${battle.pvpRamp.toFixed(1)}` : ' · 물약 사용 불가'); }
     else {
       const k = battle.queue.find(m => m.king), rw = !!(battle.mechWarn && mechNow() === 'rewind' && k);
       $('bWave').textContent = `제한 시간 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · `
@@ -4131,6 +4353,7 @@ function openModal(kind) {
   if (kind === 'missions') return openPanel('missions', '미션');
   if (kind === 'gacha') return openPanel('gacha', '뽑기');
   if (kind === 'dungeon') return openPanel('dungeon', '일일 던전');
+  if (kind === 'arena') return openPanel('arena', '결투장');
   if (kind === 'up') return openUpgrade();
   modalKind = kind;
   $('mTitle').textContent = { shop: '상점', skill: '스킬', gear: '장비' }[kind];
@@ -4271,6 +4494,8 @@ function refreshModal() {
       <div class="val">${D.desc} · 하루 ${DUNGEON_TRIES}번</div><button data-dun="${D.id}" ${dunLeft(D.id) <= 0 ? 'disabled' : ''}>입장</button></div>`).join('')
       + '<p class="note">자정에 횟수 초기화 · 지금 진행 중인 스테이지 수준으로 보상</p>';
     $('pBody').querySelectorAll('[data-dun]').forEach(b => b.onclick = () => { closeModal(); startDungeon(b.dataset.dun); });
+  } else if (modalKind === 'arena') {
+    refreshArena();
   } else if (modalKind === 'traits') {
     refreshTraits();
   } else if (modalKind === 'allies') {

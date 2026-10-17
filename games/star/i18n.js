@@ -990,7 +990,25 @@
   "후퇴": "Retreat",
   "다른 탭에서 게임 실행 중": "Game is running in another tab",
   "진행 덮어쓰기 방지를 위해 이 탭 일시 정지": "This tab is paused to prevent progress from being overwritten",
-  "이 탭에서 계속": "Continue in this tab"
+  "이 탭에서 계속": "Continue in this tab",
+  "결투장": "Arena",
+  "⚔ 대전": "⚔ Duel",
+  "🏆 결투 순위": "🏆 Arena ranking",
+  "상대 바꾸기": "New opponents",
+  "연습": "Practice",
+  "상대 찾는 중…": "Finding opponents…",
+  "결투장에서는 물약 사용 불가": "No potions in the Arena",
+  "결투장 서버 준비 중 · 지금은 연습 상대만": "Arena server not ready · practice opponents only",
+  "근처 전투력의 모험단이 부족해 연습 상대로 채움": "Not enough players near your power · filled with practice opponents",
+  "테스트 모드 · 연습 상대만": "Test mode · practice opponents only",
+  "로그인 필요 · 지금은 연습 상대만": "Sign-in required · practice opponents only",
+  "결투 순위 서버 준비 중": "Arena ranking server not ready",
+  "항복": "Surrender",
+  "브론즈": "Bronze",
+  "실버": "Silver",
+  "플래티넘": "Platinum",
+  "다이아": "Diamond",
+  "별빛": "Starlight"
 });
   const sortedTranslations = Object.entries(translations).sort((a,b) => b[0].length - a[0].length);
   const rules = [["공격력","ATK"],["최대 체력","Max HP"],["체력","HP"],["공격 속도","Attack Speed"],["치명타 피해","Critical Damage"],["치명타","Critical"],["별가루","Stardust"],["별조각","Star Shard"],["스테이지","Stage"],["챕터","Chapter"],["동료","Ally"],["파티","Party"],["장비","Equipment"],["강화","Upgrade"],["능력치","Stats"],["스킬","Skill"],["골드","Gold"],["회복","Restore"],["획득","Obtained"],["보상","Reward"],["공격","Attack"],["피해","Damage"],["보호막","Shield"],["회피","Dodge"],["적","Enemy"],["몬스터","Monster"],["보스","Boss"],["대장","Captain"],["사용","Use"],["완료","Complete"],["남음","left"],["부족","Not enough"],["잠김","Locked"],["미보유","Not owned"],["구매","Buy"],["판매","Sell"],["판매하기","Sell"],["무료","Free"],["자동","Auto"],["대기","Waiting"],["결과","Results"],["도전","Challenge"],["입장","Enter"],["나가기","Leave"],["취소","Cancel"],["확인","Confirm"],["닫기","Close"],["뒤로","Back"],["돌아가기","Return"],["전투","Battle"],["캠프","Camp"],["상점","Shop"],["도감","Codex"],["가방","Inventory"],["랭킹","Ranking"],["저장","Save"],["출석","Attendance"],["미션","Mission"],["특성","Traits"],["전직","Class"],["동굴","Cave"],["유적","Ruins"],["회","times"],["초","sec"],["분","min"],["레벨","Level"],["Lv","Lv"],["경험치","EXP"],["확률","Chance"],["확률","Chance"],["일일","Daily"],["오늘","Today"],["내일","Tomorrow"],["보유","Owned"],["필요","Required"],["적용","Apply"],["선택","Select"],["모두","All"],["새로","New"],["최고","Best"],["현재","Current"],["다음","Next"],["이전","Previous"],["강력","Powerful"],["쉬움","Easy"],["보통","Normal"],["어려움","Hard"],["효과","Effect"],["효과음","Sound effects"],["배경음악","Background music"],["무작위","Random"],["치유","Healing"],["독","Poison"],["저주","Curse"],["속박","Bind"],["기절","Stun"],["둔화","Slow"],["넉백","Knockback"],["즉시","Instantly"],["영구","Permanent"],["최종","Final"],["각성","Awakening"]];

@@ -43,6 +43,21 @@ window.Cloud = {
     const c = await getCountFromServer(query(collection(db, 'ranking'), where('power', '>', power)));
     return c.data().count + 1;
   },
+  // 결투장: arena/{uid} = { name, leader, star, power, stage, job, team(JSON 글자), pts, w, l, at }
+  arenaSave: data => setDoc(doc(db, 'arena', auth.currentUser.uid), data),
+  // 내 전투력 근처 (위·아래 각각 최대 15명)
+  async arenaNear(power) {
+    const col = collection(db, 'arena');
+    const [up, down] = await Promise.all([
+      getDocs(query(col, where('power', '>=', power), orderBy('power'), limit(15))),
+      getDocs(query(col, where('power', '<', power), orderBy('power', 'desc'), limit(15))),
+    ]);
+    return up.docs.concat(down.docs).map(d => ({ uid: d.id, ...d.data() }));
+  },
+  async arenaTop(n) {
+    const s = await getDocs(query(collection(db, 'arena'), orderBy('pts', 'desc'), limit(n)));
+    return s.docs.map(d => ({ uid: d.id, ...d.data() }));
+  },
   async save(obj) {
     await setDoc(saveDoc(), { data: JSON.stringify(obj), updatedAt: Date.now() });
   },
