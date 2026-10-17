@@ -28,8 +28,15 @@ let SHARD_BONUS = 0.1;    // 별조각 1개당 공격력·체력 +10%
 const REFLECT_CAP = 0.02;   // 어둠의 힘 반발: 한 번에 리더 최대 체력의 2%까지
 
 // 밸런스 숫자 (시뮬레이션으로 맞춤)
+// 성장 방식 mode: 1 = 더하기 (2026-10-17~) 강화 1레벨마다 공격력 +upAtk·체력 +upHp 로 같은 양씩, 비용은 지수로 커짐 → 후반일수록 가성비 낮음.
+//   몬스터는 monHpA × (1 + hpAddA × (스테이지-1))^hpPowA × 챕터 배율 chA (다항식) · 챕터 보스 배율 kingA
+//   값: dev/star-sim/experiments/fitadd.js (옛 방식과 같은 처치 시간) → dev/star-tune/seqtune.py (챕터마다 옛 방식 시간에 맞춤) → 보스 손질. 시드 5개 1부 2:07~2:51
+// mode: 0 = 곱하기 (옛 방식, 되돌리기용) 강화 1레벨마다 ×1.06, 몬스터는 스테이지마다 ×hpGrow (아래 monHp~atkGrow3·ch·king)
 // 물약·스킬·장비 없이 시뮬레이션: 챕터 1 약 70분, 챕터 2 약 110분 (챕터 2부터 성장률 완만)
-const BAL = { allHp: 1, allAtk: 1, allGold: 1, idleOn: 1, monAspd: 0.8, critStep: 1.5, critMax: 60, awayDust: 16, monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.22, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30, hpGrow3: 1.23, atkGrow3: 1.21,
+const BAL = { mode: 1, upAtk: 3, upHp: 25, monHpA: 2.76, hpAddA: 0.359, hpPowA: 3.56, monAtkA: 4.3, atkAddA: 0.0692, atkPowA: 3.98,
+  chA: { 1: [1.499, 1.922], 2: [1.625, 3.049], 3: [0.673, 0.66], 4: [1.11, 0.481], 5: [1.506, 0.427], 6: [1.413, 0.535], 7: [0.688, 1.413], 8: [0.427, 1.035], 9: [1.525, 0.996], 10: [0.301, 0.841] },
+  kingA: { 1: [1.492, 2.525], 2: [0.502, 0.4], 3: [1, 0.716], 4: [0.664, 0.553], 5: [0.378, 0.657], 6: [0.535, 2.17], 7: [0.247, 0.978], 8: [0.235, 0.795], 9: [0.309, 0.874], 10: [0.393, 0.337] },
+  allHp: 1, allAtk: 1, allGold: 1, idleOn: 1, monAspd: 0.8, critStep: 1.5, critMax: 60, awayDust: 16, monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.22, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30, hpGrow3: 1.23, atkGrow3: 1.21,
   ch: { 4: [1.55, 1], 5: [1.75, 1], 6: [2.2, 1], 7: [1.65, 1], 8: [1.15, 1], 9: [2.1, 1], 10: [0.3, 1] },
   king: { 4: [1, 1], 5: [0.5, 1], 6: [1, 1], 7: [0.32, 1], 8: [0.18, 1], 9: [0.26, 1], 10: [0.27, 0.4] } };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
 // 챕터 4~10 (시뮬레이션으로 맞춤, 2026-10-14): hpGrow3·atkGrow3 = 스테이지 61부터의 3단계 성장 · ch[챕터] = 그 챕터 몬스터 [체력, 공격력] 배율
@@ -39,8 +46,8 @@ const BAL = { allHp: 1, allAtk: 1, allGold: 1, idleOn: 1, monAspd: 0.8, critStep
 // ── 강화 항목 (캐릭터마다 따로, 비용은 그 캐릭터의 레벨 기준) ──
 // save.clv = { [동료 id]: { atk, hp, aspd, crit, agi } }
 const CHAR_UPS = [
-  { id: 'atk',  name: '공격력',    base: 10, grow: 1.075, max: Infinity },
-  { id: 'hp',   name: '체력',      base: 10, grow: 1.075, max: Infinity },
+  { id: 'atk',  name: '공격력',    base: 6,  grow: 1.075, max: Infinity },   // 더하기 방식으로 바꾸며 비용 40% 낮춤 (옛 10)
+  { id: 'hp',   name: '체력',      base: 6,  grow: 1.075, max: Infinity },
   { id: 'aspd', name: '공격 속도', base: 40, grow: 1.12,  max: 40 },
   { id: 'crit', name: '치명타',    base: 30, grow: 1.1,   max: 30 },
   { id: 'agi',  name: '민첩',      base: 30, grow: 1.1,   max: 30 },   // 회피 확률
@@ -86,13 +93,16 @@ function partyGlob() {
   return g;
 }
 // 한 캐릭터의 능력치. L: 강화 레벨(미리보기용), g: 파티 공통 배율. aspd = 동료로서 초당 행동 횟수
-// 초반엔 고정치(+2, +12)가, 후반엔 배율(1.06배)이 성장을 이끈다
+// 더하기 방식: 레벨마다 같은 양 (+upAtk, +upHp) · 곱하기 방식: 초반엔 고정치(+2, +12), 후반엔 배율(1.06배)
+const ADD = () => BAL.mode === 1;
+const lvAtk = L => ADD() ? 10 + BAL.upAtk * L : (10 + 2 * L) * Math.pow(1.06, L);
+const lvHp = L => ADD() ? 100 + BAL.upHp * L : (100 + 12 * L) * Math.pow(1.06, L);
 function charStats(id, L, g) {
   const pf = allyById(id).pf, cm = charMul(id);
   L = L || charLv(id); g = g || partyGlob();
   return { id,
-    atk: Math.floor((10 + 2 * L.atk) * Math.pow(1.06, L.atk) * pf.atk * cm * g.atk),
-    maxHp: Math.floor((100 + 12 * L.hp) * Math.pow(1.06, L.hp) * pf.hp * cm * g.hp),
+    atk: Math.floor(lvAtk(L.atk) * pf.atk * cm * g.atk),
+    maxHp: Math.floor(lvHp(L.hp) * pf.hp * cm * g.hp),
     aspd: pf.spd * (1 + pf.step * L.aspd) * g.aspd,
     crit: pf.crit + 2 * L.crit + g.crit, critDmg: 2, pierce: 0,
     dodge: Math.min(40, pf.agi + 0.8 * L.agi) };
@@ -600,7 +610,7 @@ function startDungeon(id) {
 
 function endDungeon(result) {
   const r = battle, top = r.stage;
-  const hpRef = BAL.monHp * hpGrowth(top);
+  const hpRef = monHp0() * hpGrowth(top);
   const sc = r.dealt / hpRef, score = Number.isFinite(sc) && sc > 0 ? sc : 0;   // 일반 몬스터 몇 마리 분량의 피해를 줬나
   let text;
   if (r.dungeon === 'gold') {
@@ -1230,9 +1240,13 @@ function growth(stage, g1, g2, g3) {
   return Math.pow(g1, Math.min(n, a)) * Math.pow(g2, Math.max(0, Math.min(n, b) - a)) * Math.pow(g3 ?? g2, Math.max(0, n - b));
 }
 // 챕터 4~10 몬스터 배율 BAL.ch[챕터] = [체력, 공격력] (몬스터 종류마다 다른 난이도 고르기)
-const chMul = (stage, i) => (BAL.ch[chOf(stage)] || [1, 1])[i];
-const hpGrowth = stage => growth(stage, BAL.hpGrow, BAL.hpGrow2, BAL.hpGrow3) * chMul(stage, 0);
-const atkGrowth = stage => growth(stage, BAL.atkGrow, BAL.atkGrow2, BAL.atkGrow3) * chMul(stage, 1);
+const chMul = (stage, i) => ((ADD() ? BAL.chA : BAL.ch)[chOf(stage)] || [1, 1])[i];
+const poly = (stage, add, pow) => Math.pow(1 + add * (stage - 1), pow);
+const hpGrowth = stage => (ADD() ? poly(stage, BAL.hpAddA, BAL.hpPowA) : growth(stage, BAL.hpGrow, BAL.hpGrow2, BAL.hpGrow3)) * chMul(stage, 0);
+const atkGrowth = stage => (ADD() ? poly(stage, BAL.atkAddA, BAL.atkPowA) : growth(stage, BAL.atkGrow, BAL.atkGrow2, BAL.atkGrow3)) * chMul(stage, 1);
+const monHp0 = () => ADD() ? BAL.monHpA : BAL.monHp;     // 1-1 몬스터 체력·공격력 (성장 방식별)
+const monAtk0 = () => ADD() ? BAL.monAtkA : BAL.monAtk;
+const kingMul = c => ((ADD() ? BAL.kingA : BAL.king)[c] || [1, 1]);
 
 function monGold(stage) { return Math.ceil(BAL.monGold * BAL.allGold * Math.pow(BAL.goldGrow, stage - 1)); }
 
@@ -1299,12 +1313,12 @@ function eliteRoles(stage) {
 
 function makeMonster(stage, boss) {
   const type = monsterType(stage);
-  const hp = Math.floor(BAL.monHp * BAL.allHp * hpGrowth(stage) * (boss ? BAL.bossHp : 1));
+  const hp = Math.floor(monHp0() * BAL.allHp * hpGrowth(stage) * (boss ? BAL.bossHp : 1));
   return {
     ...type,
     name: boss ? '대장 ' + type.name : type.name,
     boss, hp, maxHp: hp,
-    atk: Math.floor(BAL.monAtk * BAL.allAtk * atkGrowth(stage) * (boss ? BAL.bossAtk : 1)),
+    atk: Math.floor(monAtk0() * BAL.allAtk * atkGrowth(stage) * (boss ? BAL.bossAtk : 1)),
     aspd: BAL.monAspd,
     gold: monGold(stage) * (boss ? BAL.bossGold : 1),
     critRes: critRes(stage),
@@ -1882,7 +1896,7 @@ let talkCh = 1;                    // 대화창의 'boss'가 어느 챕터 보�
 function startBoss(c) {
   c = c || campChapter();
   if (!bossOpen(c)) return;
-  const B = chapter(c).boss, last = c * STAGES_PER, M = MECHS[B.mech] || {}, KM = BAL.king[c] || [1, 1];   // KM: 챕터 보스 배율 [체력, 공격력]
+  const B = chapter(c).boss, last = c * STAGES_PER, M = MECHS[B.mech] || {}, KM = kingMul(c);   // KM: 챕터 보스 배율 [체력, 공격력]
   SEALED = false;
   refreshStats();
   hero.hp = stats.maxHp;
@@ -1891,8 +1905,8 @@ function startBoss(c) {
   const k = makeMonster(last, true);
   Object.assign(k, {
     name: B.name, sprite: B.sprite, king: true, size: 64, x: 200, align: B.align, body: B.body, ranged: !!B.ranged,
-    hp: Math.floor(BAL.monHp * BAL.allHp * hpGrowth(last) * BAL.kingHp * KM[0] * (M.hpMul || 1)),               // 별의 붕괴: 체력 ×1.5
-    atk: Math.floor(BAL.monAtk * BAL.allAtk * atkGrowth(last) * BAL.kingAtk * KM[1]),
+    hp: Math.floor(monHp0() * BAL.allHp * hpGrowth(last) * BAL.kingHp * KM[0] * (M.hpMul || 1)),               // 별의 붕괴: 체력 ×1.5
+    atk: Math.floor(monAtk0() * BAL.allAtk * atkGrowth(last) * BAL.kingAtk * KM[1]),
     gold: monGold(last) * BAL.kingGold,
     critRes: critRes(last) + 5,
   });
@@ -5101,7 +5115,7 @@ function applyTune(data, src) {
   const d = data && typeof data === 'object' ? data : {};
   const b = d.BAL && typeof d.BAL === 'object' ? d.BAL : {};
   for (const k of Object.keys(B)) {
-    if (k === 'ch' || k === 'king') {
+    if (k === 'ch' || k === 'king' || k === 'chA' || k === 'kingA') {
       for (const c of Object.keys(b[k] || {})) {
         const v = b[k][c];
         if (+c >= 1 && +c <= 10 && Array.isArray(v) && v.length === 2 && v.every(x => tuneNum(x, 0))) { B[k][c] = v.slice(); n++; }

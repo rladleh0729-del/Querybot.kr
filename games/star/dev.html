@@ -181,7 +181,7 @@ code { background: #00000010; padding: 1px 4px; border-radius: 4px; font-size: 1
     </section>
     <section class="card">
       <h2>⚒ 강화 비용 계산기</h2>
-      <div class="inline"><label>레벨 <input type="number" id="upLv" value="50" min="0" step="10" style="width:72px"></label><span class="muted">그 레벨에서 1번 강화하는 값 · 따라잡기 할인 전</span></div>
+      <div class="inline"><label>레벨 <input type="number" id="upLv" value="50" min="0" step="10" style="width:72px"></label><span class="muted">그 레벨에서 1번 강화하는 값 · 따라잡기 할인 전 · "1레벨 올리면" = 캐릭터 기본 공격력·체력 기준 (배율 곱하기 전)</span></div>
       <div style="overflow:auto"><table class="t" id="upTable"></table></div>
     </section>
     <section class="card">
@@ -216,7 +216,7 @@ code { background: #00000010; padding: 1px 4px; border-radius: 4px; font-size: 1
 </dialog>
 <div id="toast"></div>
 
-<script src="tune-base.js?v=20261017b"></script>
+<script src="tune-base.js?v=20261017c"></script>
 <script>
 // ── 데이터 모양 ──
 // val = TUNE_BASE 와 같은 모양 { BAL, CHAR_UPS, RARITY_MUL, vars } (편집 중인 전체 값)
@@ -240,7 +240,23 @@ const GROUPS = [
     ['BAL.critStep', '치명타 저항 (스테이지마다)', '스테이지가 1 오를 때마다 내 치명타 확률이 이만큼 깎임', '%p', 0.1],
     ['BAL.critMax', '치명타 저항 최대', '', '%', 1],
   ] },
-  { id: 'grow', icon: '📈', t: '몬스터 성장 곡선', d: '스테이지가 1 오를 때마다 곱하는 값. 1구간 = 챕터 1, 2구간 = 챕터 2~3, 3구간 = 챕터 4~10. 1.25 = 스테이지마다 25% 셈.', f: [
+  { id: 'mode', icon: '⚖', t: '성장 방식', d: '더하기 = 강화 1레벨마다 공격력·체력이 같은 양씩 오름 (비용은 계속 커져서 후반일수록 가성비 낮음). 곱하기 = 옛 방식 (레벨마다 ×1.06, 몬스터도 스테이지마다 ×1.2배쯤 → 숫자가 조·경까지 커짐). 방식을 바꾸면 몬스터 곡선도 그 방식 것으로 바뀜.', open: true, f: [
+    ['BAL.mode', '성장 방식', '', '', 1, { opts: [[1, '더하기'], [0, '곱하기 (옛)']] }],
+    ['BAL.upAtk', '강화 1레벨당 공격력', '더하기 방식 · 기본 공격력 10에 더함 (캐릭터·등급 배율이 곱해짐)', '+', 0.5],
+    ['BAL.upHp', '강화 1레벨당 체력', '더하기 방식 · 기본 체력 100에 더함', '+', 1],
+  ] },
+  { id: 'growA', icon: '📈', t: '몬스터 성장 곡선 (더하기 방식)', d: '몬스터 = 1-1 값 × (1 + 성장 × (스테이지-1))^지수 × 챕터 배율. 지수가 클수록 후반에 가파름. 지금 값은 옛 방식과 처치 시간이 비슷하도록 시뮬로 맞춘 것.', f: [
+    ['BAL.monHpA', '1-1 몬스터 체력', '', '', 0.1],
+    ['BAL.hpAddA', '체력 성장', '', '', 0.005],
+    ['BAL.hpPowA', '체력 지수', '', '^', 0.05],
+    ['BAL.monAtkA', '1-1 몬스터 공격력', '', '', 0.1],
+    ['BAL.atkAddA', '공격력 성장', '', '', 0.005],
+    ['BAL.atkPowA', '공격력 지수', '', '^', 0.05],
+    ['BAL.bossHp', '대장 체력', '스테이지 마지막 대장 = 일반 몬스터 × (두 방식 공통)', '×', 0.1],
+    ['BAL.bossAtk', '대장 공격력', '', '×', 0.1],
+  ] },
+  { id: 'ch', icon: '🗺', t: '챕터별 몬스터 배율 (더하기 방식)', d: '그 챕터 일반 몬스터·대장의 [체력, 공격력]에 곱함. 특정 챕터가 너무 어렵거나 쉬우면 여기서.', table: 'chA' },
+  { id: 'grow', icon: '📉', t: '옛 곱하기 방식 곡선 (되돌리기용)', d: '성장 방식이 "곱하기"일 때만 쓰임. 스테이지가 1 오를 때마다 곱하는 값. 1구간 = 챕터 1, 2구간 = 챕터 2~3, 3구간 = 챕터 4~10.', table2: ['ch', 'king'], f: [
     ['BAL.monHp', '1-1 몬스터 체력', '', '', 1],
     ['BAL.hpGrow', '체력 성장 (챕터 1)', '', '×', 0.01],
     ['BAL.hpGrow2', '체력 성장 (챕터 2~3)', '', '×', 0.01],
@@ -249,15 +265,12 @@ const GROUPS = [
     ['BAL.atkGrow', '공격력 성장 (챕터 1)', '', '×', 0.01],
     ['BAL.atkGrow2', '공격력 성장 (챕터 2~3)', '', '×', 0.01],
     ['BAL.atkGrow3', '공격력 성장 (챕터 4~10)', '', '×', 0.01],
-    ['BAL.bossHp', '대장 체력', '스테이지 마지막 대장 = 일반 몬스터 ×', '×', 0.1],
-    ['BAL.bossAtk', '대장 공격력', '', '×', 0.1],
   ] },
-  { id: 'ch', icon: '🗺', t: '챕터별 몬스터 배율', d: '그 챕터 일반 몬스터·대장의 [체력, 공격력]에 곱함 (몬스터 종류 난이도 차이를 고르는 값).', table: 'ch' },
-  { id: 'king', icon: '👑', t: '챕터 보스', d: '보스 = 챕터 마지막 스테이지 몬스터 × 보스 배율 × 챕터별 배율.', f: [
+  { id: 'king', icon: '👑', t: '챕터 보스', d: '보스 = 챕터 마지막 스테이지 몬스터 × 보스 배율 × 챕터별 보스 배율 (아래 표는 더하기 방식).', f: [
     ['BAL.kingHp', '보스 체력 배율', '', '×', 1],
     ['BAL.kingAtk', '보스 공격력 배율', '', '×', 0.05],
     ['vars.BOSS_TIME', '보스 제한 시간', '특수 공격에 따로 시간이 정해진 보스는 그 시간', '초', 5, { int: 1, min: 10 }],
-  ], table: 'king' },
+  ], table: 'kingA' },
   { id: 'gold', icon: '💰', t: '골드·보상', d: '몬스터 1마리 골드 = 기본 × 성장^(스테이지-1) × 전체 배율. 방치 상자·던전 점수도 이 값을 따름.', f: [
     ['BAL.allGold', '골드 전체 배율', '몬스터·대장·보스·클리어 보너스·방치 상자 모두', '×', 0.05],
     ['BAL.monGold', '1-1 몬스터 골드', '', 'G', 1],
@@ -321,14 +334,16 @@ const GROUPS = [
 // ── 값 읽기·쓰기 ──
 function getP(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
 function setP(o, p, v) { const ks = p.split('.'), last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; }
-// 챕터 표: 없는 챕터 = [1, 1]
+// 챕터 표: 없는 챕터 = [1, 1] · ch·king = 곱하기 방식, chA·kingA = 더하기 방식
+const TABLES = ['ch', 'king', 'chA', 'kingA'];
+const TABLE_NAME = { ch: '챕터(곱하기)', king: '보스(곱하기)', chA: '챕터', kingA: '보스' };
 const tab = (o, k, c) => (o.BAL[k][c] || [1, 1]);
 
 // 편집 값 → 게임 덮어쓰기 (기본값과 다른 것만)
 function toData(v) {
   const d = {}, b = {};
   for (const k of Object.keys(BASE.BAL)) {
-    if (k === 'ch' || k === 'king') {
+    if (TABLES.includes(k)) {
       for (let c = 1; c <= 10; c++) if (!same(tab(v, k, c), tab(BASE, k, c))) (b[k] = b[k] || {})[c] = tab(v, k, c).slice();
     } else if (v.BAL[k] !== BASE.BAL[k]) b[k] = v.BAL[k];
   }
@@ -348,7 +363,7 @@ function fromData(d) {
   const num = x => typeof x === 'number' && Number.isFinite(x);
   const b = d.BAL || {};
   for (const k of Object.keys(BASE.BAL)) {
-    if (k === 'ch' || k === 'king') { for (const c of Object.keys(b[k] || {})) if (Array.isArray(b[k][c]) && b[k][c].length === 2 && b[k][c].every(num)) v.BAL[k][c] = b[k][c].slice(); }
+    if (TABLES.includes(k)) { for (const c of Object.keys(b[k] || {})) if (Array.isArray(b[k][c]) && b[k][c].length === 2 && b[k][c].every(num)) v.BAL[k][c] = b[k][c].slice(); }
     else if (num(b[k])) v.BAL[k] = b[k];
   }
   for (const id of Object.keys(BASE.CHAR_UPS)) for (const f of ['base', 'grow', 'max']) { const x = ((d.CHAR_UPS || {})[id] || {})[f]; if (num(x) && BASE.CHAR_UPS[id][f] !== null) v.CHAR_UPS[id][f] = x; }
@@ -362,7 +377,7 @@ function fromData(d) {
 const countData = d => {
   let n = 0;
   for (const [k, x] of Object.entries(d || {})) {
-    if (k === 'BAL') for (const [bk, bx] of Object.entries(x)) n += (bk === 'ch' || bk === 'king') ? Object.keys(bx).length : 1;
+    if (k === 'BAL') for (const [bk, bx] of Object.entries(x)) n += TABLES.includes(bk) ? Object.keys(bx).length : 1;
     else if (k === 'CHAR_UPS') for (const o of Object.values(x)) n += Object.keys(o).length;
     else n++;
   }
@@ -385,12 +400,16 @@ const SP = INFO.stagesPer, MAXS = INFO.maxStage, G2 = INFO.grow2End;
 const chOf = s => Math.ceil(s / SP);
 function growth(s, g1, g2, g3) { const n = s - 1, a = SP - 1, b = G2 - 1; return Math.pow(g1, Math.min(n, a)) * Math.pow(g2, Math.max(0, Math.min(n, b) - a)) * Math.pow(g3 ?? g2, Math.max(0, n - b)); }
 const F = v => {
-  const B = v.BAL, chm = (s, i) => tab(v, 'ch', chOf(s))[i];
-  const hpG = s => growth(s, B.hpGrow, B.hpGrow2, B.hpGrow3) * chm(s, 0), atkG = s => growth(s, B.atkGrow, B.atkGrow2, B.atkGrow3) * chm(s, 1);
+  const B = v.BAL, A = B.mode === 1, chm = (s, i) => tab(v, A ? 'chA' : 'ch', chOf(s))[i];
+  const poly = (s, add, pow) => Math.pow(1 + add * (s - 1), pow);
+  const hpG = s => (A ? poly(s, B.hpAddA, B.hpPowA) : growth(s, B.hpGrow, B.hpGrow2, B.hpGrow3)) * chm(s, 0);
+  const atkG = s => (A ? poly(s, B.atkAddA, B.atkPowA) : growth(s, B.atkGrow, B.atkGrow2, B.atkGrow3)) * chm(s, 1);
+  const hp0 = A ? B.monHpA : B.monHp, atk0 = A ? B.monAtkA : B.monAtk;
   const gold = s => Math.ceil(B.monGold * B.allGold * Math.pow(B.goldGrow, s - 1));
   return {
-    hp: s => B.monHp * B.allHp * hpG(s), atk: s => B.monAtk * B.allAtk * atkG(s), gold,
-    king: c => { const last = c * SP, K = tab(v, 'king', c); return { hp: B.monHp * B.allHp * hpG(last) * B.kingHp * K[0] * (INFO.chapters[c - 1].hpMul || 1), atk: B.monAtk * B.allAtk * atkG(last) * B.kingAtk * K[1], gold: gold(last) * B.kingGold }; },
+    hp: s => hp0 * B.allHp * hpG(s), atk: s => atk0 * B.allAtk * atkG(s), gold,
+    lvAtk: L => A ? 10 + B.upAtk * L : (10 + 2 * L) * Math.pow(1.06, L), lvHp: L => A ? 100 + B.upHp * L : (100 + 12 * L) * Math.pow(1.06, L),
+    king: c => { const last = c * SP, K = tab(v, A ? 'kingA' : 'king', c); return { hp: hp0 * B.allHp * hpG(last) * B.kingHp * K[0] * (INFO.chapters[c - 1].hpMul || 1), atk: atk0 * B.allAtk * atkG(last) * B.kingAtk * K[1], gold: gold(last) * B.kingGold }; },
     idleRate: s => !B.idleOn ? 0 : (s - 1 < 1 ? 0.5 : B.idle * gold(s - 1)),
     stageGold: s => { const n = v.vars.WAVES.reduce((a, b) => a + b, 0); return gold(s) * (n - 1 + B.bossGold + B.clearBonus); },
   };
@@ -417,10 +436,11 @@ function readNum(inp, o = {}) {
 function buildField(g, [path, label, sub, unit, step, o = {}]) {
   const def = getP(BASE, path), cur = () => getP(val, path);
   let r;
-  if (o.bool) {
-    r = rowEl(label, sub, showV(def, o), `<span class="tog"><button data-v="1">켜기</button><button data-v="0">끄기</button></span>`, path);
+  if (o.bool || o.opts) {
+    const opts = o.opts || [[1, '켜기'], [0, '끄기']];
+    r = rowEl(label, sub, o.opts ? opts.find(x => x[0] === def)[1] : showV(def, o), `<span class="tog">${opts.map(([v, t]) => `<button data-v="${v}">${t}</button>`).join('')}</span>`, path);
     const bs = r.querySelectorAll('.tog button');
-    const paint = () => bs.forEach(b => b.classList.toggle('sel', +b.dataset.v === (cur() ? 1 : 0)));
+    const paint = () => bs.forEach(b => b.classList.toggle('sel', +b.dataset.v === (o.opts ? cur() : cur() ? 1 : 0)));
     bs.forEach(b => b.onclick = () => { setP(val, path, +b.dataset.v); paint(); changed(); });
     r.paint = paint;
   } else if (Array.isArray(def)) {
@@ -463,7 +483,7 @@ function buildChTable(k) {
   const paint = () => {
     t.innerHTML = `<tr><th>챕터</th><th>체력 ×</th><th>공격력 ×</th><th></th></tr>` + INFO.chapters.map((C, i) => {
       const c = i + 1, x = tab(val, k, c), d = tab(BASE, k, c), chg = !same(x, d);
-      return `<tr data-c="${c}"><td>${c}. ${k === 'king' ? C.boss : C.name}${C.hpMul !== 1 && k === 'king' ? ` <span class="muted">(특수 ×${C.hpMul})</span>` : ''}</td>
+      return `<tr data-c="${c}"><td>${c}. ${k.startsWith('king') ? C.boss : C.name}${C.hpMul !== 1 && k.startsWith('king') ? ` <span class="muted">(특수 ×${C.hpMul})</span>` : ''}</td>
         <td class="${x[0] !== d[0] ? 'chg' : ''}">${numInput(x[0], 0.05)}<div class="muted">기본 ${d[0]}</div></td>
         <td class="${x[1] !== d[1] ? 'chg' : ''}">${numInput(x[1], 0.05)}<div class="muted">기본 ${d[1]}</div></td>
         <td>${chg ? '<button class="sm" data-r="1">↺</button>' : ''}</td></tr>`;
@@ -478,7 +498,7 @@ function buildChTable(k) {
   };
   wrap.paint = paint;
   wrap.isChg = () => [...Array(10)].some((_, i) => !same(tab(val, k, i + 1), tab(BASE, k, i + 1)));
-  wrap.txt = (k === 'ch' ? '챕터 몬스터 배율 ' : '챕터 보스 배율 ') + INFO.chapters.map(C => C.name + ' ' + C.boss).join(' ');
+  wrap.txt = (k.startsWith('ch') ? '챕터 몬스터 배율 ' : '챕터 보스 배율 ') + (k.endsWith('A') ? '더하기 ' : '곱하기 ') + INFO.chapters.map(C => C.name + ' ' + C.boss).join(' ');
   wrap.isTable = true;
   paint();
   ROWS.push(wrap);
@@ -521,9 +541,10 @@ function buildGroups() {
     el.open = !!g.open;
     el.id = 'g_' + g.id;
     el.innerHTML = `<summary><h2>${g.icon} ${g.t} <span class="n"></span></h2></summary>${g.d ? `<p class="desc">${g.d}</p>` : ''}`;
-    if (g.table === 'ch') el.appendChild(buildChTable(g.table));
+    if (g.table === 'chA') el.appendChild(buildChTable('chA'));
     for (const f of g.f || []) el.appendChild(buildField(g, f));
-    if (g.table === 'king') { const h = document.createElement('p'); h.className = 'desc'; h.style.marginTop = '10px'; h.textContent = '챕터별 보스 배율 [체력, 공격력]'; el.appendChild(h); el.appendChild(buildChTable('king')); }
+    if (g.table === 'kingA') { const h = document.createElement('p'); h.className = 'desc'; h.style.marginTop = '10px'; h.textContent = '챕터별 보스 배율 [체력, 공격력]'; el.appendChild(h); el.appendChild(buildChTable('kingA')); }
+    for (const k of g.table2 || []) { const h = document.createElement('p'); h.className = 'desc'; h.style.marginTop = '10px'; h.textContent = k === 'ch' ? '챕터별 몬스터 배율 (곱하기)' : '챕터별 보스 배율 (곱하기)'; el.appendChild(h); el.appendChild(buildChTable(k)); }
     if (g.table === 'ups') { const h = document.createElement('p'); h.className = 'desc'; h.textContent = '캐릭터 강화 항목 (캐릭터마다 따로)'; el.insertBefore(h, el.children[2] || null); el.insertBefore(buildUpTable(), h.nextSibling); }
     el.rows = ROWS.filter(r => el.contains(r));
     box.appendChild(el);
@@ -662,13 +683,15 @@ function drawKing() {
 function drawUps() {
   const L = Math.max(0, Math.floor(+$('upLv').value || 0));
   const f = F(val), s = +$('idleStage').value, cap = f.idleRate(s) * val.vars.IDLE_CAP_HOURS * 3600;
-  $('upTable').innerHTML = `<tr><th>항목</th><th>Lv ${L} 비용</th><th>기본값</th><th>가득 찬 상자로 (${label(s)})</th></tr>` + INFO.ups.map(([id, name]) => {
+  const gain = (id, fx) => { const a = id === 'atk' ? fx.lvAtk : fx.lvHp; return [a(L + 1) - a(L), (a(L + 1) / a(L) - 1) * 100]; };
+  $('upTable').innerHTML = `<tr><th>항목</th><th>Lv ${L} 비용</th><th>기본값</th><th>1레벨 올리면</th><th>가득 찬 상자로 (${label(s)})</th></tr>` + INFO.ups.map(([id, name]) => {
     const u = val.CHAR_UPS[id], d = BASE.CHAR_UPS[id];
     const cost = l => Math.floor(u.base * Math.pow(u.grow, l)), dc = Math.floor(d.base * Math.pow(d.grow, L));
     const max = u.max === null ? Infinity : u.max;
-    if (L >= max) return `<tr><td>${name}</td><td colspan="3" class="muted">최대 레벨 ${max}</td></tr>`;
+    if (L >= max) return `<tr><td>${name}</td><td colspan="4" class="muted">최대 레벨 ${max}</td></tr>`;
+    const gn = id === 'atk' || id === 'hp' ? (([g, p]) => `+${fmt(g)} (${p < 0.1 ? p.toFixed(2) : p.toFixed(1)}%)`)(gain(id, f)) : '-';
     let n = 0, left = cap; while (L + n < max && left >= cost(L + n) && n < 9999) { left -= cost(L + n); n++; }
-    return `<tr><td>${name}</td><td>${fmt(cost(L))} G</td><td class="muted">${fmt(dc)} G</td><td>${val.BAL.idleOn ? `+${n >= 9999 ? '9999+' : n} 레벨` : '-'}</td></tr>`;
+    return `<tr><td>${name}</td><td>${fmt(cost(L))} G</td><td class="muted">${fmt(dc)} G</td><td>${gn}</td><td>${val.BAL.idleOn ? `+${n >= 9999 ? '9999+' : n} 레벨` : '-'}</td></tr>`;
   }).join('');
 }
 function drawGacha() {
@@ -707,7 +730,7 @@ function diffList(a, b) {
   const va = fromData(a), vb = fromData(b), out = [];
   const name = p => { for (const g of GROUPS) for (const f of g.f || []) if (f[0] === p) return f[1]; return p; };
   for (const k of Object.keys(BASE.BAL)) {
-    if (k === 'ch' || k === 'king') { for (let c = 1; c <= 10; c++) if (!same(tab(va, k, c), tab(vb, k, c))) out.push(`${k === 'ch' ? '챕터' : '보스'} ${c} 배율: ${tab(vb, k, c).join('/')} → ${tab(va, k, c).join('/')}`); }
+    if (TABLES.includes(k)) { for (let c = 1; c <= 10; c++) if (!same(tab(va, k, c), tab(vb, k, c))) out.push(`${TABLE_NAME[k]} ${c} 배율: ${tab(vb, k, c).join('/')} → ${tab(va, k, c).join('/')}`); }
     else if (va.BAL[k] !== vb.BAL[k]) out.push(`${name('BAL.' + k)}: ${vb.BAL[k]} → ${va.BAL[k]}`);
   }
   for (const [id, nm] of INFO.ups) for (const f of ['base', 'grow', 'max']) if (va.CHAR_UPS[id][f] !== vb.CHAR_UPS[id][f]) out.push(`강화 ${nm} ${{ base: '기본 비용', grow: '성장', max: '최대' }[f]}: ${vb.CHAR_UPS[id][f]} → ${va.CHAR_UPS[id][f]}`);
