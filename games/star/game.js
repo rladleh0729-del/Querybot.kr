@@ -14,22 +14,22 @@ let SAVE_KEY = SAVE_BASE + (TEST ? '.test' : '');   // 로그인하면 계정별
 const STAGES_PER = 20;      // 챕터마다 스테이지 20개 (스테이지 번호는 전체 번호: 2-1 = 21)
 const SCALE = 3;            // 320×180 도트 화면을 960×540으로 키워 그림
 const GROUND = 140;
-const WAVES = [3, 3, 4];    // 웨이브별 몬스터 수. 마지막 웨이브의 마지막은 대장
-const WAVE_HEAL = 0.5;      // 웨이브를 깨면 최대 체력의 50% 회복
-const POTION_HEAL = 0.4;
-const POTION_CD = 15;       // 물약 사용 텀(초)
-const POTION_MAX = 20;
-const IDLE_CAP_HOURS = 8;
-const BOSS_TIME = 60;       // 챕터 보스 제한 시간(초)
+let WAVES = [3, 3, 4];    // 웨이브별 몬스터 수. 마지막 웨이브의 마지막은 대장
+let WAVE_HEAL = 0.5;      // 웨이브를 깨면 최대 체력의 50% 회복
+let POTION_HEAL = 0.4;
+let POTION_CD = 15;       // 물약 사용 텀(초)
+let POTION_MAX = 20;
+let IDLE_CAP_HOURS = 8;
+let BOSS_TIME = 60;       // 챕터 보스 제한 시간(초)
 const MECH_WARN = 1.2;      // 보스 특수 공격 전 경고 시간
 const ROOT_TIME = 2;        // 뿌리 감옥에 묶여 있는 시간
-const REPLAY_BONUS = 0.3;   // 이미 깬 스테이지의 클리어 보상 비율
-const SHARD_BONUS = 0.1;    // 별조각 1개당 공격력·체력 +10%
+let REPLAY_BONUS = 0.3;   // 이미 깬 스테이지의 클리어 보상 비율
+let SHARD_BONUS = 0.1;    // 별조각 1개당 공격력·체력 +10%
 const REFLECT_CAP = 0.02;   // 어둠의 힘 반발: 한 번에 리더 최대 체력의 2%까지
 
 // 밸런스 숫자 (시뮬레이션으로 맞춤)
 // 물약·스킬·장비 없이 시뮬레이션: 챕터 1 약 70분, 챕터 2 약 110분 (챕터 2부터 성장률 완만)
-const BAL = { monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.22, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30, hpGrow3: 1.23, atkGrow3: 1.21,
+const BAL = { allHp: 1, allAtk: 1, allGold: 1, idleOn: 1, monAspd: 0.8, critStep: 1.5, critMax: 60, awayDust: 16, monHp: 30, hpGrow: 1.55, monAtk: 5, atkGrow: 1.45, monGold: 3, goldGrow: 1.22, bossHp: 4, bossAtk: 1.6, bossGold: 5, idle: 0.22, clearBonus: 5, hpGrow2: 1.25, atkGrow2: 1.22, kingHp: 20, kingAtk: 0.6, kingGold: 30, hpGrow3: 1.23, atkGrow3: 1.21,
   ch: { 4: [1.55, 1], 5: [1.75, 1], 6: [2.2, 1], 7: [1.65, 1], 8: [1.15, 1], 9: [2.1, 1], 10: [0.3, 1] },
   king: { 4: [1, 1], 5: [0.5, 1], 6: [1, 1], 7: [0.32, 1], 8: [0.18, 1], 9: [0.26, 1], 10: [0.27, 0.4] } };   // 보스: 물약·스킬 없이 1-20 클리어 후 약 10분 성장하면 40초 안팎에 처치
 // 챕터 4~10 (시뮬레이션으로 맞춤, 2026-10-14): hpGrow3·atkGrow3 = 스테이지 61부터의 3단계 성장 · ch[챕터] = 그 챕터 몬스터 [체력, 공격력] 배율
@@ -51,7 +51,7 @@ function ensureLv(id) { save.clv = save.clv || {}; return save.clv[id] || (save.
 
 function upgradeCost(u, level) { return Math.floor(u.base * Math.pow(u.grow, level)); }
 // 따라잡기: 보유 캐릭터(리더 포함) 중 그 항목 최고 레벨(모험단 기록)보다 낮으면 비용 75% 할인. 기록을 새로 세우는 강화는 제값
-const CATCHUP_MUL = 0.25;
+let CATCHUP_MUL = 0.25;
 const upTop = u => Math.max(0, ...Object.keys((save && save.allies) || {}).filter(id => save.allies[id] && allyById(id)).concat([leaderId()]).map(id => charLv(id)[u.id] || 0));
 function charUpCost(id, u, lv) { const c = upgradeCost(u, lv); return lv < upTop(u) ? Math.max(1, Math.floor(c * CATCHUP_MUL)) : c; }
 
@@ -99,7 +99,7 @@ function charStats(id, L, g) {
 }
 // 동료(리더 아닌 캐릭터)로 싸울 때: 협공 공격력 ×3 · 치명타 관통 = 리더 관통(장비·특성)의 50%
 // 리더는 대신 기본 공격 + 장비·특성·전직·스킬
-const ALLY_ATK = 3, ALLY_PIERCE = 0.5;
+let ALLY_ATK = 3, ALLY_PIERCE = 0.5;
 function allyStats(id, L, g) {
   const c = charStats(id, L, g);
   c.atk = Math.floor(c.atk * ALLY_ATK);
@@ -178,10 +178,10 @@ const SKILLS = CONTENT.skills;
 const SK_MAP = Object.fromEntries(SKILLS.map(s => [s.id, s]));
 const skillById = id => SK_MAP[id];
 const SKILL_SLOTS = 4;
-const SK_COST = [30, 300, 1500, 6000, 25000, 100000];       // 등급별 강화 기준 골드 (일반은 스킬마다 cost)
+let SK_COST = [30, 300, 1500, 6000, 25000, 100000];       // 등급별 강화 기준 골드 (일반은 스킬마다 cost)
 const SK_AWAKEN = [0, 1, 2, 3, 4];                         // ★n → ★n+1 에 필요한 조각
 const SK_DUST = 5;                                         // ★5 뒤 중복 → 별가루
-const FREEZE_MAX = 6;                                      // 빙결·정지 최대 초 (보스·대장은 절반)
+let FREEZE_MAX = 6;                                      // 빙결·정지 최대 초 (보스·대장은 절반)
 const SUMMON_MAX = 8;                                      // 동시에 있을 수 있는 소환수
 const AUTO_TEXT = { fight: '전투 중', hurt: '체력 낮음', crowd: '적 2마리 이상', boss: '보스전', down: '동료 쓰러짐', buff: '버프 꺼짐' };
 const FX_ICON = { slash: '⚔', whirl: '🌀', star: '✦', meteor: '☄', bolt: '⚡', chain: 'ϟ', fire: '🔥', ice: '❄', wind: '༄', holy: '✚', shadow: '☾', heal: '♥', shield: '⛨', buff: '▲', arrow: '➶', quake: '⛰', time: '⏱', void: '◉' };
@@ -229,7 +229,7 @@ const GEAR_SLOTS = [
   { id: 'acc',    name: '장신구', names: ['구리 반지', '은 반지', '마법 반지', '영웅의 반지', '전설의 반지', '별의 반지'], stat: '치명타 피해' },
 ];
 const BAG_MAX = 30;
-const DROP_CHANCE = 0.03;   // 일반 몬스터, 대장은 반드시
+let DROP_CHANCE = 0.03;   // 일반 몬스터, 대장은 반드시
 const gearSlot = id => GEAR_SLOTS.find(s => s.id === id);
 
 // 등급 범위 안에서 무작위, 스테이지마다 2%씩 커진다
@@ -495,8 +495,8 @@ function updateMissionBanner() {
 }
 
 // ── 장비 뽑기 ─────────────────────────────────
-const GACHA_COST = 30, GACHA10_COST = 270;
-const GACHA_W = [0, 550, 300, 110, 35, 5];          // 일반은 안 나옴 · 신화 0.5%
+let GACHA_COST = 30, GACHA10_COST = 270;
+let GACHA_W = [0, 550, 300, 110, 35, 5];          // 일반은 안 나옴 · 신화 0.5%
 function gachaGrade(minGrade = 1) {
   const w = GACHA_W.map((x, i) => i >= minGrade ? x : 0);
   let r = Math.random() * w.reduce((a, b) => a + b, 0), gr = 0;
@@ -517,7 +517,7 @@ function addItem(it) {
 // ── 다시 뽑기 ──
 // 결과 화면에서 바로 다시 뽑으면 연속 횟수마다 5%씩 할인 (최대 30%). 결과 화면을 나가면 할인이 사라진다
 let gStreak = { kind: null, n: 0 };
-const AGAIN_STEP = 5, AGAIN_MAX = 30;
+let AGAIN_STEP = 5, AGAIN_MAX = 30;
 const againDisc = k => Math.min(AGAIN_MAX, k * AGAIN_STEP);
 const againPrice = (base, k) => Math.ceil(base * (1 - againDisc(k) / 100));
 // again: 결과 화면의 '다시 뽑기'로 눌렀는지. 아니면 연속 기록을 새로 시작
@@ -573,7 +573,7 @@ const DUNGEONS = [
   { id: 'gold', name: '황금 슬라임 동굴', sprite: 'gold_slime', body: 'soft', desc: '30초 동안 준 피해만큼 골드 획득' },
   { id: 'gear', name: '보물 골렘 유적',   sprite: 'golem',      body: 'armored', desc: '30초 동안 준 피해만큼 별가루와 장비 획득' },
 ];
-const DUNGEON_TRIES = 3, DUNGEON_TIME = 30;
+let DUNGEON_TRIES = 3, DUNGEON_TIME = 30;
 const dunLeft = id => { ensureDaily(); return DUNGEON_TRIES - (save.daily['d' + id] || 0); };
 
 function startDungeon(id) {
@@ -631,10 +631,10 @@ function endDungeon(result) {
 //   (내가 상대를 쓰러뜨리는 시간·상대가 나를 쓰러뜨리는 시간이 똑같이 K배 → 누가 이기는지는 그대로)
 //   K = 두 시간의 기하 평균이 PVP_LEN 초가 되게
 // 결투 열기: 15초가 지나면 양쪽이 주는 피해가 초마다 +15%p (치유가 강한 팀끼리 끝나지 않는 싸움 방지, 60초면 ×7.75)
-const PVP_TRIES = 5, PVP_TIME = 60, PVP_RES = 20, PVP_LEN = 15, PVP_RAMP_AT = 15, PVP_RAMP = 0.15;
+let PVP_TRIES = 5, PVP_TIME = 60, PVP_RES = 20, PVP_LEN = 15, PVP_RAMP_AT = 15, PVP_RAMP = 0.15;
 // 상대 초당 피해·체력 배율: 상대는 스킬·고유 능력 없이 싸우므로 보정 (2026-10-17 시험, 같은 강화 수준 리더 단비·토비·카이·미르 + 스킬 AUTO:
 //   이길 수 있는 상대 전투력 한계 = 1.6·1.5·1.5·1.3배 (보정 없음) → 1.35 보정 후 약 1.2·1.1·1.1·1.0배 · 스킬 끄면 0.8배)
-const PVP_DPS = 1.35, PVP_HP = 1.35, PVP_HEAL = 1;
+let PVP_DPS = 1.35, PVP_HP = 1.35, PVP_HEAL = 1;
 const PVP_ORDER = { warrior: 1, shot: 2, magic: 3, support: 4, heal: 5 };
 const PVP_TIERS = [[0, '브론즈', '#a0683a'], [1100, '실버', '#7a8a9a'], [1250, '골드', '#c8900a'], [1450, '플래티넘', '#2a9a8a'], [1700, '다이아', '#3a7ad0'], [2000, '별빛', '#9a50d0']];
 const BOT_NAMES = ['그림자 모험단', '거울 기사단', '별먼지 원정대', '달빛 용병단', '안개 사냥꾼', '새벽 순례단'];
@@ -900,7 +900,7 @@ const PREFIX = {
   warrior: ['', '용감한', '강철', '영웅', '전설의'],
   support: ['', '노래하는', '바람의', '수호', '여신의'],
 };
-const AWAKEN_COST = [0, 1, 2, 3, 5];          // ★n → ★n+1 에 필요한 조각
+let AWAKEN_COST = [0, 1, 2, 3, 5];          // ★n → ★n+1 에 필요한 조각
 const STAR_MAX = 5;
 const allyById = id => ALLIES.find(a => a.id === id);
 const allyStar = id => (save.astar && save.astar[id]) || 1;
@@ -951,8 +951,8 @@ function codexBonus() {
 }
 
 // ── 동료 뽑기 ──
-const AGACHA_COST = 50, AGACHA10_COST = 450, APITY = 80;
-const AGACHA_W = [0, 72, 25, 3];
+let AGACHA_COST = 50, AGACHA10_COST = 450, APITY = 80;
+let AGACHA_W = [0, 72, 25, 3];
 function allyRoll(minR = 1) {
   let r;
   if ((save.apity || 0) + 1 >= APITY) r = 3;
@@ -1012,8 +1012,8 @@ function awaken(id) {
 
 // ── 스킬 뽑기 · 배우기 · 강화 · 각성 ──
 // 확률(‰): 고급 600 · 희귀 280 · 영웅 90 · 전설 25 · 신화 5. 일반·보스 전용은 안 나옴. 전설 이상 천장 70회(save.spity)
-const SGACHA_COST = 40, SGACHA10_COST = 360, SPITY = 70;
-const SGACHA_W = [0, 600, 280, 90, 25, 5];
+let SGACHA_COST = 40, SGACHA10_COST = 360, SPITY = 70;
+let SGACHA_W = [0, 600, 280, 90, 25, 5];
 function skillRoll(minG = 1) {
   let g = 0;
   const w = SGACHA_W.map((x, i) => i >= ((save.spity || 0) + 1 >= SPITY ? 4 : minG) ? x : 0);
@@ -1234,10 +1234,10 @@ const chMul = (stage, i) => (BAL.ch[chOf(stage)] || [1, 1])[i];
 const hpGrowth = stage => growth(stage, BAL.hpGrow, BAL.hpGrow2, BAL.hpGrow3) * chMul(stage, 0);
 const atkGrowth = stage => growth(stage, BAL.atkGrow, BAL.atkGrow2, BAL.atkGrow3) * chMul(stage, 1);
 
-function monGold(stage) { return Math.ceil(BAL.monGold * Math.pow(BAL.goldGrow, stage - 1)); }
+function monGold(stage) { return Math.ceil(BAL.monGold * BAL.allGold * Math.pow(BAL.goldGrow, stage - 1)); }
 
 // 치명타 저항: 스테이지마다 1.5%씩. 내 치명타 확률에서 그만큼 빠진다
-function critRes(stage) { return Math.min(60, (stage - 1) * 1.5); }
+function critRes(stage) { return Math.min(BAL.critMax, (stage - 1) * BAL.critStep); }
 
 // ── 상성 ──
 // 공격 속성: 베기(소년 주인공·검/도끼 전사) · 관통(사격형·창 전사) · 마법(소녀 주인공·마법형·그림자) · 화염(불 마법) · 신성(심판의 빛 특성)
@@ -1299,13 +1299,13 @@ function eliteRoles(stage) {
 
 function makeMonster(stage, boss) {
   const type = monsterType(stage);
-  const hp = Math.floor(BAL.monHp * hpGrowth(stage) * (boss ? BAL.bossHp : 1));
+  const hp = Math.floor(BAL.monHp * BAL.allHp * hpGrowth(stage) * (boss ? BAL.bossHp : 1));
   return {
     ...type,
     name: boss ? '대장 ' + type.name : type.name,
     boss, hp, maxHp: hp,
-    atk: Math.floor(BAL.monAtk * atkGrowth(stage) * (boss ? BAL.bossAtk : 1)),
-    aspd: 0.8,
+    atk: Math.floor(BAL.monAtk * BAL.allAtk * atkGrowth(stage) * (boss ? BAL.bossAtk : 1)),
+    aspd: BAL.monAspd,
     gold: monGold(stage) * (boss ? BAL.bossGold : 1),
     critRes: critRes(stage),
     x: 330, cd: 0.6, hurt: 0, dead: 0,
@@ -1594,12 +1594,12 @@ function openAttend() {
 }
 
 // ── 접속 보상: 꺼 둔 동안 모인 골드(상자) + 별가루(30분에 1, 최대 16) ──
-const AWAY_MIN = 300, AWAY_X2 = 20;
+let AWAY_MIN = 300, AWAY_X2 = 20;
 function checkAway() {
   const sec = Math.min(IDLE_CAP_HOURS * 3600, (Date.now() - (save.savedAt || Date.now())) / 1000);
   if (sec >= AWAY_MIN) {
     const p = save.awayPend || { dust: 0, sec: 0 };
-    save.awayPend = { dust: Math.min(16, p.dust + Math.floor(sec / 1800)), sec: Math.max(p.sec, sec) };
+    save.awayPend = { dust: Math.min(BAL.awayDust, p.dust + Math.floor(sec / 1800)), sec: Math.max(p.sec, sec) };
   }
   return save.awayPend && (save.awayPend.dust > 0 || save.chest >= 1);
 }
@@ -1816,6 +1816,7 @@ function setsHtml() {
 // 깬 스테이지가 높을수록 초당 골드가 많이 쌓인다. 실제 시간 기준이라 꺼 둔 동안에도 쌓인다.
 function idleRate() {
   const cleared = save.stage - 1;
+  if (!BAL.idleOn) return 0;                     // 개발자 도구에서 방치 상자를 끔
   return cleared < 1 ? 0.5 : BAL.idle * monGold(cleared);
 }
 
@@ -1823,7 +1824,7 @@ function accrue() {
   const now = Date.now();
   const rate = idleRate();
   const cap = rate * IDLE_CAP_HOURS * 3600;
-  save.chest = Math.min(cap, save.chest + rate * Math.max(0, now - save.chestAt) / 1000);
+  if (rate > 0) save.chest = Math.min(cap, save.chest + rate * Math.max(0, now - save.chestAt) / 1000);   // 상자를 꺼도 이미 쌓인 골드는 남김
   save.chestAt = now;
 }
 
@@ -1890,8 +1891,8 @@ function startBoss(c) {
   const k = makeMonster(last, true);
   Object.assign(k, {
     name: B.name, sprite: B.sprite, king: true, size: 64, x: 200, align: B.align, body: B.body, ranged: !!B.ranged,
-    hp: Math.floor(BAL.monHp * hpGrowth(last) * BAL.kingHp * KM[0] * (M.hpMul || 1)),               // 별의 붕괴: 체력 ×1.5
-    atk: Math.floor(BAL.monAtk * atkGrowth(last) * BAL.kingAtk * KM[1]),
+    hp: Math.floor(BAL.monHp * BAL.allHp * hpGrowth(last) * BAL.kingHp * KM[0] * (M.hpMul || 1)),               // 별의 붕괴: 체력 ×1.5
+    atk: Math.floor(BAL.monAtk * BAL.allAtk * atkGrowth(last) * BAL.kingAtk * KM[1]),
     gold: monGold(last) * BAL.kingGold,
     critRes: critRes(last) + 5,
   });
@@ -4261,6 +4262,7 @@ function updateHud() {
   updateDots();
   refreshSettings();
   $('chestRate').textContent = `초당 ${idleRate().toFixed(1)} G`;
+  $('chestBtn').hidden = !BAL.idleOn && save.chest < 1;   // 방치 상자 꺼짐: 남은 골드를 다 받으면 숨김
   updateChest();
   if (!$('modal').hidden) refreshModal();
 }
@@ -4833,6 +4835,8 @@ async function devTools() {
   box.innerHTML = `<div class="nm">개발자 도구<small>${TEST ? '테스트 모드' : '개발자 계정'}</small></div>
     <div class="devgrid">${f('dvGold', '골드', save.gold)}${f('dvDust', '별가루', save.dust)}${f('dvShards', '별조각', save.shards || 0)}${f('dvPot', '물약', save.potions)}${f('dvStage', '도달 스테이지', save.stage, MAX_STAGE + 1)}</div>
     <div class="skbtns"><button id="dvApply">적용</button><button id="dvAllies" class="plain">모든 동료 획득</button><button id="dvCopies" class="plain">동료 조각 +5</button><button id="dvSkills" class="plain">모든 스킬 획득</button><button id="dvSkCopies" class="plain">스킬 조각 +5</button><button id="dvDaily" class="plain">일일 초기화</button></div>
+    <div class="skbtns"><button id="dvTune" class="plain">밸런스 도구 열기</button></div>
+    <p class="note">${tuneInfo()}</p>
     <p class="note" id="dvMsg">도달 스테이지를 다음 챕터로 올리면 앞 챕터 보스도 처치한 것으로 바뀜</p>`;
   $('devSlot').appendChild(box);
   // 빈 칸이나 잘못된 숫자는 적용하지 않는다
@@ -4857,6 +4861,7 @@ async function devTools() {
   $('dvCopies').onclick = () => { save.acopy = save.acopy || {}; Object.keys(save.allies).forEach(id => { if (allyById(id)) save.acopy[id] = (save.acopy[id] || 0) + 5; }); done('조각 +5 지급 완료'); };
   $('dvSkills').onclick = () => { save.sk = save.sk || {}; SKILLS.forEach(sk => { if (!save.sk[sk.id]) gainSkill(sk.id); }); done(`스킬 ${SKILLS.length}종 획득 완료`); };
   $('dvSkCopies').onclick = () => { Object.values(save.sk || {}).forEach(o => { o.copy += 5; }); done('스킬 조각 +5 지급 완료'); };
+  $('dvTune').onclick = () => window.open('dev.html', '_blank');
   $('dvDaily').onclick = () => { save.daily = null; ensureDaily(); done('일일 미션·던전 초기화 완료'); };
 }
 
@@ -5047,6 +5052,100 @@ function begin() {
   window.addEventListener('beforeunload', writeSave);
   if (window.Cloud && window.Cloud.user) cloudSyncOnLogin();
 }
+
+// ── 밸런스 덮어쓰기 (개발자 도구 dev.html) ──
+// 모두에게: dev.html → Firestore config/balance → cloud.js 가 'star-tune' 이벤트로 넘김 (다음 접속을 위해 localStorage 에도 보관)
+// 테스트(?test): dev.html 이 localStorage TUNE_TEST_KEY 에 쓰면 열려 있는 ?test 게임에 바로 적용 (storage 이벤트)
+// 형식 data = { BAL: { monHp, ch: { 4: [체력, 공격력] }, ... }, CHAR_UPS: { atk: { base, grow, max } }, RARITY_MUL: [1, 1.3, 1.7], WAVES: [3, 3, 4], ... }
+// 값이 없거나 이상하면 그 값만 무시하고 원래 값을 쓴다. 전투 중에 오면 전투가 끝난 뒤 적용
+const TUNE_KEY = 'starTale.tune.v1', TUNE_TEST_KEY = 'starTale.tune.test';
+const TUNE_VARS = {
+  WAVES: [() => WAVES, v => { WAVES = v; }], WAVE_HEAL: [() => WAVE_HEAL, v => { WAVE_HEAL = v; }], POTION_HEAL: [() => POTION_HEAL, v => { POTION_HEAL = v; }],
+  POTION_CD: [() => POTION_CD, v => { POTION_CD = v; }], POTION_MAX: [() => POTION_MAX, v => { POTION_MAX = v; }], IDLE_CAP_HOURS: [() => IDLE_CAP_HOURS, v => { IDLE_CAP_HOURS = v; }],
+  BOSS_TIME: [() => BOSS_TIME, v => { BOSS_TIME = v; }], REPLAY_BONUS: [() => REPLAY_BONUS, v => { REPLAY_BONUS = v; }], SHARD_BONUS: [() => SHARD_BONUS, v => { SHARD_BONUS = v; }],
+  CATCHUP_MUL: [() => CATCHUP_MUL, v => { CATCHUP_MUL = v; }], ALLY_ATK: [() => ALLY_ATK, v => { ALLY_ATK = v; }], SK_COST: [() => SK_COST, v => { SK_COST = v; }],
+  FREEZE_MAX: [() => FREEZE_MAX, v => { FREEZE_MAX = v; }], DROP_CHANCE: [() => DROP_CHANCE, v => { DROP_CHANCE = v; }],
+  GACHA_COST: [() => GACHA_COST, v => { GACHA_COST = v; }], GACHA10_COST: [() => GACHA10_COST, v => { GACHA10_COST = v; }], GACHA_W: [() => GACHA_W, v => { GACHA_W = v; }],
+  AGAIN_STEP: [() => AGAIN_STEP, v => { AGAIN_STEP = v; }], AGAIN_MAX: [() => AGAIN_MAX, v => { AGAIN_MAX = v; }],
+  DUNGEON_TRIES: [() => DUNGEON_TRIES, v => { DUNGEON_TRIES = v; }], DUNGEON_TIME: [() => DUNGEON_TIME, v => { DUNGEON_TIME = v; }],
+  PVP_TRIES: [() => PVP_TRIES, v => { PVP_TRIES = v; }], PVP_TIME: [() => PVP_TIME, v => { PVP_TIME = v; }], PVP_RAMP_AT: [() => PVP_RAMP_AT, v => { PVP_RAMP_AT = v; }],
+  PVP_RAMP: [() => PVP_RAMP, v => { PVP_RAMP = v; }], PVP_DPS: [() => PVP_DPS, v => { PVP_DPS = v; }], PVP_HP: [() => PVP_HP, v => { PVP_HP = v; }],
+  AWAKEN_COST: [() => AWAKEN_COST, v => { AWAKEN_COST = v; }],
+  AGACHA_COST: [() => AGACHA_COST, v => { AGACHA_COST = v; }], AGACHA10_COST: [() => AGACHA10_COST, v => { AGACHA10_COST = v; }], APITY: [() => APITY, v => { APITY = v; }], AGACHA_W: [() => AGACHA_W, v => { AGACHA_W = v; }],
+  SGACHA_COST: [() => SGACHA_COST, v => { SGACHA_COST = v; }], SGACHA10_COST: [() => SGACHA10_COST, v => { SGACHA10_COST = v; }], SPITY: [() => SPITY, v => { SPITY = v; }], SGACHA_W: [() => SGACHA_W, v => { SGACHA_W = v; }],
+  AWAY_X2: [() => AWAY_X2, v => { AWAY_X2 = v; }],
+};
+const tuneClone = o => JSON.parse(JSON.stringify(o));
+// 처음 값 (덮어쓰기를 지우면 여기로 돌아감). 최대치 Infinity 는 JSON 에 못 담아서 null
+const TUNE_BASE = {
+  BAL: tuneClone(BAL),
+  CHAR_UPS: Object.fromEntries(CHAR_UPS.map(u => [u.id, { base: u.base, grow: u.grow, max: u.max === Infinity ? null : u.max }])),
+  RARITY_MUL: RARITY.slice(1).map(r => r.mul),
+  vars: Object.fromEntries(Object.entries(TUNE_VARS).map(([k, [get]]) => [k, tuneClone(get())])),
+};
+let tuneSrc = '', tuneCount = 0, tunePending;
+const tuneNum = (v, def) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && typeof def === 'number';
+// 숫자 배열: 길이가 같아야 함 (WAVES 만 1~8칸, 칸마다 1~10마리)
+function tuneArr(k, v, def) {
+  if (!Array.isArray(v) || !Array.isArray(def) || !v.every(x => tuneNum(x, 0))) return false;
+  if (k === 'WAVES') return v.length >= 1 && v.length <= 8 && v.every(x => Number.isInteger(x) && x >= 1 && x <= 10);
+  return v.length === def.length;
+}
+function applyTune(data, src) {
+  if (typeof battle !== 'undefined' && battle && battle.state === 'fight') { tunePending = [data, src]; return; }
+  tunePending = null;
+  const live = typeof save !== 'undefined' && save && typeof stats !== 'undefined' && stats;
+  if (live) { try { accrue(); } catch (_) {} }       // 바뀌기 전 속도로 지금까지 쌓인 상자를 먼저 계산
+  let n = 0;
+  const B = tuneClone(TUNE_BASE.BAL);
+  const d = data && typeof data === 'object' ? data : {};
+  const b = d.BAL && typeof d.BAL === 'object' ? d.BAL : {};
+  for (const k of Object.keys(B)) {
+    if (k === 'ch' || k === 'king') {
+      for (const c of Object.keys(b[k] || {})) {
+        const v = b[k][c];
+        if (+c >= 1 && +c <= 10 && Array.isArray(v) && v.length === 2 && v.every(x => tuneNum(x, 0))) { B[k][c] = v.slice(); n++; }
+      }
+    } else if (k in b && tuneNum(b[k], B[k])) { B[k] = b[k]; n++; }
+  }
+  for (const k of Object.keys(B)) BAL[k] = B[k];
+  for (const u of CHAR_UPS) {
+    const base = TUNE_BASE.CHAR_UPS[u.id], o = (d.CHAR_UPS || {})[u.id] || {};
+    u.base = tuneNum(o.base, 0) ? (n++, o.base) : base.base;
+    u.grow = tuneNum(o.grow, 0) && o.grow >= 1 ? (n++, o.grow) : base.grow;
+    u.max = base.max === null ? Infinity : tuneNum(o.max, 0) && o.max >= 1 ? (n++, Math.floor(o.max)) : base.max;
+  }
+  const rm = tuneArr('RARITY_MUL', d.RARITY_MUL, TUNE_BASE.RARITY_MUL) ? (n++, d.RARITY_MUL) : TUNE_BASE.RARITY_MUL;
+  rm.forEach((m, i) => { RARITY[i + 1].mul = m; });
+  for (const [k, [, set]] of Object.entries(TUNE_VARS)) {
+    const def = TUNE_BASE.vars[k], v = d[k];
+    const ok = Array.isArray(def) ? tuneArr(k, v, def) : tuneNum(v, def);
+    set(ok ? tuneClone(v) : tuneClone(def));
+    if (ok) n++;
+  }
+  tuneSrc = n ? src : ''; tuneCount = n;
+  if (live) { try { refreshStats(); updateHud(); } catch (e) { console.warn('tune', e); } }
+}
+const tuneInfo = () => tuneCount ? `밸런스 덮어쓰기 적용 중 · ${tuneSrc} · 값 ${tuneCount}개` : '밸런스: 기본값';
+const readTuneRec = key => { try { const r = JSON.parse(localStorage.getItem(key) || 'null'); return r && typeof r === 'object' ? r : null; } catch (_) { return null; } };
+// 테스트 모드에서 테스트 덮어쓰기가 있으면 그것, 없으면 모두에게 적용된 값
+function loadTune() {
+  const t = TEST && readTuneRec(TUNE_TEST_KEY);
+  if (t) return applyTune(t.data, '테스트');
+  const r = readTuneRec(TUNE_KEY);
+  applyTune(r && r.data, '모두에게');
+}
+loadTune();
+// cloud.js 가 Firestore 에서 읽은 값 (문서 없음 = null = 기본값)
+window.addEventListener('star-tune', e => {
+  const rec = e.detail;
+  let data = null;
+  try { data = rec && rec.data ? JSON.parse(rec.data) : null; } catch (_) {}
+  try { if (data) localStorage.setItem(TUNE_KEY, JSON.stringify({ data, at: rec.at || 0 })); else localStorage.removeItem(TUNE_KEY); } catch (_) {}
+  loadTune();
+});
+window.addEventListener('storage', e => { if (e.key === TUNE_TEST_KEY || e.key === TUNE_KEY) loadTune(); });
+setInterval(() => { if (tunePending) applyTune(tunePending[0], tunePending[1]); }, 1000);
 
 let spritesReady = false;
 

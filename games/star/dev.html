@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>별의 설화 밸런스 도구</title>
+<link rel="icon" href="/games/star/favicon.svg">
+<style>
+:root {
+  --bg: #f4ead6; --card: #fffaf0; --ink: #3b2626; --sub: #7a6656; --line: #e2d2b6; --wood: #8a5a2b; --wood2: #6d4520;
+  --accent: #c8641e; --good: #2f8a4a; --bad: #c0392b; --warn: #b8860b; --chg: #fff1c9; --def: #a89a8a; --cur: #c8641e; --cur2: #3a6ad0;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+button { font: inherit; cursor: pointer; border: 1px solid var(--wood); background: #fff; color: var(--wood2); border-radius: 8px; padding: 6px 12px; }
+button:hover:not(:disabled) { background: #fbefd9; }
+button:disabled { opacity: .45; cursor: default; }
+button.main { background: var(--wood); color: #fff; }
+button.main:hover:not(:disabled) { background: var(--wood2); }
+button.hot { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.hot:hover:not(:disabled) { background: #a84f12; }
+button.sm { padding: 2px 8px; font-size: 12px; }
+input[type=number], input[type=text], textarea { font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; background: #fff; color: var(--ink); }
+input[type=number] { width: 92px; text-align: right; }
+input.bad { border-color: var(--bad); background: #fde8e4; }
+
+header { position: sticky; top: 0; z-index: 5; background: var(--wood2); color: #fff; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; box-shadow: 0 2px 8px #0003; }
+header h1 { font-size: 17px; margin: 0; letter-spacing: -.3px; }
+header .chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: #ffffff22; white-space: nowrap; }
+.chip.on { background: #f0b04a; color: #3b2626; }
+.chip.warn { background: #e0553f; }
+header .who { font-size: 12px; opacity: .9; }
+header button { border-color: #fff8; background: transparent; color: #fff; }
+header button:hover:not(:disabled) { background: #ffffff22; }
+
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #efe1c6; border-bottom: 1px solid var(--line); }
+.bar .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+.bar label { display: flex; gap: 4px; align-items: center; font-size: 13px; color: var(--sub); }
+.bar input[type=text] { width: 180px; }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px; max-width: 1500px; margin: 0 auto; }
+@media (max-width: 1000px) { main { grid-template-columns: 1fr; } .side { position: static !important; } }
+.side { position: sticky; top: 120px; align-self: start; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 136px); overflow: auto; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.card h2 { font-size: 15px; margin: 0 0 4px; display: flex; align-items: center; gap: 6px; }
+.card h2 .n { font-size: 12px; color: var(--accent); font-weight: normal; }
+.card h2 button { margin-left: auto; }
+.card .desc { color: var(--sub); font-size: 12.5px; margin: 0 0 8px; }
+details.card > summary { list-style: none; cursor: pointer; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary h2::before { content: '▸'; color: var(--wood); transition: transform .15s; display: inline-block; }
+details.card[open] > summary h2::before { transform: rotate(90deg); }
+.groups { display: flex; flex-direction: column; gap: 12px; }
+
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 10px; align-items: center; padding: 6px 6px; border-radius: 8px; }
+.row + .row { border-top: 1px dashed var(--line); }
+.row.chg { background: var(--chg); }
+.row .lab b { font-weight: 600; }
+.row .lab small { display: block; color: var(--sub); font-size: 12px; }
+.row .def { font-size: 12px; color: var(--def); white-space: nowrap; }
+.row .inp { display: flex; gap: 4px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.row .inp .u { font-size: 12px; color: var(--sub); }
+.row .rst { visibility: hidden; }
+.row.chg .rst { visibility: visible; }
+.arr { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.arr label { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--sub); }
+.arr input[type=number] { width: 64px; }
+.tog { display: inline-flex; border: 1px solid var(--wood); border-radius: 8px; overflow: hidden; }
+.tog button { border: 0; border-radius: 0; padding: 4px 12px; }
+.tog button.sel { background: var(--wood); color: #fff; }
+
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.t th, table.t td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.t th:first-child, table.t td:first-child { text-align: left; }
+table.t th { color: var(--sub); font-weight: 600; font-size: 12px; }
+table.t td.chg { background: var(--chg); }
+table.t input[type=number] { width: 70px; }
+.up { color: var(--bad); } .down { color: var(--good); }
+
+.tabs { display: flex; gap: 4px; margin: 4px 0 8px; flex-wrap: wrap; }
+.tabs button { padding: 3px 10px; font-size: 12.5px; }
+.tabs button.sel { background: var(--wood); color: #fff; }
+.chart { position: relative; }
+.chart canvas { width: 100%; height: 260px; display: block; }
+.tip { position: absolute; pointer-events: none; background: #3b2626e8; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -110%); display: none; }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--sub); margin-top: 4px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--cur); vertical-align: middle; margin-right: 4px; }
+.legend i.d { border-top: 2px dashed var(--def); }
+.legend i.b { border-top-color: var(--cur2); }
+
+.kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 8px 0; }
+.kpi div { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.kpi small { display: block; color: var(--sub); font-size: 11.5px; }
+.kpi b { font-size: 16px; }
+.kpi .warn b { color: var(--bad); }
+.kpi .ok b { color: var(--good); }
+.verdict { font-size: 13px; padding: 6px 10px; border-radius: 8px; background: #fff; border-left: 4px solid var(--good); }
+.verdict.warn { border-left-color: var(--warn); }
+.verdict.bad { border-left-color: var(--bad); }
+.inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 13px; }
+.inline input[type=range] { width: 160px; }
+
+.gate { max-width: 460px; margin: 80px auto; text-align: center; }
+.gate p { color: var(--sub); }
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #3b2626; color: #fff; padding: 8px 16px; border-radius: 99px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+#toast.on { opacity: 1; }
+dialog { border: 1px solid var(--line); border-radius: 12px; padding: 16px; max-width: min(720px, 94vw); width: 100%; background: var(--card); color: var(--ink); }
+dialog::backdrop { background: #0006; }
+dialog h3 { margin: 0 0 8px; }
+dialog textarea { width: 100%; height: 300px; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+dialog .btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
+.diff { font-size: 13px; max-height: 320px; overflow: auto; margin: 0; padding-left: 18px; }
+.hist { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.hist div { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; background: #fff; border: 1px solid var(--line); }
+.hist span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { color: var(--sub); font-size: 12px; }
+code { background: #00000010; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="gate" class="gate">
+  <h1>별의 설화 밸런스 도구</h1>
+  <p id="gateMsg">개발자 계정 확인 중…</p>
+  <button class="main" id="gateLogin" hidden>구글 계정으로 로그인</button>
+</div>
+
+<div id="app" hidden>
+<header>
+  <h1>⚖ 별의 설화 밸런스 도구</h1>
+  <div class="chips">
+    <span class="chip" id="chLive">모두에게: 불러오는 중</span>
+    <span class="chip" id="chTest">테스트: 없음</span>
+    <span class="chip" id="chEdit">편집: 기본값</span>
+  </div>
+  <span class="who" id="who"></span>
+  <button id="btnLogin" class="sm">로그인</button>
+</header>
+
+<div class="bar">
+  <button class="main" id="btnTest" title="내 브라우저의 테스트 게임(?test)에만 적용">테스트에 적용</button>
+  <label title="숫자를 바꿀 때마다 테스트 게임에 바로 반영"><input type="checkbox" id="autoTest" checked> 바꾸면 바로 테스트에 반영</label>
+  <button id="btnOpen">테스트 게임 열기</button>
+  <button id="btnTestClear">테스트 값 지우기</button>
+  <span class="sep"></span>
+  <button class="hot" id="btnPublish" title="모든 플레이어 게임에 바로 적용">모두에게 적용…</button>
+  <span class="sep"></span>
+  <button id="btnLoadLive">모두에게 값 불러오기</button>
+  <button id="btnLoadTest">테스트 값 불러오기</button>
+  <button id="btnDefault">전부 기본값으로</button>
+  <button id="btnJson">JSON</button>
+  <span class="sep"></span>
+  <label>🔎 <input type="text" id="search" placeholder="항목 찾기 (예: 상자, 보스)"></label>
+</div>
+
+<main>
+  <div class="groups" id="groups"></div>
+  <div class="side">
+    <section class="card">
+      <h2>📈 스테이지별 몬스터 <span class="n" id="curveNote"></span></h2>
+      <div class="tabs" id="curveTabs">
+        <button data-k="hp" class="sel">체력</button><button data-k="atk">공격력</button><button data-k="gold">1마리 골드</button><button data-k="ratio">기본값 대비 배율</button>
+      </div>
+      <div class="chart"><canvas id="cvCurve" width="900" height="260"></canvas><div class="tip" id="tipCurve"></div></div>
+      <div class="legend"><span><i></i>지금 편집 중</span><span><i class="d"></i>기본값</span><span class="muted">세로선 = 챕터 경계 · 세로 눈금은 10배씩</span></div>
+    </section>
+    <section class="card">
+      <h2>📦 방치 상자 점검</h2>
+      <p class="desc">이 스테이지까지 깬 플레이어 기준. "한 판"은 웨이브 몬스터 전부 + 대장 + 첫 클리어 보너스.</p>
+      <div class="inline">
+        <label>스테이지 <input type="range" id="idleStage" min="2" max="200" value="60"> <b id="idleStageL"></b></label>
+        <label>한 판 걸리는 시간 <input type="number" id="stageSec" value="40" min="5" step="5" style="width:64px"> 초</label>
+      </div>
+      <div class="kpi" id="idleKpi"></div>
+      <div class="verdict" id="idleVerdict"></div>
+    </section>
+    <section class="card">
+      <h2>👑 챕터 보스</h2>
+      <div style="overflow:auto"><table class="t" id="kingTable"></table></div>
+    </section>
+    <section class="card">
+      <h2>⚒ 강화 비용 계산기</h2>
+      <div class="inline"><label>레벨 <input type="number" id="upLv" value="50" min="0" step="10" style="width:72px"></label><span class="muted">그 레벨에서 1번 강화하는 값 · 따라잡기 할인 전</span></div>
+      <div style="overflow:auto"><table class="t" id="upTable"></table></div>
+    </section>
+    <section class="card">
+      <h2>✦ 뽑기 확률</h2>
+      <div id="gachaBox"></div>
+    </section>
+    <section class="card">
+      <h2>🕘 모두에게 적용한 기록</h2>
+      <div class="hist" id="hist"><span class="muted">불러오는 중…</span></div>
+    </section>
+    <section class="card">
+      <h2>🤖 시뮬레이션</h2>
+      <p class="desc">자동 플레이로 챕터별 걸리는 시간을 보려면 'JSON'의 내용을 <code>tune.json</code>으로 저장한 뒤, star-sim 폴더에서 아래를 실행 (또는 Claude에게 "이 밸런스로 시뮬 돌려줘").</p>
+      <code style="display:block;white-space:pre-wrap;word-break:break-all" id="simCmd"></code>
+    </section>
+  </div>
+</main>
+</div>
+
+<dialog id="dlgJson">
+  <h3>JSON (기본값과 다른 값만)</h3>
+  <p class="muted">복사해서 보관하거나, 다른 값을 붙여 넣고 '가져오기'.</p>
+  <textarea id="jsonText" spellcheck="false"></textarea>
+  <div class="btns"><button id="jsonCopy">복사</button><button id="jsonImport" class="main">가져오기</button><button id="jsonClose">닫기</button></div>
+</dialog>
+<dialog id="dlgPub">
+  <h3>모두에게 적용</h3>
+  <p class="muted">지금 접속 중인 플레이어 게임에도 바로 반영됨 (전투 중이면 전투가 끝난 뒤). 아래는 지금 '모두에게' 값과 달라지는 것.</p>
+  <ul class="diff" id="pubDiff"></ul>
+  <p><label>메모 <input type="text" id="pubNote" style="width:100%" placeholder="예: 방치 상자 절반, 챕터 4 몬스터 체력 +20%"></label></p>
+  <div class="btns"><button id="pubCancel">취소</button><button id="pubGo" class="hot">적용</button></div>
+</dialog>
+<div id="toast"></div>
+
+<script src="tune-base.js?v=20261017b"></script>
+<script>
+// ── 데이터 모양 ──
+// val = TUNE_BASE 와 같은 모양 { BAL, CHAR_UPS, RARITY_MUL, vars } (편집 중인 전체 값)
+// data = 게임이 받는 덮어쓰기 (기본값과 다른 것만) { BAL: {...}, CHAR_UPS: {...}, RARITY_MUL, WAVES, ... }
+'use strict';
+const BASE = window.TUNE_BASE, INFO = window.TUNE_INFO;
+const TUNE_TEST_KEY = 'starTale.tune.test';
+const clone = o => JSON.parse(JSON.stringify(o));
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const $ = id => document.getElementById(id);
+let val = clone(BASE), live = null, liveData = {}, editFrom = '기본값';
+
+// ── 항목 정의 ──
+// [경로, 이름, 설명, 단위, step, 옵션]  경로: 'BAL.x' · 'vars.X' · 특수(표)
+// 옵션: { int, min, max, bool, labels(배열 칸 이름), pct(0.5 → 50% 로 보여줌) }
+const GROUPS = [
+  { id: 'quick', icon: '⚔', t: '몬스터 세기 (빠른 조절)', d: '모든 일반 몬스터·대장·챕터 보스에 곱함. 1 = 그대로, 1.3 = 30% 더 셈. 결투장(PvP)은 영향 없음.', open: true, f: [
+    ['BAL.allHp', '몬스터 체력 배율', '전체 몬스터 체력에 곱함', '×', 0.05],
+    ['BAL.allAtk', '몬스터 공격력 배율', '전체 몬스터 공격력에 곱함', '×', 0.05],
+    ['BAL.monAspd', '몬스터 공격 속도', '초당 공격 횟수', '회/초', 0.05],
+    ['BAL.critStep', '치명타 저항 (스테이지마다)', '스테이지가 1 오를 때마다 내 치명타 확률이 이만큼 깎임', '%p', 0.1],
+    ['BAL.critMax', '치명타 저항 최대', '', '%', 1],
+  ] },
+  { id: 'grow', icon: '📈', t: '몬스터 성장 곡선', d: '스테이지가 1 오를 때마다 곱하는 값. 1구간 = 챕터 1, 2구간 = 챕터 2~3, 3구간 = 챕터 4~10. 1.25 = 스테이지마다 25% 셈.', f: [
+    ['BAL.monHp', '1-1 몬스터 체력', '', '', 1],
+    ['BAL.hpGrow', '체력 성장 (챕터 1)', '', '×', 0.01],
+    ['BAL.hpGrow2', '체력 성장 (챕터 2~3)', '', '×', 0.01],
+    ['BAL.hpGrow3', '체력 성장 (챕터 4~10)', '', '×', 0.01],
+    ['BAL.monAtk', '1-1 몬스터 공격력', '', '', 1],
+    ['BAL.atkGrow', '공격력 성장 (챕터 1)', '', '×', 0.01],
+    ['BAL.atkGrow2', '공격력 성장 (챕터 2~3)', '', '×', 0.01],
+    ['BAL.atkGrow3', '공격력 성장 (챕터 4~10)', '', '×', 0.01],
+    ['BAL.bossHp', '대장 체력', '스테이지 마지막 대장 = 일반 몬스터 ×', '×', 0.1],
+    ['BAL.bossAtk', '대장 공격력', '', '×', 0.1],
+  ] },
+  { id: 'ch', icon: '🗺', t: '챕터별 몬스터 배율', d: '그 챕터 일반 몬스터·대장의 [체력, 공격력]에 곱함 (몬스터 종류 난이도 차이를 고르는 값).', table: 'ch' },
+  { id: 'king', icon: '👑', t: '챕터 보스', d: '보스 = 챕터 마지막 스테이지 몬스터 × 보스 배율 × 챕터별 배율.', f: [
+    ['BAL.kingHp', '보스 체력 배율', '', '×', 1],
+    ['BAL.kingAtk', '보스 공격력 배율', '', '×', 0.05],
+    ['vars.BOSS_TIME', '보스 제한 시간', '특수 공격에 따로 시간이 정해진 보스는 그 시간', '초', 5, { int: 1, min: 10 }],
+  ], table: 'king' },
+  { id: 'gold', icon: '💰', t: '골드·보상', d: '몬스터 1마리 골드 = 기본 × 성장^(스테이지-1) × 전체 배율. 방치 상자·던전 점수도 이 값을 따름.', f: [
+    ['BAL.allGold', '골드 전체 배율', '몬스터·대장·보스·클리어 보너스·방치 상자 모두', '×', 0.05],
+    ['BAL.monGold', '1-1 몬스터 골드', '', 'G', 1],
+    ['BAL.goldGrow', '골드 성장', '스테이지마다', '×', 0.01],
+    ['BAL.bossGold', '대장 골드', '일반 몬스터 ×', '×', 0.5],
+    ['BAL.kingGold', '챕터 보스 골드', '일반 몬스터 ×', '×', 1],
+    ['BAL.clearBonus', '스테이지 첫 클리어 보너스', '일반 몬스터 ×', '×', 0.5],
+    ['vars.REPLAY_BONUS', '다시 깬 스테이지 보너스', '첫 클리어 보너스의 몇 %', '', 0.05, { pct: 1 }],
+    ['vars.DROP_CHANCE', '장비 드롭 확률', '일반 몬스터 (대장은 반드시)', '', 0.005, { pct: 1 }],
+  ] },
+  { id: 'idle', icon: '📦', t: '방치 상자 · 접속 보상', d: '상자 초당 골드 = 비율 × (깬 마지막 스테이지 몬스터 1마리 골드). 꺼 둔 동안에도 최대 시간까지 쌓임. → 오른쪽 "방치 상자 점검"에서 효과 확인', open: true, f: [
+    ['BAL.idleOn', '방치 상자', '끄면 더 안 쌓임 (이미 쌓인 골드는 받을 수 있고, 다 받으면 로비에서 사라짐)', '', 1, { bool: 1 }],
+    ['BAL.idle', '방치 비율', '초당 몬스터 몇 마리 분량의 골드', '마리/초', 0.01],
+    ['vars.IDLE_CAP_HOURS', '최대 쌓이는 시간', '접속 보상(별가루)도 이 시간까지만 셈', '시간', 1, { min: 0.5 }],
+    ['BAL.awayDust', '접속 보상 별가루 최대', '30분마다 1개', '개', 1, { int: 1 }],
+    ['vars.AWAY_X2', '접속 보상 2배 비용', '별가루', '개', 5, { int: 1 }],
+  ] },
+  { id: 'battle', icon: '❤', t: '전투', d: '', f: [
+    ['vars.WAVES', '웨이브별 몬스터 수', '마지막 웨이브의 마지막 = 대장. 칸 수 1~8', '마리', 1, { int: 1, min: 1, max: 10, waves: 1 }],
+    ['vars.WAVE_HEAL', '웨이브 클리어 회복', '최대 체력의 몇 %', '', 0.05, { pct: 1 }],
+    ['vars.POTION_HEAL', '물약 회복량', '', '', 0.05, { pct: 1 }],
+    ['vars.POTION_CD', '물약 대기 시간', '', '초', 1],
+    ['vars.POTION_MAX', '물약 최대 보유', '', '개', 1, { int: 1 }],
+    ['vars.SHARD_BONUS', '별조각 1개 보너스', '공격력·체력', '', 0.01, { pct: 1 }],
+    ['vars.ALLY_ATK', '협공 (동료 공격력 배율)', '동료가 리더 기준으로 내는 공격력 ×', '×', 0.1],
+    ['vars.FREEZE_MAX', '빙결·정지 최대 시간', '보스·대장은 절반', '초', 0.5],
+  ] },
+  { id: 'up', icon: '⚒', t: '강화·각성', d: '강화 1번 비용 = 기본 × 성장^(지금 레벨).', table: 'ups', f: [
+    ['vars.CATCHUP_MUL', '따라잡기 비용', '모험단 최고 레벨보다 낮은 항목 강화 비용 (0.25 = 75% 할인)', '', 0.05, { pct: 1 }],
+    ['vars.SK_COST', '스킬 강화 기준 골드', '등급별 (일반은 스킬마다 따로)', 'G', 10, { labels: INFO.grades }],
+    ['vars.AWAKEN_COST', '동료 각성 조각', '★n → ★n+1', '개', 1, { int: 1, labels: ['-', '★1→2', '★2→3', '★3→4', '★4→5'] }],
+    ['RARITY_MUL', '동료 등급 배율', '공격력·체력', '×', 0.05, { labels: INFO.rarity }],
+  ] },
+  { id: 'gacha', icon: '✦', t: '뽑기', d: '확률은 가중치 비율 (오른쪽 "뽑기 확률"에서 % 확인).', f: [
+    ['vars.AGACHA_COST', '동료 뽑기 1회', '별가루', '', 5, { int: 1 }],
+    ['vars.AGACHA10_COST', '동료 뽑기 10회', '', '', 10, { int: 1 }],
+    ['vars.APITY', '동료 전설 천장', '이 횟수 안에 전설 확정', '회', 1, { int: 1, min: 1 }],
+    ['vars.AGACHA_W', '동료 등급 가중치', '', '', 1, { labels: ['-'].concat(INFO.rarity) }],
+    ['vars.SGACHA_COST', '스킬 뽑기 1회', '', '', 5, { int: 1 }],
+    ['vars.SGACHA10_COST', '스킬 뽑기 10회', '', '', 10, { int: 1 }],
+    ['vars.SPITY', '스킬 천장', '', '회', 1, { int: 1, min: 1 }],
+    ['vars.SGACHA_W', '스킬 등급 가중치', '', '', 1, { labels: INFO.grades }],
+    ['vars.GACHA_COST', '장비 뽑기 1회', '', '', 5, { int: 1 }],
+    ['vars.GACHA10_COST', '장비 뽑기 10회', '', '', 10, { int: 1 }],
+    ['vars.GACHA_W', '장비 등급 가중치', '', '', 1, { labels: INFO.grades }],
+    ['vars.AGAIN_STEP', '다시 뽑기 할인 (회당)', '%', '%', 1, { int: 1 }],
+    ['vars.AGAIN_MAX', '다시 뽑기 할인 최대', '', '%', 1, { int: 1 }],
+  ] },
+  { id: 'mode', icon: '🏰', t: '던전·결투장', d: '', f: [
+    ['vars.DUNGEON_TRIES', '일일 던전 하루 횟수', '', '회', 1, { int: 1 }],
+    ['vars.DUNGEON_TIME', '던전 시간', '', '초', 5],
+    ['vars.PVP_TRIES', '결투장 하루 횟수', '', '회', 1, { int: 1 }],
+    ['vars.PVP_TIME', '결투 제한 시간', '', '초', 5],
+    ['vars.PVP_RAMP_AT', '결투 열기 시작', '이 시간 뒤부터 피해 증가', '초', 1],
+    ['vars.PVP_RAMP', '결투 열기 (초당)', '초마다 피해 +', '', 0.01, { pct: 1 }],
+    ['vars.PVP_DPS', '결투 상대 피해 보정', '', '×', 0.05],
+    ['vars.PVP_HP', '결투 상대 체력 보정', '', '×', 0.05],
+  ] },
+];
+
+// ── 값 읽기·쓰기 ──
+function getP(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
+function setP(o, p, v) { const ks = p.split('.'), last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; }
+// 챕터 표: 없는 챕터 = [1, 1]
+const tab = (o, k, c) => (o.BAL[k][c] || [1, 1]);
+
+// 편집 값 → 게임 덮어쓰기 (기본값과 다른 것만)
+function toData(v) {
+  const d = {}, b = {};
+  for (const k of Object.keys(BASE.BAL)) {
+    if (k === 'ch' || k === 'king') {
+      for (let c = 1; c <= 10; c++) if (!same(tab(v, k, c), tab(BASE, k, c))) (b[k] = b[k] || {})[c] = tab(v, k, c).slice();
+    } else if (v.BAL[k] !== BASE.BAL[k]) b[k] = v.BAL[k];
+  }
+  if (Object.keys(b).length) d.BAL = b;
+  for (const id of Object.keys(BASE.CHAR_UPS)) for (const f of ['base', 'grow', 'max']) {
+    const x = v.CHAR_UPS[id][f];
+    if (BASE.CHAR_UPS[id][f] !== null && x !== BASE.CHAR_UPS[id][f]) ((d.CHAR_UPS = d.CHAR_UPS || {})[id] = d.CHAR_UPS[id] || {})[f] = x;
+  }
+  if (!same(v.RARITY_MUL, BASE.RARITY_MUL)) d.RARITY_MUL = v.RARITY_MUL.slice();
+  for (const k of Object.keys(BASE.vars)) if (!same(v.vars[k], BASE.vars[k])) d[k] = clone(v.vars[k]);
+  return d;
+}
+// 게임 덮어쓰기 → 편집 값 (모양이 맞는 것만)
+function fromData(d) {
+  const v = clone(BASE);
+  d = d && typeof d === 'object' ? d : {};
+  const num = x => typeof x === 'number' && Number.isFinite(x);
+  const b = d.BAL || {};
+  for (const k of Object.keys(BASE.BAL)) {
+    if (k === 'ch' || k === 'king') { for (const c of Object.keys(b[k] || {})) if (Array.isArray(b[k][c]) && b[k][c].length === 2 && b[k][c].every(num)) v.BAL[k][c] = b[k][c].slice(); }
+    else if (num(b[k])) v.BAL[k] = b[k];
+  }
+  for (const id of Object.keys(BASE.CHAR_UPS)) for (const f of ['base', 'grow', 'max']) { const x = ((d.CHAR_UPS || {})[id] || {})[f]; if (num(x) && BASE.CHAR_UPS[id][f] !== null) v.CHAR_UPS[id][f] = x; }
+  if (Array.isArray(d.RARITY_MUL) && d.RARITY_MUL.length === BASE.RARITY_MUL.length && d.RARITY_MUL.every(num)) v.RARITY_MUL = d.RARITY_MUL.slice();
+  for (const k of Object.keys(BASE.vars)) {
+    const x = d[k];
+    if (Array.isArray(BASE.vars[k]) ? Array.isArray(x) && x.every(num) && (k === 'WAVES' || x.length === BASE.vars[k].length) : num(x)) v.vars[k] = clone(x);
+  }
+  return v;
+}
+const countData = d => {
+  let n = 0;
+  for (const [k, x] of Object.entries(d || {})) {
+    if (k === 'BAL') for (const [bk, bx] of Object.entries(x)) n += (bk === 'ch' || bk === 'king') ? Object.keys(bx).length : 1;
+    else if (k === 'CHAR_UPS') for (const o of Object.values(x)) n += Object.keys(o).length;
+    else n++;
+  }
+  return n;
+};
+
+// ── 숫자 표시 (게임과 같은 1.2만 · 3.4억) ──
+function fmt(n) {
+  if (!Number.isFinite(n)) return '∞';
+  const a = Math.abs(n);
+  if (a >= 1e24) return n.toExponential(1).replace('e+', 'e');
+  for (const [u, x] of [['해', 1e20], ['경', 1e16], ['조', 1e12], ['억', 1e8], ['만', 1e4]]) if (a >= x) return (n / x).toFixed(a / x >= 100 ? 0 : 1).replace(/\.0$/, '') + u;
+  return a >= 100 ? String(Math.round(n)) : String(+n.toFixed(2));
+}
+const pct = x => +(x * 100).toFixed(2) + '%';
+const showV = (x, o) => x === null ? '∞' : Array.isArray(x) ? x.join(' / ') : o && o.bool ? (x ? '켜짐' : '꺼짐') : o && o.pct ? pct(x) : String(x);
+
+// ── 게임 공식 (game.js 와 같게) ──
+const SP = INFO.stagesPer, MAXS = INFO.maxStage, G2 = INFO.grow2End;
+const chOf = s => Math.ceil(s / SP);
+function growth(s, g1, g2, g3) { const n = s - 1, a = SP - 1, b = G2 - 1; return Math.pow(g1, Math.min(n, a)) * Math.pow(g2, Math.max(0, Math.min(n, b) - a)) * Math.pow(g3 ?? g2, Math.max(0, n - b)); }
+const F = v => {
+  const B = v.BAL, chm = (s, i) => tab(v, 'ch', chOf(s))[i];
+  const hpG = s => growth(s, B.hpGrow, B.hpGrow2, B.hpGrow3) * chm(s, 0), atkG = s => growth(s, B.atkGrow, B.atkGrow2, B.atkGrow3) * chm(s, 1);
+  const gold = s => Math.ceil(B.monGold * B.allGold * Math.pow(B.goldGrow, s - 1));
+  return {
+    hp: s => B.monHp * B.allHp * hpG(s), atk: s => B.monAtk * B.allAtk * atkG(s), gold,
+    king: c => { const last = c * SP, K = tab(v, 'king', c); return { hp: B.monHp * B.allHp * hpG(last) * B.kingHp * K[0] * (INFO.chapters[c - 1].hpMul || 1), atk: B.monAtk * B.allAtk * atkG(last) * B.kingAtk * K[1], gold: gold(last) * B.kingGold }; },
+    idleRate: s => !B.idleOn ? 0 : (s - 1 < 1 ? 0.5 : B.idle * gold(s - 1)),
+    stageGold: s => { const n = v.vars.WAVES.reduce((a, b) => a + b, 0); return gold(s) * (n - 1 + B.bossGold + B.clearBonus); },
+  };
+};
+
+// ── 편집 화면 ──
+const ROWS = [];   // { el, get, def, path, txt }
+function rowEl(label, sub, defTxt, inputHtml, path) {
+  const r = document.createElement('div');
+  r.className = 'row';
+  r.dataset.path = path;
+  r.innerHTML = `<div class="lab"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</div><div class="def">기본 ${defTxt}</div><div class="inp">${inputHtml}<button class="sm rst" title="기본값으로">↺</button></div>`;
+  return r;
+}
+function numInput(x, step, o = {}) {
+  return `<input type="number" step="${step}" min="${o.min ?? 0}" ${o.max != null ? `max="${o.max}"` : ''} value="${x}">`;
+}
+function readNum(inp, o = {}) {
+  const raw = inp.value.trim(), x = Number(raw);
+  const ok = raw !== '' && Number.isFinite(x) && x >= (o.min ?? 0) && (o.max == null || x <= o.max) && (!o.int || Number.isInteger(x));
+  inp.classList.toggle('bad', !ok);
+  return ok ? x : null;
+}
+function buildField(g, [path, label, sub, unit, step, o = {}]) {
+  const def = getP(BASE, path), cur = () => getP(val, path);
+  let r;
+  if (o.bool) {
+    r = rowEl(label, sub, showV(def, o), `<span class="tog"><button data-v="1">켜기</button><button data-v="0">끄기</button></span>`, path);
+    const bs = r.querySelectorAll('.tog button');
+    const paint = () => bs.forEach(b => b.classList.toggle('sel', +b.dataset.v === (cur() ? 1 : 0)));
+    bs.forEach(b => b.onclick = () => { setP(val, path, +b.dataset.v); paint(); changed(); });
+    r.paint = paint;
+  } else if (Array.isArray(def)) {
+    const labels = o.labels || [];
+    const cells = () => cur().map((x, i) => `<label>${labels[i] || (o.waves ? `${i + 1}웨이브` : i)}${numInput(x, step, o)}</label>`).join('');
+    r = rowEl(label, sub, showV(def, o) + (unit ? ' ' + unit : ''), `<span class="arr"></span>${o.waves ? '<button class="sm" data-a="+">+칸</button><button class="sm" data-a="-">-칸</button>' : ''}`, path);
+    const box = r.querySelector('.arr');
+    const paint = () => {
+      box.innerHTML = cells();
+      box.querySelectorAll('input').forEach((inp, i) => inp.oninput = () => { const x = readNum(inp, o); if (x === null) return; const a = cur().slice(); a[i] = x; setP(val, path, a); changed(); });
+    };
+    r.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+      const a = cur().slice();
+      if (b.dataset.a === '+' && a.length < 8) a.push(3); else if (b.dataset.a === '-' && a.length > 1) a.pop(); else return;
+      setP(val, path, a); paint(); changed();
+    });
+    r.paint = paint;
+  } else {
+    const shown = x => o.pct ? +(x * 100).toFixed(4) : x;
+    const oo = o.pct ? { ...o, min: (o.min ?? 0) * 100, max: o.max != null ? o.max * 100 : null } : o;
+    r = rowEl(label, sub, showV(def, o) + (unit && !o.pct ? ' ' + unit : ''), numInput(shown(cur()), o.pct ? +(step * 100).toFixed(4) : step, oo) + `<span class="u">${o.pct ? '%' : unit}</span>`, path);
+    const inp = r.querySelector('input');
+    inp.oninput = () => { const x = readNum(inp, oo); if (x === null) return; setP(val, path, o.pct ? x / 100 : x); changed(false); };
+    r.paint = () => { if (document.activeElement !== inp) { inp.value = shown(cur()); inp.classList.remove('bad'); } };
+  }
+  r.querySelector('.rst').onclick = () => { setP(val, path, clone(def)); r.paint(); changed(); };
+  r.isChg = () => !same(cur(), def);
+  r.txt = (label + ' ' + sub + ' ' + g.t).toLowerCase();
+  r.paint();
+  ROWS.push(r);
+  return r;
+}
+// 챕터 표 (ch / king)
+function buildChTable(k) {
+  const wrap = document.createElement('div');
+  wrap.style.overflow = 'auto';
+  const t = document.createElement('table');
+  t.className = 't';
+  wrap.appendChild(t);
+  const paint = () => {
+    t.innerHTML = `<tr><th>챕터</th><th>체력 ×</th><th>공격력 ×</th><th></th></tr>` + INFO.chapters.map((C, i) => {
+      const c = i + 1, x = tab(val, k, c), d = tab(BASE, k, c), chg = !same(x, d);
+      return `<tr data-c="${c}"><td>${c}. ${k === 'king' ? C.boss : C.name}${C.hpMul !== 1 && k === 'king' ? ` <span class="muted">(특수 ×${C.hpMul})</span>` : ''}</td>
+        <td class="${x[0] !== d[0] ? 'chg' : ''}">${numInput(x[0], 0.05)}<div class="muted">기본 ${d[0]}</div></td>
+        <td class="${x[1] !== d[1] ? 'chg' : ''}">${numInput(x[1], 0.05)}<div class="muted">기본 ${d[1]}</div></td>
+        <td>${chg ? '<button class="sm" data-r="1">↺</button>' : ''}</td></tr>`;
+    }).join('');
+    t.querySelectorAll('tr[data-c]').forEach(tr => {
+      const c = +tr.dataset.c, ins = tr.querySelectorAll('input');
+      ins.forEach((inp, i) => inp.oninput = () => { const x = readNum(inp); if (x === null) return; const a = tab(val, k, c).slice(); a[i] = x; val.BAL[k][c] = a; changed(false); inp.parentElement.classList.toggle('chg', x !== tab(BASE, k, c)[i]); });
+      ins.forEach(inp => inp.onchange = () => paint());
+      const rb = tr.querySelector('[data-r]');
+      if (rb) rb.onclick = () => { if (BASE.BAL[k][c]) val.BAL[k][c] = BASE.BAL[k][c].slice(); else delete val.BAL[k][c]; paint(); changed(); };
+    });
+  };
+  wrap.paint = paint;
+  wrap.isChg = () => [...Array(10)].some((_, i) => !same(tab(val, k, i + 1), tab(BASE, k, i + 1)));
+  wrap.txt = (k === 'ch' ? '챕터 몬스터 배율 ' : '챕터 보스 배율 ') + INFO.chapters.map(C => C.name + ' ' + C.boss).join(' ');
+  wrap.isTable = true;
+  paint();
+  ROWS.push(wrap);
+  return wrap;
+}
+// 강화 항목 표
+function buildUpTable() {
+  const wrap = document.createElement('div');
+  wrap.style.overflow = 'auto';
+  const t = document.createElement('table');
+  t.className = 't';
+  wrap.appendChild(t);
+  const paint = () => {
+    t.innerHTML = `<tr><th>항목</th><th>기본 비용</th><th>성장 ×</th><th>최대 레벨</th></tr>` + INFO.ups.map(([id, name]) => {
+      const u = val.CHAR_UPS[id], d = BASE.CHAR_UPS[id];
+      const cell = (f, step) => d[f] === null ? '<td>∞</td>' : `<td class="${u[f] !== d[f] ? 'chg' : ''}">${numInput(u[f], step, { min: f === 'grow' ? 1 : 0 })}<div class="muted">기본 ${d[f]}</div></td>`;
+      return `<tr data-id="${id}"><td>${name}</td>${cell('base', 1)}${cell('grow', 0.005)}${cell('max', 1)}</tr>`;
+    }).join('');
+    t.querySelectorAll('tr[data-id]').forEach(tr => {
+      const id = tr.dataset.id;
+      tr.querySelectorAll('input').forEach(inp => {
+        const td = inp.parentElement, f = ['', 'base', 'grow', 'max'][td.cellIndex];
+        inp.oninput = () => { const x = readNum(inp, { min: f === 'grow' ? 1 : 0, int: f === 'max' }); if (x === null) return; val.CHAR_UPS[id][f] = x; td.classList.toggle('chg', x !== BASE.CHAR_UPS[id][f]); changed(false); };
+      });
+    });
+  };
+  wrap.paint = paint;
+  wrap.isChg = () => !same(val.CHAR_UPS, BASE.CHAR_UPS);
+  wrap.txt = '강화 비용 성장 최대 공격력 체력 공격 속도 치명타 민첩';
+  wrap.isTable = true;
+  paint();
+  ROWS.push(wrap);
+  return wrap;
+}
+function buildGroups() {
+  const box = $('groups');
+  for (const g of GROUPS) {
+    const el = document.createElement('details');
+    el.className = 'card';
+    el.open = !!g.open;
+    el.id = 'g_' + g.id;
+    el.innerHTML = `<summary><h2>${g.icon} ${g.t} <span class="n"></span></h2></summary>${g.d ? `<p class="desc">${g.d}</p>` : ''}`;
+    if (g.table === 'ch') el.appendChild(buildChTable(g.table));
+    for (const f of g.f || []) el.appendChild(buildField(g, f));
+    if (g.table === 'king') { const h = document.createElement('p'); h.className = 'desc'; h.style.marginTop = '10px'; h.textContent = '챕터별 보스 배율 [체력, 공격력]'; el.appendChild(h); el.appendChild(buildChTable('king')); }
+    if (g.table === 'ups') { const h = document.createElement('p'); h.className = 'desc'; h.textContent = '캐릭터 강화 항목 (캐릭터마다 따로)'; el.insertBefore(h, el.children[2] || null); el.insertBefore(buildUpTable(), h.nextSibling); }
+    el.rows = ROWS.filter(r => el.contains(r));
+    box.appendChild(el);
+  }
+}
+function paintAll() { ROWS.forEach(r => r.paint()); markChanged(); }
+function markChanged() {
+  for (const r of ROWS) if (!r.isTable) r.classList.toggle('chg', r.isChg());
+  for (const el of document.querySelectorAll('#groups > details')) {
+    const n = (el.rows || []).filter(r => r.isChg()).length;
+    el.querySelector('.n').textContent = n ? `바뀐 항목 ${n}` : '';
+  }
+}
+
+// ── 바뀔 때마다 ──
+let testTimer = 0;
+function changed(repaint = true, byUser = true) {
+  if (repaint) paintAll(); else markChanged();
+  const d = toData(val), n = countData(d);
+  $('chEdit').textContent = `편집: ${n ? `기본값과 다른 값 ${n}개` : '기본값'}` + (same(d, liveData) ? ' (모두에게 값과 같음)' : ' · 모두에게 적용 안 됨');
+  $('chEdit').className = 'chip' + (same(d, liveData) ? '' : ' on');
+  drawAll();
+  if (byUser && $('autoTest').checked) { clearTimeout(testTimer); testTimer = setTimeout(() => saveTest(true), 250); }
+}
+
+// ── 테스트 (이 브라우저의 ?test 게임) ──
+function readTest() { try { return JSON.parse(localStorage.getItem(TUNE_TEST_KEY) || 'null'); } catch (_) { return null; } }
+function saveTest(quiet) {
+  const d = toData(val);
+  try { localStorage.setItem(TUNE_TEST_KEY, JSON.stringify({ data: d, at: Date.now() })); } catch (e) { return toast('저장 실패: ' + e.message); }
+  paintTestChip();
+  if (!quiet) toast('테스트 게임에 적용 완료 · 열려 있는 ?test 게임에 바로 반영');
+}
+function paintTestChip() {
+  const t = readTest(), n = t ? countData(t.data) : 0;
+  $('chTest').textContent = t ? `테스트: 값 ${n}개` : '테스트: 없음';
+  $('chTest').className = 'chip' + (t ? ' on' : '');
+}
+
+// ── 그래프 ──
+let curveKind = 'hp';
+function chartBox(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.max(300, r.width * dpr); cv.height = 260 * dpr;
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { c, w: r.width, h: 260 };
+}
+let curvePts = null;
+function drawCurve() {
+  const cv = $('cvCurve'), { c, w, h } = chartBox(cv);
+  const fc = F(val), fd = F(BASE);
+  const L = 54, R = 10, T = 10, B = 26, pw = w - L - R, ph = h - T - B;
+  const xs = s => L + (s - 1) / (MAXS - 1) * pw;
+  const get = (f, s) => curveKind === 'ratio' ? null : f[curveKind](s);
+  c.clearRect(0, 0, w, h);
+  c.font = '11px sans-serif';
+  let series;
+  if (curveKind === 'ratio') {
+    series = [['hp', '#c8641e'], ['atk', '#3a6ad0'], ['gold', '#2f8a4a']].map(([k, col]) => ({ col, ys: [...Array(MAXS)].map((_, i) => fc[k](i + 1) / fd[k](i + 1)), k }));
+    const all = series.flatMap(s => s.ys).concat([1]);
+    let lo = Math.min(...all), hi = Math.max(...all);
+    if (hi - lo < 0.2) { lo -= 0.1; hi += 0.1; }
+    const ys = y => T + (1 - (y - lo) / (hi - lo)) * ph;
+    for (let i = 0; i <= 4; i++) { const y = lo + (hi - lo) * i / 4; c.strokeStyle = '#0001'; c.beginPath(); c.moveTo(L, ys(y)); c.lineTo(w - R, ys(y)); c.stroke(); c.fillStyle = '#7a6656'; c.textAlign = 'right'; c.fillText('×' + y.toFixed(2), L - 4, ys(y) + 4); }
+    c.strokeStyle = '#a89a8a'; c.setLineDash([4, 4]); c.beginPath(); c.moveTo(L, ys(1)); c.lineTo(w - R, ys(1)); c.stroke(); c.setLineDash([]);
+    chBounds(c, xs, T, ph, h);
+    for (const s of series) { c.strokeStyle = s.col; c.lineWidth = 2; c.beginPath(); s.ys.forEach((y, i) => i ? c.lineTo(xs(i + 1), ys(y)) : c.moveTo(xs(1), ys(y))); c.stroke(); }
+    c.lineWidth = 1;
+    curvePts = { xs, L, pw, fn: s => `${label(s)} · 체력 ×${series[0].ys[s - 1].toFixed(2)} · 공격력 ×${series[1].ys[s - 1].toFixed(2)} · 골드 ×${series[2].ys[s - 1].toFixed(2)}` };
+    $('curveNote').textContent = '편집 값 ÷ 기본값 (주황 체력 · 파랑 공격력 · 초록 골드)';
+    return;
+  }
+  const cur = [...Array(MAXS)].map((_, i) => get(fc, i + 1)), def = [...Array(MAXS)].map((_, i) => get(fd, i + 1));
+  const all = cur.concat(def).filter(x => x > 0);
+  const lo = Math.floor(Math.log10(Math.min(...all))), hi = Math.ceil(Math.log10(Math.max(...all)));
+  const ys = y => T + (1 - (Math.log10(Math.max(y, 1e-9)) - lo) / Math.max(1, hi - lo)) * ph;
+  const stepE = Math.max(1, Math.ceil((hi - lo) / 6));
+  for (let e = lo; e <= hi; e += stepE) { c.strokeStyle = '#0001'; c.beginPath(); c.moveTo(L, ys(10 ** e)); c.lineTo(w - R, ys(10 ** e)); c.stroke(); c.fillStyle = '#7a6656'; c.textAlign = 'right'; c.fillText(fmt(10 ** e), L - 4, ys(10 ** e) + 4); }
+  chBounds(c, xs, T, ph, h);
+  c.strokeStyle = '#a89a8a'; c.setLineDash([5, 4]); c.lineWidth = 2; c.beginPath(); def.forEach((y, i) => i ? c.lineTo(xs(i + 1), ys(y)) : c.moveTo(xs(1), ys(y))); c.stroke(); c.setLineDash([]);
+  c.strokeStyle = '#c8641e'; c.lineWidth = 2.5; c.beginPath(); cur.forEach((y, i) => i ? c.lineTo(xs(i + 1), ys(y)) : c.moveTo(xs(1), ys(y))); c.stroke(); c.lineWidth = 1;
+  const nm = { hp: '체력', atk: '공격력', gold: '골드' }[curveKind];
+  curvePts = { xs, L, pw, fn: s => `${label(s)} · ${nm} ${fmt(cur[s - 1])} (기본 ${fmt(def[s - 1])}, ×${(cur[s - 1] / def[s - 1]).toFixed(2)})` };
+  $('curveNote').textContent = `200 스테이지 ${nm}: ${fmt(cur[MAXS - 1])}`;
+}
+function chBounds(c, xs, T, ph, h) {
+  c.fillStyle = '#7a6656'; c.textAlign = 'center';
+  for (let ch = 1; ch <= MAXS / SP; ch++) {
+    const x0 = xs((ch - 1) * SP + 1), x1 = xs(ch * SP);
+    if (ch > 1) { c.strokeStyle = '#8a5a2b33'; c.beginPath(); c.moveTo(x0, T); c.lineTo(x0, T + ph); c.stroke(); }
+    c.fillText(String(ch), (x0 + x1) / 2, h - 8);
+  }
+}
+const label = s => `${chOf(s)}-${(s - 1) % SP + 1}`;
+function curveHover(e) {
+  if (!curvePts) return;
+  const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left;
+  const s = Math.round((x - curvePts.L) / curvePts.pw * (MAXS - 1)) + 1;
+  const tip = $('tipCurve');
+  if (s < 1 || s > MAXS) { tip.style.display = 'none'; return; }
+  tip.style.display = 'block'; tip.textContent = curvePts.fn(s);
+  tip.style.left = Math.min(Math.max(x, 120), r.width - 120) + 'px'; tip.style.top = (e.clientY - r.top) + 'px';
+}
+
+function drawIdle() {
+  const s = +$('idleStage').value, sec = Math.max(5, +$('stageSec').value || 40);
+  $('idleStageL').textContent = label(s);
+  const k = (v) => { const f = F(v), rate = f.idleRate(s), cap = rate * v.vars.IDLE_CAP_HOURS * 3600, g = f.stageGold(s); return { rate, cap, g, eff: rate / (g / sec), stages: cap / g }; };
+  const a = k(val), d = k(BASE);
+  const cmp = (x, y) => y ? ` <span class="${x > y * 1.001 ? 'up' : x < y * 0.999 ? 'down' : 'muted'}">(기본 ${fmt(y)})</span>` : '';
+  const playH = a.stages * sec / 3600;
+  $('idleKpi').innerHTML = `
+    <div><small>상자 초당 골드</small><b>${fmt(a.rate)} G</b>${cmp(a.rate, d.rate)}</div>
+    <div><small>가득 찼을 때 (${val.vars.IDLE_CAP_HOURS}시간)</small><b>${fmt(a.cap)} G</b>${cmp(a.cap, d.cap)}</div>
+    <div><small>한 판 골드 (첫 클리어)</small><b>${fmt(a.g)} G</b>${cmp(a.g, d.g)}</div>
+    <div class="${a.stages > 150 ? 'warn' : 'ok'}"><small>가득 찬 상자 = 몇 판 분량</small><b>${Math.round(a.stages)}판</b> <span class="muted">(기본 ${Math.round(d.stages)})</span></div>
+    <div class="${a.eff > 0.3 ? 'warn' : 'ok'}"><small>직접 사냥 대비 방치 효율</small><b>${Math.round(a.eff * 100)}%</b> <span class="muted">(기본 ${Math.round(d.eff * 100)}%)</span></div>
+    <div><small>가득 찬 상자 = 직접 플레이</small><b>${playH >= 1 ? playH.toFixed(1) + '시간' : Math.round(playH * 60) + '분'}</b></div>`;
+  const v = $('idleVerdict');
+  if (!val.BAL.idleOn) { v.className = 'verdict'; v.textContent = '방치 상자 꺼짐 — 골드는 직접 사냥·던전·미션으로만.'; return; }
+  const lvl = a.eff > 0.3 || playH > 2 ? 'bad' : a.eff > 0.15 || playH > 1 ? 'warn' : '';
+  v.className = 'verdict ' + lvl;
+  v.textContent = lvl === 'bad' ? `폭발 위험: 하룻밤 꺼 두면 직접 ${playH.toFixed(1)}시간 사냥한 만큼 골드가 들어옴 → 그 골드로 강화하면 다음 스테이지들을 쉽게 밀어 버림. 방치 비율이나 최대 시간을 낮추는 쪽 추천 (방치 효율 10~15% 정도가 흔한 값).`
+    : lvl === 'warn' ? `조금 많은 편: 가득 찬 상자 = 직접 ${playH >= 1 ? playH.toFixed(1) + '시간' : Math.round(playH * 60) + '분'} 사냥. 몬스터 성장이 빠르면 괜찮을 수 있음.`
+    : '적당: 방치는 보조 수입, 성장은 직접 사냥 위주.';
+}
+function drawKing() {
+  const fc = F(val), fd = F(BASE);
+  const r = (x, y) => { const m = x / y; return `${fmt(x)}${Math.abs(m - 1) > 0.001 ? ` <span class="${m > 1 ? 'up' : 'down'}">×${m.toFixed(2)}</span>` : ''}`; };
+  $('kingTable').innerHTML = '<tr><th>챕터 보스</th><th>체력</th><th>공격력</th><th>골드</th></tr>' + INFO.chapters.map((C, i) => {
+    const a = fc.king(i + 1), d = fd.king(i + 1);
+    return `<tr><td>${i + 1}. ${C.boss}</td><td>${r(a.hp, d.hp)}</td><td>${r(a.atk, d.atk)}</td><td>${r(a.gold, d.gold)}</td></tr>`;
+  }).join('');
+}
+function drawUps() {
+  const L = Math.max(0, Math.floor(+$('upLv').value || 0));
+  const f = F(val), s = +$('idleStage').value, cap = f.idleRate(s) * val.vars.IDLE_CAP_HOURS * 3600;
+  $('upTable').innerHTML = `<tr><th>항목</th><th>Lv ${L} 비용</th><th>기본값</th><th>가득 찬 상자로 (${label(s)})</th></tr>` + INFO.ups.map(([id, name]) => {
+    const u = val.CHAR_UPS[id], d = BASE.CHAR_UPS[id];
+    const cost = l => Math.floor(u.base * Math.pow(u.grow, l)), dc = Math.floor(d.base * Math.pow(d.grow, L));
+    const max = u.max === null ? Infinity : u.max;
+    if (L >= max) return `<tr><td>${name}</td><td colspan="3" class="muted">최대 레벨 ${max}</td></tr>`;
+    let n = 0, left = cap; while (L + n < max && left >= cost(L + n) && n < 9999) { left -= cost(L + n); n++; }
+    return `<tr><td>${name}</td><td>${fmt(cost(L))} G</td><td class="muted">${fmt(dc)} G</td><td>${val.BAL.idleOn ? `+${n >= 9999 ? '9999+' : n} 레벨` : '-'}</td></tr>`;
+  }).join('');
+}
+function drawGacha() {
+  const box = (title, w, names, pity) => {
+    const sum = w.reduce((a, b) => a + b, 0);
+    return `<p class="desc" style="margin:6px 0 2px"><b>${title}</b>${pity ? ` · 천장 ${pity}회` : ''}</p><table class="t"><tr>${names.map((n, i) => w[i] ? `<th>${n}</th>` : '').join('')}</tr><tr>${w.map(x => x ? `<td>${sum ? (x / sum * 100).toFixed(2) : 0}%</td>` : '').join('')}</tr></table>`;
+  };
+  const V = val.vars;
+  $('gachaBox').innerHTML = box(`동료 (1회 ${V.AGACHA_COST} · 10회 ${V.AGACHA10_COST})`, V.AGACHA_W, ['-'].concat(INFO.rarity), V.APITY)
+    + box(`스킬 (1회 ${V.SGACHA_COST} · 10회 ${V.SGACHA10_COST})`, V.SGACHA_W, INFO.grades, V.SPITY)
+    + box(`장비 (1회 ${V.GACHA_COST} · 10회 ${V.GACHA10_COST})`, V.GACHA_W, INFO.grades);
+}
+function drawAll() {
+  drawCurve(); drawIdle(); drawKing(); drawUps(); drawGacha();
+  $('simCmd').textContent = `deno run -A balance.js --dir=..\\star-tune\\star --until=60 --tune=tune.json`;
+}
+
+// ── 찾기 ──
+function applySearch() {
+  const q = $('search').value.trim().toLowerCase();
+  for (const el of document.querySelectorAll('#groups > details')) {
+    let any = false;
+    for (const r of el.rows || []) { const hit = !q || r.txt.includes(q); if (!r.isTable) r.hidden = !hit; any = any || hit; }
+    el.hidden = q && !any && !el.querySelector('h2').textContent.toLowerCase().includes(q);
+    if (q && any) el.open = true;
+  }
+}
+
+// ── 공통 ──
+let toastT = 0;
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
+function loadInto(d, from, quiet) { val = fromData(d); editFrom = from; paintAll(); changed(false, !quiet); if (!quiet) toast(`${from} 불러옴`); }
+
+// 바뀌는 목록 (모두에게 적용 전 확인)
+function diffList(a, b) {
+  const va = fromData(a), vb = fromData(b), out = [];
+  const name = p => { for (const g of GROUPS) for (const f of g.f || []) if (f[0] === p) return f[1]; return p; };
+  for (const k of Object.keys(BASE.BAL)) {
+    if (k === 'ch' || k === 'king') { for (let c = 1; c <= 10; c++) if (!same(tab(va, k, c), tab(vb, k, c))) out.push(`${k === 'ch' ? '챕터' : '보스'} ${c} 배율: ${tab(vb, k, c).join('/')} → ${tab(va, k, c).join('/')}`); }
+    else if (va.BAL[k] !== vb.BAL[k]) out.push(`${name('BAL.' + k)}: ${vb.BAL[k]} → ${va.BAL[k]}`);
+  }
+  for (const [id, nm] of INFO.ups) for (const f of ['base', 'grow', 'max']) if (va.CHAR_UPS[id][f] !== vb.CHAR_UPS[id][f]) out.push(`강화 ${nm} ${{ base: '기본 비용', grow: '성장', max: '최대' }[f]}: ${vb.CHAR_UPS[id][f]} → ${va.CHAR_UPS[id][f]}`);
+  if (!same(va.RARITY_MUL, vb.RARITY_MUL)) out.push(`동료 등급 배율: ${vb.RARITY_MUL.join('/')} → ${va.RARITY_MUL.join('/')}`);
+  for (const k of Object.keys(BASE.vars)) if (!same(va.vars[k], vb.vars[k])) out.push(`${name('vars.' + k)}: ${showV(vb.vars[k])} → ${showV(va.vars[k])}`);
+  return out;
+}
+
+// ── 버튼 ──
+function wire() {
+  $('btnTest').onclick = () => saveTest(false);
+  $('btnOpen').onclick = () => { saveTest(true); window.open('./?test', 'starTest'); };
+  $('btnTestClear').onclick = () => { localStorage.removeItem(TUNE_TEST_KEY); paintTestChip(); toast('테스트 값 지움 · 테스트 게임은 모두에게 값으로 돌아감'); };
+  $('btnLoadLive').onclick = () => loadInto(liveData, '모두에게 값');
+  $('btnLoadTest').onclick = () => { const t = readTest(); if (!t) return toast('테스트 값 없음'); loadInto(t.data, '테스트 값'); };
+  $('btnDefault').onclick = () => { if (confirm('편집 중인 값을 전부 기본값으로?\n(아직 아무 데도 적용 안 됨 — 테스트·모두에게는 버튼을 눌러야 적용)')) loadInto({}, '기본값'); };
+  $('btnJson').onclick = () => { $('jsonText').value = JSON.stringify(toData(val), null, 1); $('dlgJson').showModal(); };
+  $('jsonClose').onclick = () => $('dlgJson').close();
+  $('jsonCopy').onclick = async () => { try { await navigator.clipboard.writeText($('jsonText').value); toast('복사 완료'); } catch (_) { $('jsonText').select(); toast('Ctrl+C 로 복사'); } };
+  $('jsonImport').onclick = () => {
+    let d; try { d = JSON.parse($('jsonText').value); } catch (e) { return toast('JSON 형식 오류'); }
+    if (d && d.data && typeof d.data === 'object') d = d.data;
+    $('dlgJson').close(); loadInto(d, 'JSON');
+  };
+  $('btnPublish').onclick = () => {
+    if (!window.Dev || !Dev.canWrite()) return toast('개발자 계정으로 로그인 필요');
+    const d = toData(val), list = diffList(d, liveData);
+    if (!list.length) return toast('모두에게 값과 같음 · 바뀔 것 없음');
+    $('pubDiff').innerHTML = list.map(x => `<li>${x}</li>`).join('');
+    $('pubNote').value = '';
+    $('dlgPub').showModal();
+  };
+  $('pubCancel').onclick = () => $('dlgPub').close();
+  $('pubGo').onclick = async () => {
+    $('pubGo').disabled = true;
+    try { await Dev.publish(toData(val), $('pubNote').value.trim()); $('dlgPub').close(); toast('모두에게 적용 완료'); }
+    catch (e) { toast('실패: ' + (e.code || e.message) + (e.code === 'permission-denied' ? ' (Firestore 규칙 게시 필요)' : '')); }
+    $('pubGo').disabled = false;
+  };
+  $('search').oninput = applySearch;
+  document.querySelectorAll('#curveTabs button').forEach(b => b.onclick = () => { curveKind = b.dataset.k; document.querySelectorAll('#curveTabs button').forEach(x => x.classList.toggle('sel', x === b)); drawCurve(); });
+  $('cvCurve').onmousemove = curveHover;
+  $('cvCurve').onmouseleave = () => { $('tipCurve').style.display = 'none'; };
+  $('idleStage').oninput = () => { drawIdle(); drawUps(); };
+  $('stageSec').oninput = drawIdle;
+  $('upLv').oninput = drawUps;
+  window.addEventListener('resize', () => drawCurve());
+  window.addEventListener('storage', e => { if (e.key === TUNE_TEST_KEY) paintTestChip(); });
+  window.addEventListener('beforeunload', e => { if (!same(toData(val), liveData) && !same(toData(val), (readTest() || {}).data)) { e.preventDefault(); e.returnValue = ''; } });
+}
+
+// ── 모두에게 값 (dev 모듈이 부름) ──
+window.onLive = rec => {
+  live = rec;
+  try { liveData = rec && rec.data ? JSON.parse(rec.data) : {}; } catch (_) { liveData = {}; }
+  const n = countData(liveData);
+  $('chLive').textContent = `모두에게: ${n ? `값 ${n}개` : '기본값'}` + (rec && rec.at ? ` · ${new Date(rec.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '');
+  $('chLive').className = 'chip' + (n ? ' on' : '');
+  if (!window.__loaded) { window.__loaded = true; const t = readTest(); loadInto(t ? t.data : liveData, t ? '테스트 값' : '모두에게 값', true); }
+  else changed(false);
+};
+window.onHistory = list => {
+  $('hist').innerHTML = list.length ? '' : '<span class="muted">아직 없음</span>';
+  for (const h of list) {
+    const div = document.createElement('div');
+    let d = {}; try { d = JSON.parse(h.data); } catch (_) {}
+    div.innerHTML = `<b>${new Date(h.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</b><span title="${(h.note || '').replace(/"/g, '&quot;')}">${h.note || '(메모 없음)'} · 값 ${countData(d)}개</span><button class="sm">불러오기</button>`;
+    div.querySelector('button').onclick = () => loadInto(d, '기록 ' + new Date(h.at).toLocaleString('ko-KR'));
+    $('hist').appendChild(div);
+  }
+};
+window.startApp = () => {
+  if (window.__started) return;
+  window.__started = true;
+  $('gate').hidden = true; $('app').hidden = false;
+  buildGroups(); wire(); paintTestChip(); drawAll();
+};
+</script>
+
+<script type="module">
+// 로그인 + Firestore config/balance (게임과 같은 Firebase 프로젝트 star-tale)
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, doc, setDoc, onSnapshot, collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const app = initializeApp({
+  apiKey: 'AIzaSyDVlaW5De23pc07NII0WvzFwQYNmXYmG_0',
+  authDomain: 'star-tale.firebaseapp.com',
+  projectId: 'star-tale',
+  storageBucket: 'star-tale.firebasestorage.app',
+  messagingSenderId: '263953465781',
+  appId: '1:263953465781:web:629500db3040b5ec1159fc',
+});
+const auth = getAuth(app), db = getFirestore(app);
+// 개발자 계정: 이메일 SHA-256 (game.js DEV_HASHES 와 같음). 실제 쓰기 보호는 Firestore 규칙
+const DEV_HASHES = ['410f5af8785efc48318b3aacfa7c970eb181d864cb673464afcea3bad172a571', '21c92c937c2c7eb9f2ce722ba4b6bf7762ae902ba1b8b382fccc5a21e33fb73c', '26cee45acb2d5002ca29a5b9d4dde970cb147b39d8fc3393646589ba550d6c83'];
+const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const $ = id => document.getElementById(id);
+let dev = false, user = null;
+async function isDevUser(u) {
+  if (!u || !u.email) return false;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(u.email.trim().toLowerCase()));
+  return DEV_HASHES.includes([...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join(''));
+}
+async function loadHistory() {
+  try {
+    const s = await getDocs(query(collection(db, 'config'), orderBy('at', 'desc'), limit(20)));
+    window.onHistory(s.docs.filter(d => d.id.startsWith('h_')).map(d => d.data()));
+  } catch (e) { window.onHistory([]); console.warn('history', e.code); }
+}
+window.Dev = {
+  canWrite: () => dev,
+  async publish(data, note) {
+    const at = Date.now(), rec = { data: JSON.stringify(data), at, by: user.email, note: note.slice(0, 200) };
+    await setDoc(doc(db, 'config', 'balance'), rec);
+    await setDoc(doc(db, 'config', 'h_' + at), rec);
+    loadHistory();
+  },
+};
+let watching = false;
+function watchLive() {
+  if (watching) return;
+  watching = true;
+  onSnapshot(doc(db, 'config', 'balance'), s => window.onLive(s.exists() ? s.data() : null), e => { console.warn('live', e.code); window.onLive(null); $('chLive').textContent = '모두에게: 읽기 실패 (규칙 게시 필요)'; $('chLive').className = 'chip warn'; });
+  loadHistory();
+}
+$('gateLogin').onclick = $('btnLogin').onclick = async () => {
+  if (user) { if (confirm(user.email + '\n로그아웃?')) await signOut(auth); return; }
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { alert('로그인 실패: ' + (e.code || e.message)); }
+};
+onAuthStateChanged(auth, async u => {
+  user = u; dev = await isDevUser(u);
+  if (dev || LOCAL) {
+    window.startApp(); watchLive();
+    $('who').textContent = u ? u.email + (dev ? ' · 개발자' : ' · 개발자 아님 (모두에게 적용 불가)') : '로그인 안 됨 (로컬 · 테스트만 가능)';
+    $('btnLogin').textContent = u ? '로그아웃' : '로그인';
+    $('btnPublish').disabled = !dev;
+    return;
+  }
+  $('gate').hidden = false; $('app').hidden = true;
+  $('gateMsg').textContent = u ? `${u.email} — 개발자 계정 아님` : '개발자 계정으로 로그인 필요';
+  $('gateLogin').hidden = false;
+  $('gateLogin').textContent = u ? '다른 계정으로 로그인' : '구글 계정으로 로그인';
+  if (u) $('gateLogin').onclick = async () => { await signOut(auth); try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (_) {} };
+});
+</script>
+</body>
+</html>

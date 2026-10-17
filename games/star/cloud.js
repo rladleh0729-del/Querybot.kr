@@ -3,7 +3,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInAnonymously,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, linkWithPopup, linkWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, where, getCountFromServer } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, where, getCountFromServer, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // 공개용 설정값 (보호는 Firestore 보안 규칙이 담당)
 const app = initializeApp({
@@ -62,6 +62,12 @@ window.Cloud = {
     await setDoc(saveDoc(), { data: JSON.stringify(obj), updatedAt: Date.now() });
   },
 };
+
+// 밸런스 덮어쓰기: config/balance = { data: JSON 글자, at, by, note } (개발자 도구 dev.html 이 씀, 누구나 읽음)
+// 바뀌면 열려 있는 게임에 바로 전달 → game.js applyTune. 읽기 실패(규칙 미게시 등)면 보관해 둔 값 그대로
+onSnapshot(doc(db, 'config', 'balance'),
+  snap => window.dispatchEvent(new CustomEvent('star-tune', { detail: snap.exists() ? snap.data() : null })),
+  e => console.warn('balance', e && e.code));
 
 onAuthStateChanged(auth, user => {
   window.Cloud.user = user;
