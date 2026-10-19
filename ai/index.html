@@ -31,6 +31,11 @@
   .ai-form input:focus{outline:2px solid #62a8ff66;border-color:var(--accent)}
   .ai-form button{min-width:84px;cursor:pointer;color:#fff}
   .ai-form button:disabled{opacity:.45;cursor:default}
+  .ai-opts{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;margin:0 0 12px;font-size:14px;color:var(--muted)}
+  .ai-opts label{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+  .ai-opts select{height:36px;border:1px solid var(--line);background:#09111f;color:var(--text);border-radius:10px;padding:0 10px;font:inherit;font-size:14px;max-width:100%}
+  .ai-opts input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
+  .ai-opts button{margin-left:auto;border:1px solid var(--line);background:#ffffff08;color:#c6d0e2;border-radius:10px;height:36px;padding:0 12px;font:inherit;font-size:14px;cursor:pointer}
   .ai-chips{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
   .ai-chips button{border:1px solid var(--line);background:#ffffff08;color:#c6d0e2;border-radius:999px;padding:6px 13px;font:inherit;font-size:14px;cursor:pointer}
   @media (max-width:640px){.navlinks{display:none}.msg{max-width:90%}.ai-box{height:66vh}}
@@ -47,6 +52,13 @@
     <div id="status" class="ai-status"><i></i><span data-ko="연결 확인 중" data-en="Checking"></span></div>
   </div>
   <p class="ai-note" data-ko="무료 서버에서 돌아가는 실험용 모델이라 엉뚱한 답을 할 때가 많습니다. 한동안 아무도 안 쓰면 서버가 잠들어서 첫 답은 1분쯤 걸릴 수 있습니다. 입력한 글은 저장하지 않습니다." data-en="An experimental model on a free server, so its answers are often off. The server sleeps when idle, so the first answer can take about a minute. Messages are not stored."></p>
+  <div class="ai-opts">
+    <label><span data-ko="모델" data-en="Model"></span>
+      <select id="model"><option value="latest" data-ko="최신 모델" data-en="Latest model">최신 모델</option></select>
+    </label>
+    <label title="켜면 앞에서 나눈 대화를 기억하고 이어서 답합니다"><input id="mem" type="checkbox" checked><span data-ko="이전 대화 기억" data-en="Remember chat"></span></label>
+    <button id="clear" type="button" data-ko="대화 지우기" data-en="Clear chat"></button>
+  </div>
   <div class="ai-box">
     <div id="log" class="ai-log" aria-live="polite"></div>
     <form id="form" class="ai-form" autocomplete="off">
@@ -69,14 +81,25 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨 · 답변 가능", off: "연결 안 됨 · 잠시 후 다시", wake: "서버 깨우는 중 · 최대 1분", hello: "안녕하세요! 무엇이든 말을 걸어 보세요.", waking: "서버를 깨우는 중이에요… 첫 답은 1분쯤 걸릴 수 있어요.", down: "지금은 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요.", busy: "질문이 너무 많아요. 잠시 후 다시 해 주세요.", fail: "답을 받지 못했어요. 잠시 후 다시 해 주세요." },
-    en: { on: "Connected · ready", off: "Unavailable · try later", wake: "Waking server · up to 1 min", hello: "Hi! Say anything (Korean works best).", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again." }
+    ko: { on: "연결됨 · 답변 가능", off: "연결 안 됨 · 잠시 후 다시", wake: "서버 깨우는 중 · 최대 1분", hello: "안녕하세요! 무엇이든 말을 걸어 보세요.", switched: "모델을 바꿨어요. 새 대화를 시작해요.", cleared: "대화를 지웠어요.", waking: "서버를 깨우는 중이에요… 첫 답은 1분쯤 걸릴 수 있어요.", down: "지금은 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요.", busy: "질문이 너무 많아요. 잠시 후 다시 해 주세요.", fail: "답을 받지 못했어요. 잠시 후 다시 해 주세요." },
+    en: { on: "Connected · ready", off: "Unavailable · try later", wake: "Waking server · up to 1 min", hello: "Hi! Say anything (Korean works best).", switched: "Model changed. Starting a new chat.", cleared: "Chat cleared.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again." }
   };
   const lang = () => (document.documentElement.lang === "en" ? "en" : "ko");
   const t = (k) => T[lang()][k];
   const $ = (id) => document.getElementById(id);
   const log = $("log"), input = $("input"), send = $("send"), status = $("status");
+  const modelSel = $("model"), mem = $("mem");
   let online = null, busy = false;
+  let history = [];  // 이전 대화 기억용. 서버는 저장하지 않고, 이 페이지가 들고 있다가 매번 같이 보낸다.
+  // 서버가 알려 주는 모델 이름(한국어)의 영어 이름
+  const MODEL_EN = { latest: "Latest model", stage3: "Stage 3 model", v1: "First model (13.8M)" };
+
+  // 고른 모델·기억 설정은 이 브라우저에만 기억해 둔다 (못 쓰는 환경이면 그냥 넘어감)
+  const store = {
+    get(k) { try { return localStorage.getItem("qbAi." + k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem("qbAi." + k, v); } catch (e) {} }
+  };
+  if (store.get("mem") === "0") mem.checked = false;
 
   function add(cls, text) {
     const div = document.createElement("div");
@@ -109,10 +132,31 @@
       const r = await fetch(API + "/state", { signal: ctrl.signal });
       clearTimeout(timer);
       setOnline(r.ok);
+      if (r.ok) fillModels((await r.json()).models);
     } catch (e) {
       setOnline(false);
     }
     clearTimeout(slow);
+  }
+
+  function fillModels(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    const want = store.get("model") || modelSel.value;
+    modelSel.innerHTML = "";
+    for (const m of list) {
+      const o = document.createElement("option");
+      o.value = m.key;
+      o.dataset.ko = m.label;
+      o.dataset.en = MODEL_EN[m.key] || m.label;
+      o.textContent = lang() === "en" ? o.dataset.en : o.dataset.ko;
+      modelSel.appendChild(o);
+    }
+    if (list.some((m) => m.key === want)) modelSel.value = want;
+  }
+
+  function resetChat(key) {
+    history = [];
+    add("sys", t(key));
   }
 
   async function ask(text) {
@@ -120,6 +164,7 @@
     busy = true; send.disabled = true;
     add("me", text);
     const wait = add("bot wait", "···");
+    const asked = modelSel.value;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), WAKE_TIMEOUT);
     const slow = setTimeout(() => { wait.textContent = t("waking"); }, 5000);
@@ -127,13 +172,21 @@
       const r = await fetch(API + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, model: asked, history: mem.checked ? history : [] }),
         signal: ctrl.signal
       });
       if (r.status === 429) { wait.textContent = t("busy"); }
       else if ([404, 502, 503, 504].includes(r.status)) { wait.textContent = t("down"); setOnline(false); }
       else if (!r.ok) { wait.textContent = t("fail"); }
-      else { wait.textContent = (await r.json()).reply; setOnline(true); }
+      else {
+        const reply = (await r.json()).reply;
+        wait.textContent = reply;
+        setOnline(true);
+        if (modelSel.value === asked) {  // 기다리는 사이 모델을 바꿨으면 새 대화에 섞지 않는다
+          history.push({ role: "user", content: text }, { role: "assistant", content: reply.slice(0, 400) });
+          history = history.slice(-20);  // 최근 10번 주고받은 것까지만 (서버 한도와 같음)
+        }
+      }
     } catch (e) {
       wait.textContent = t("down");
       setOnline(false);
@@ -152,6 +205,10 @@
     ask(text);
   });
   document.querySelectorAll("#chips button").forEach((b) => b.addEventListener("click", () => ask(b.textContent)));
+  // 모델을 바꾸면 다른 모델이 앞 대화를 이어받지 않게 새 대화로 시작한다.
+  modelSel.addEventListener("change", () => { store.set("model", modelSel.value); resetChat("switched"); });
+  mem.addEventListener("change", () => { store.set("mem", mem.checked ? "1" : "0"); });
+  $("clear").addEventListener("click", () => { log.innerHTML = ""; resetChat("cleared"); });
 
   function applyPlaceholder() { input.placeholder = input.dataset["ph" + (lang() === "en" ? "En" : "Ko")]; }
   new MutationObserver(applyPlaceholder).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
