@@ -5,3 +5,45 @@
 /* 마우스를 따라가는 연한 원 (2026-10-21 사용자 요청). 마우스 있는 기기에서만 app.js가 만든다. 클릭은 그대로 통과 */
 .cursor-glow{position:fixed;left:0;top:0;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;pointer-events:none;z-index:50;opacity:0;transition:opacity .5s ease;mix-blend-mode:multiply;background:radial-gradient(circle,rgba(230,120,80,.13) 0%,rgba(255,180,130,.08) 38%,rgba(255,200,160,0) 70%);will-change:transform}
 .cursor-glow.on{opacity:1}
+
+/* 폰 화면 (2026-10-21 사용자 요청: 데스크톱 비율 말고 폰에서 쓰기 편하게) */
+body{word-break:keep-all;overflow-wrap:anywhere}
+.prose h2{counter-reset:s}
+.tabbar{display:none}
+@media(max-width:780px){
+.navin{height:58px;gap:14px}
+.brand{font-size:19px}
+.hero{padding:34px 0 34px}
+.hero h1{font-size:clamp(30px,8.6vw,38px);line-height:1.2;letter-spacing:-.04em;margin:10px 0 14px}
+.hero p{font-size:16px}
+.actions{gap:10px;margin-top:22px}
+.actions .btn{flex:1 1 100%;min-height:52px;font-size:16px}
+.mock{margin-top:30px;padding:10px;border-radius:18px}
+.mockbar{padding:3px 3px 10px}
+.main{padding:18px}
+.app{min-height:0}
+.main h2{font-size:20px;margin:10px 0 0}
+.input{height:auto;margin:14px 0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.section{padding:44px 0}
+.section h2{font-size:clamp(25px,7vw,30px);line-height:1.25}
+.lead{margin-bottom:22px}
+.card{padding:20px}
+.icon{margin-bottom:12px}
+.strip{padding:22px}
+.strip h3{font-size:21px}
+.strip .actions{min-width:0}
+.pagehead{padding:34px 0 20px}
+.pagehead h1{font-size:clamp(29px,8.4vw,36px);line-height:1.2}
+.downloadcard{padding:22px}
+.downloadcard h2{font-size:24px}
+.prose h2{margin-top:30px;font-size:21px}
+.step{grid-template-columns:38px 1fr;gap:12px;margin:18px 0}
+.step:before{width:34px;height:34px}
+.step p{margin:4px 0 0}
+.lang{padding:6px 9px;font-size:13px}
+body.has-tabbar{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+.tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,253,249,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line2);padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(92,58,34,.08)}
+.tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0 5px;border-radius:12px;font-size:12px;font-weight:700;color:var(--text2);-webkit-tap-highlight-color:transparent}
+.tabbar svg{width:23px;height:23px}
+.tabbar a.on{color:var(--accent-ink);background:var(--accent-soft)}
+}
