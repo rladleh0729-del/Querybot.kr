@@ -220,9 +220,9 @@
   <main class="qa-chat">
     <div class="qa-top">
       <button class="qa-menu" id="menuBtn" type="button" aria-label="대화 기록 열기">☰</button>
-      <div class="qa-title"><b>QueryBot AI</b><span data-ko="직접 키운 작은 한국어 AI · 실험용" data-en="A small Korean AI trained from scratch · experimental"></span></div>
+      <div class="qa-title"><b>QueryBot AI</b></div>
       <div class="qa-opts">
-        <select id="model" aria-label="모델"><option value="latest" data-ko="최신 모델" data-en="Latest model">최신 모델</option></select>
+        <select id="model" aria-label="모델"><option value="latest">QueryBot the Best</option></select>
         <label title="켜면 앞에서 나눈 대화를 기억하고 이어서 답합니다"><input id="mem" type="checkbox" checked><span class="mem-text" data-ko="앞 대화 기억" data-en="Memory"></span></label>
         <div id="status" class="ai-status"><i></i><span data-ko="확인 중" data-en="Checking"></span></div>
       </div>
@@ -232,10 +232,9 @@
     </div>
     <div class="qa-composer">
       <form id="form" class="qa-form" autocomplete="off">
-        <textarea id="input" rows="1" maxlength="200" data-ph-ko="쿼리봇에게 말을 걸어 보세요" data-ph-en="Message QueryBot (Korean works best)"></textarea>
+        <textarea id="input" rows="1" maxlength="200" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <button id="send" class="qa-send" type="submit" aria-label="보내기">↑</button>
       </form>
-      <div class="qa-fine" data-ko="실험용 작은 모델이라 엉뚱한 답을 할 수 있어요. 서버가 잠들어 있으면 첫 답은 1분쯤 걸려요." data-en="An experimental small model — answers can be off. The first answer can take a minute if the server is asleep."></div>
     </div>
   </main>
 </div>
@@ -252,13 +251,13 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨어요. 새 대화를 시작해요.", waking: "서버를 깨우는 중이에요… 첫 답은 1분쯤 걸릴 수 있어요.", down: "지금은 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요.", busy: "질문이 너무 많아요. 잠시 후 다시 해 주세요.", fail: "답을 받지 못했어요. 잠시 후 다시 해 주세요.", copy: "복사", copied: "복사됨", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없어요", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 지울까요?", helloTitle: "무엇이든 말을 걸어 보세요", helloText: "QueryBot은 직접 키운 작은 한국어 AI예요. 지식 질문은 위키백과에서 찾아 출처와 함께 보여 줘요." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Say anything to QueryBot", helloText: "QueryBot is a small Korean AI trained from scratch. Knowledge questions are looked up on Korean Wikipedia, with the source." }
+    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "무엇을 도와드릴까요?", helloText: "" },
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "How can I help you today?", helloText: "" }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
     ["좋아하는 사람이 생겼어", "설레는 이야기"],
-    ["이순신은 누구야?", "위키백과에서 찾아요"],
+    ["이순신은 누구야?", "위키백과 검색"],
     ["심심해", "이야기 상대가 필요할 때"]
   ];
   const lang = () => (document.documentElement.lang === "en" ? "en" : "ko");
@@ -268,7 +267,8 @@
   const modelSel = $("model"), mem = $("mem"), convList = $("convList");
   let online = null, busy = false;
   // 서버가 알려 주는 모델 이름(한국어)의 영어 이름
-  const MODEL_EN = { latest: "Latest model", stage3: "Stage 3 model", v1: "First model (13.8M)" };
+  // 모델 이름 (사용자 요청 2026-10-21): 사이트에 올라간 최고 모델은 QueryBot the Best, 예전 모델은 단계 번호로
+  const MODEL_NAME = { latest: "QueryBot the Best", stage3: "QueryBot 3", v1: "QueryBot 1" };
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // 고른 모델·기억 설정은 이 브라우저에만 기억해 둔다 (못 쓰는 환경이면 그냥 넘어감)
@@ -305,7 +305,7 @@
     log.innerHTML = "";
     const box = el("div", "qa-hello");
     box.appendChild(el("div", "qa-logo", "Q")).setAttribute("aria-hidden", "true");
-    box.append(el("h2", "", t("helloTitle")), el("p", "", t("helloText")));
+    box.appendChild(el("h2", "", t("helloTitle")));
     const grid = el("div", "qa-suggest");
     for (const [q, sub] of SUGGEST) {
       const b = el("button");
@@ -344,10 +344,10 @@
     renderList();
     paintFoot();
     log.querySelectorAll(".qa-offer").forEach((x) => x.remove());
-    if (cur && cur.messages.length) addSys("대화 보관함을 만들었어요. 이 대화부터 왼쪽에 저장돼요.");
+    if (cur && cur.messages.length) addSys("프로젝트를 만들었습니다. 이 대화부터 왼쪽에 저장됩니다.");
   }
   function disableHistory() {
-    if (!confirm("대화 기록을 끌까요? 이 기기에 저장된 대화가 모두 지워져요. (먼저 '내보내기'로 백업할 수 있어요)")) return;
+    if (!confirm("대화 기록을 끄시겠습니까? 이 기기에 저장된 대화가 모두 삭제됩니다. (먼저 '내보내기'로 백업할 수 있습니다)")) return;
     histOn = false;
     store.set("histOn", "0");
     try { localStorage.removeItem(CONV_KEY); } catch (e) {}
@@ -356,20 +356,20 @@
     paintFoot();
   }
   // 보관함 설명 (왼쪽 칸과 채팅 안내에서 같이 씀)
-  const OFFER_POINTS = ["지난 대화를 왼쪽에서 다시 열어 볼 수 있어요", "열어 둔 대화에 이어서 말할 수 있어요", "이 기기에만 저장돼요 · 서버에는 안 남아요", "언제든 끄고 한 번에 지울 수 있어요"];
+  const OFFER_POINTS = ["지난 대화를 왼쪽에서 다시 열어 볼 수 있습니다", "열어 둔 대화에 이어서 이야기할 수 있습니다", "이 기기에만 저장되며 서버에는 남지 않습니다", "언제든 끄고 한 번에 삭제할 수 있습니다"];
   function offerCard(compact) {
     const box = el("div", compact ? "qa-offer" : "qa-offer-side");
-    box.appendChild(el("b", "", compact ? "이 대화를 저장해 둘까요?" : "대화 기록이 꺼져 있어요"));
-    if (!compact) box.appendChild(el("p", "", "지금은 대화가 저장되지 않아서, 새로고침하면 사라져요. 이 기기에 '대화 보관함'을 만들면:"));
+    box.appendChild(el("b", "", compact ? "이 대화를 프로젝트에 저장하시겠습니까?" : "대화 기록이 꺼져 있습니다"));
+    if (!compact) box.appendChild(el("p", "", "지금 대화는 저장되지 않아 새로고침하면 사라집니다. 프로젝트를 만들면 다음 기능을 쓸 수 있습니다."));
     const ul = el("ul");
     for (const s of compact ? OFFER_POINTS.slice(0, 3) : OFFER_POINTS) ul.appendChild(el("li", "", s));
     box.appendChild(ul);
     const row = el("div", "r");
-    const yes = el("button", "go", "대화 보관함 만들기"); yes.type = "button";
+    const yes = el("button", "go", "프로젝트 만들기"); yes.type = "button";
     yes.addEventListener("click", enableHistory);
     row.appendChild(yes);
     if (compact) {
-      const no = el("button", "sub", "괜찮아요"); no.type = "button";
+      const no = el("button", "sub", "괜찮습니다"); no.type = "button";
       no.addEventListener("click", () => { store.set("histOn", "0"); box.remove(); });  // 다음 방문부턴 채팅 안에서 다시 권하지 않음 (왼쪽 칸에선 언제든 켤 수 있음)
       row.appendChild(no);
     }
@@ -378,7 +378,7 @@
   }
   // 왼쪽 아래: 기록이 켜져 있을 때만 내보내기·가져오기·끄기
   function paintFoot() {
-    $("histNote").textContent = histOn ? "대화는 이 기기(브라우저)에만 저장돼요. 서버에는 남지 않아요." : "대화 기록 꺼짐 · 새로고침하면 지금 대화가 사라져요";
+    $("histNote").textContent = histOn ? "대화는 이 기기에만 저장되며 서버에는 남지 않습니다." : "";
     $("histTools").hidden = !histOn;
   }
   // 앞 대화 (서버에 보낼 것·가르치기 때 같이 저장할 것)
@@ -518,9 +518,9 @@
       convs.sort((a, b) => (b.updated || 0) - (a.updated || 0));
       saveConvs();
       renderList();
-      alert(added ? "대화 " + added + "개를 가져왔어요." : "새로 가져올 대화가 없어요.");
+      alert(added ? "대화 " + added + "개를 가져왔습니다." : "새로 가져올 대화가 없습니다.");
     } catch (err) {
-      alert("가져올 수 없는 파일이에요. 이 페이지에서 '내보내기'로 만든 파일인지 확인해 주세요.");
+      alert("가져올 수 없는 파일입니다. 이 페이지에서 '내보내기'로 만든 파일인지 확인해 주세요.");
     }
   });
 
@@ -601,7 +601,7 @@
     const card = el("div", "src");
     const top = el("div", "src-top");
     top.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
-    top.appendChild(el("span", "", lang() === "en" ? "Found on Korean Wikipedia" : "위키백과에서 찾았어요"));
+    top.appendChild(el("span", "", lang() === "en" ? "Found on Korean Wikipedia" : "위키백과 검색 결과"));
     card.appendChild(top);
     if (title) card.appendChild(el("div", "src-title", title));
     card.appendChild(el("div", "src-text", summary));
@@ -634,7 +634,7 @@
     try {
       r = await fetch(TEACH_API + path, { method: "POST", headers: TEACH_HEADERS, body: JSON.stringify(Object.assign({ key: teachKey }, body || {})), signal: ctrl.signal });
     } catch (e) {
-      throw new Error("PC 답변 서버에 연결할 수 없어요. 가르치기는 PC가 켜져 있을 때만 돼요.");
+      throw new Error("PC 답변 서버에 연결할 수 없습니다. 가르치기는 PC가 켜져 있을 때만 할 수 있습니다.");
     } finally {
       clearTimeout(timer);
     }
@@ -659,7 +659,7 @@
     const btns = [1, 2, 3, 4, 5].map((n) => {
       const b = el("button", "", String(n));
       b.type = "button";
-      b.title = "학습에 " + REPEAT[n] + "번 넣어요";
+      b.title = "학습에 " + REPEAT[n] + "번 넣습니다";
       b.addEventListener("click", () => { w = n; paint(); });
       box.appendChild(b);
       return b;
@@ -694,13 +694,13 @@
     if (messages.length !== 2) return;
     const st = await siteTaught(true);
     if (!msgEl.isConnected) return;
-    msgEl.textContent += onSite(st, messages) ? " · ✓ 사이트 서버에 반영됨" : " · 사이트 서버 반영 대기(서버가 잠들어 있으면 깨어날 때 받아 가요)";
+    msgEl.textContent += onSite(st, messages) ? " · ✓ 사이트 서버에 반영됨" : " · 사이트 서버 반영 대기(서버가 쉬고 있으면 깨어날 때 반영됩니다)";
   }
 
   // 가르치기 저장. 서버가 '똑같거나 80% 이상 비슷한 가르침이 있다'고 하면 저장하지 않고 주인에게 고르게 한다.
   async function saveTeach(messages, msgEl, btn, weight, opts) {
     const answer = messages[messages.length - 1].content;
-    if (!(opts && opts.mode) && !politeOk(answer) && !confirm("쿼리봇은 해요체(~요)로 말하도록 배우고 있어요. 그래도 이 답으로 가르칠까요?")) return false;
+    if (!(opts && opts.mode) && !politeOk(answer) && !confirm("쿼리봇은 해요체(~요)로 말하도록 학습 중입니다. 그래도 이 답으로 가르치시겠습니까?")) return false;
     const old = msgEl.parentNode.querySelector(".similar");
     if (old) old.remove();
     if (btn) btn.disabled = true;
@@ -708,8 +708,8 @@
       const j = await teachCall("/teach", Object.assign({ messages, weight: weight || 3, mode: "check" }, opts || {}));
       if (!j.ok && j.similar) return await askSimilar(j.similar, messages, msgEl, btn, weight);
       msgEl.className = "teach-msg";
-      msgEl.textContent = (messages.length === 2 ? "가르쳤어요! 사이트 AI가 같은 말에 이 답을 하고, " : "가르쳤어요! 이어지는 대화라서 ")
-        + "다음 학습 라운드에 " + REPEAT[weight || 3] + "번 들어가요. (모두 " + j.count + "개)";
+      msgEl.textContent = (messages.length === 2 ? "저장했습니다. 사이트 AI가 같은 말에 이 답을 하고, " : "저장했습니다. 이어지는 대화이므로 ")
+        + "다음 학습 라운드에 " + REPEAT[weight || 3] + "번 들어갑니다. (모두 " + j.count + "개)";
       teachState.textContent = "· 가르친 대화 " + j.count + "개";
       syncSite(messages, msgEl);
       return true;
@@ -728,7 +728,7 @@
       msgEl.textContent = "";
       const box = el("div", "similar");
       const same = similar.find((s) => s.same);
-      box.appendChild(el("div", "", same ? "완전히 같은 대화를 이미 가르쳤어요." : "비슷한 대화를 이미 가르쳤어요. 어떻게 할까요?"));
+      box.appendChild(el("div", "", same ? "이미 같은 대화를 가르쳤습니다." : "비슷한 대화가 이미 있습니다. 어떻게 하시겠습니까?"));
       for (const s of similar.slice(0, 3)) {
         box.appendChild(el("div", "it", (s.same ? "같음" : "비슷함 " + s.score + "%") + " · 중요도 " + s.weight + " — " + fmtDialog(s.messages)));
       }
@@ -740,7 +740,7 @@
           mk("중요도만 " + (weight || 3) + "(으)로 바꾸기", "go", async () => {
             try {
               await teachCall("/teach/weight", { id: same.id, weight: weight || 3 });
-              msgEl.className = "teach-msg"; msgEl.textContent = "중요도를 바꿨어요. 다음 학습 라운드부터 " + REPEAT[weight || 3] + "번 들어가요.";
+              msgEl.className = "teach-msg"; msgEl.textContent = "중요도를 바꿨습니다. 다음 학습 라운드부터 " + REPEAT[weight || 3] + "번 들어갑니다.";
               done(true);
             } catch (e) { msgEl.className = "teach-msg bad"; msgEl.textContent = e.message; done(false); }
           });
@@ -749,7 +749,7 @@
         mk("이걸로 바꾸기", "go", async () => { box.remove(); resolve(await saveTeach(messages, msgEl, btn, weight, { mode: "replace", replace_id: similar[0].id })); });
         mk("따로 저장", "sub", async () => { box.remove(); resolve(await saveTeach(messages, msgEl, btn, weight, { mode: "new" })); });
       }
-      mk("취소", "sub", () => { msgEl.className = "teach-msg"; msgEl.textContent = "저장하지 않았어요."; done(false); });
+      mk("취소", "sub", () => { msgEl.className = "teach-msg"; msgEl.textContent = "저장하지 않았습니다."; done(false); });
       box.appendChild(row);
       msgEl.parentNode.insertBefore(box, msgEl.nextSibling);
     });
@@ -794,7 +794,7 @@
     teachBox.hidden = false;
     if (!owner) {
       teachBox.append(el("h3", "", "관리자 · 가르치기"),
-        el("p", "", "PC에서 '가르치기키만들기.bat'로 정한 키를 넣어 주세요. 키는 이 브라우저에만 저장돼요."));
+        el("p", "", "PC에서 '가르치기키만들기.bat'로 정한 키를 입력해 주세요. 키는 이 브라우저에만 저장됩니다."));
       const form = el("form");
       const inp = el("input"); inp.type = "password"; inp.autocomplete = "current-password"; inp.placeholder = "가르치기 키"; inp.maxLength = 200;
       const row = el("div", "row");
@@ -825,7 +825,7 @@
       return;
     }
     teachBox.append(el("h3", "", "관리자 모드 · 가르치기"),
-      el("p", "", "AI 답 아래 '고치기'로 더 좋은 답을 가르치거나, 여기서 새 대화를 가르쳐요. 한 번 주고받은 대화는 몇 분 안에 사이트 AI가 같은 말에 바로 그 답을 하고, 모두 다음 학습에 들어가요. 중요도가 높을수록 학습에 여러 번 넣고, 똑같거나 80% 넘게 비슷한 대화가 있으면 저장 전에 알려 드려요. 개인정보는 넣지 마세요."));
+      el("p", "", "AI 답 아래 '고치기'로 더 좋은 답을 가르치거나, 여기서 새 대화를 가르칠 수 있습니다. 한 번 주고받은 대화는 사이트 AI가 같은 말에 바로 그 답을 하고, 모두 다음 학습에 들어갑니다. 중요도가 높을수록 학습에 여러 번 들어가며, 똑같거나 80% 넘게 비슷한 대화가 있으면 저장 전에 알려 드립니다. 개인정보는 넣지 마세요."));
     // 주고받기 칸들: '+ 이어서'를 누르면 한 번 더 주고받는 칸이 붙어서 이어지는 대화로 가르친다 (최대 MAX_EX번)
     const MAX_EX = 6;
     const pairsBox = el("div", "pairs");
@@ -874,7 +874,7 @@
       const msgs = [];
       for (const p of pairs) {
         const uq = p.q.value.trim(), ua = p.a.value.trim();
-        if (!uq || !ua) { msg.className = "teach-msg bad"; msg.textContent = "모든 칸에 사용자 말과 쿼리봇 답을 적어 주세요(빈 칸은 '− 마지막 주고받기 빼기'로 빼요)."; return; }
+        if (!uq || !ua) { msg.className = "teach-msg bad"; msg.textContent = "모든 칸에 사용자 말과 쿼리봇 답을 적어 주세요(빈 칸은 '− 마지막 주고받기 빼기'로 뺄 수 있습니다)."; return; }
         msgs.push({ role: "user", content: uq }, { role: "assistant", content: ua });
       }
       let ctx = ctxBox.checked ? hist().slice(-2) : [];
@@ -898,9 +898,9 @@
       teachState.textContent = "· 가르친 대화 " + j.count + "개";
       // 반영 상태 요약: 사이트 서버가 마지막으로 받아 간 때, 학습이 마지막으로 가져간 때
       list.appendChild(el("div", "sync-line",
-        (st ? "사이트 서버: " + st.count + "개 쓰는 중 (" + (st.updated || "아직 못 받음").slice(5, 16) + " 받음)" : "사이트 서버: 확인 못 함(잠들어 있을 수 있어요)")
+        (st ? "사이트 서버: " + st.count + "개 쓰는 중 (" + (st.updated || "아직 못 받음").slice(5, 16) + " 받음)" : "사이트 서버: 확인 못 함(쉬고 있을 수 있습니다)")
         + " · 학습: " + (j.last_export ? j.last_export.slice(5, 16) + "에 마지막으로 가져감" : "아직 안 가져감")));
-      if (!j.items.length) { list.appendChild(el("div", "", "아직 가르친 대화가 없어요.")); return; }
+      if (!j.items.length) { list.appendChild(el("div", "", "아직 가르친 대화가 없습니다.")); return; }
       for (const it of j.items) {
         const row = el("div", "teach-item");
         const d = el("div");
@@ -910,11 +910,11 @@
         });
         // 실제 서버에 들어갔는지
         const badges = el("div", "badges");
-        if (it.messages.length !== 2) badges.appendChild(el("span", "bdg no", "이어지는 대화 · 학습에만 쓰여요"));
+        if (it.messages.length !== 2) badges.appendChild(el("span", "bdg no", "이어지는 대화 · 학습에만 사용"));
         else if (onSite(st, it.messages)) badges.appendChild(el("span", "bdg ok", "✓ 사이트 서버 반영됨"));
         else badges.appendChild(el("span", "bdg wait", st ? "⏳ 사이트 서버 반영 대기" : "사이트 서버 확인 못 함"));
         if (j.last_export && it.at && it.at <= j.last_export) badges.appendChild(el("span", "bdg ok", "✓ 학습 데이터에 들어감"));
-        else badges.appendChild(el("span", "bdg wait", "⏳ 다음 학습 라운드에 들어가요"));
+        else badges.appendChild(el("span", "bdg wait", "⏳ 다음 학습 라운드에 들어감"));
         d.appendChild(badges);
         // 중요도 바꾸기 (학습에 넣는 횟수)
         const sel = el("select");
@@ -926,12 +926,12 @@
         }
         sel.value = String(it.weight || 3);
         sel.addEventListener("change", async () => {
-          try { await teachCall("/teach/weight", { id: it.id, weight: Number(sel.value) }); msg.className = "teach-msg"; msg.textContent = "중요도를 바꿨어요."; }
+          try { await teachCall("/teach/weight", { id: it.id, weight: Number(sel.value) }); msg.className = "teach-msg"; msg.textContent = "중요도를 바꿨습니다."; }
           catch (e) { msg.className = "teach-msg bad"; msg.textContent = e.message; sel.value = String(it.weight || 3); }
         });
         const del = el("button", "sub", "삭제"); del.type = "button";
         del.addEventListener("click", async () => {
-          if (!confirm("이 가르침을 지울까요?")) return;
+          if (!confirm("이 가르침을 삭제하시겠습니까?")) return;
           try { await teachCall("/teach/delete", { id: it.id }); row.remove(); siteTaught(true); } catch (e) { msg.className = "teach-msg bad"; msg.textContent = e.message; }
         });
         row.append(d, sel, del);
@@ -999,9 +999,7 @@
     for (const m of list) {
       const o = document.createElement("option");
       o.value = m.key;
-      o.dataset.ko = m.label;
-      o.dataset.en = MODEL_EN[m.key] || m.label;
-      o.textContent = lang() === "en" ? o.dataset.en : o.dataset.ko;
+      o.textContent = MODEL_NAME[m.key] || m.label;
       modelSel.appendChild(o);
     }
     if (list.some((m) => m.key === want)) modelSel.value = want;
