@@ -19,13 +19,47 @@
   .ai-status.on i{background:var(--ok);box-shadow:0 0 10px var(--ok)}
   .ai-status.off i{background:#ff6b7a}
   .ai-note{color:var(--muted);font-size:14px;margin:0 0 18px}
-  .ai-box{border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,#101a2c,#0b1220);display:flex;flex-direction:column;height:min(62vh,560px);overflow:hidden}
-  .ai-log{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:12px}
-  .msg{max-width:80%;padding:11px 15px;border-radius:16px;white-space:pre-wrap;word-break:break-word}
-  .msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-bottom-right-radius:5px}
-  .msg.bot{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:5px}
-  .msg.sys{align-self:center;background:none;color:var(--muted);font-size:13px;padding:2px}
-  .msg.wait{opacity:.6}
+  .ai-box{border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,#101a2c,#0b1220);display:flex;flex-direction:column;height:min(66vh,620px);overflow:hidden}
+  .ai-log{flex:1;overflow-y:auto;padding:24px 22px;display:flex;flex-direction:column;gap:18px;scroll-behavior:smooth}
+
+  /* 내 말: 오른쪽 말풍선 */
+  .me{align-self:flex-end;max-width:78%;padding:10px 15px;border-radius:18px 18px 5px 18px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;white-space:pre-wrap;word-break:break-word}
+
+  /* 쿼리봇 답: 말풍선 없이 아이콘 + 이름 + 글 (대화형 AI 화면처럼) */
+  .turn{display:flex;gap:12px;align-items:flex-start;max-width:88%;animation:rise .25s ease-out}
+  .avatar{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 4px 14px #4f7dff33}
+  .avatar.wiki{background:#f4f6fa;color:#1b2333;font-family:Georgia,"Times New Roman",serif;font-size:17px;box-shadow:none}
+  .turn-body{min-width:0;flex:1}
+  .who{font-size:13px;font-weight:700;color:#c6d0e2;margin:5px 0 6px;display:flex;align-items:center;gap:8px}
+  .who-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:#ffffff08}
+  .text{line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--text)}
+  .text.typing::after{content:"";display:inline-block;width:7px;height:1.05em;margin-left:2px;vertical-align:-2px;background:var(--accent);animation:blink .9s steps(2) infinite}
+  .tools{display:flex;gap:6px;margin-top:8px;opacity:0;transition:opacity .15s}
+  .turn:hover .tools,.turn:focus-within .tools{opacity:1}
+  .tools button{border:1px solid transparent;background:none;color:var(--muted);border-radius:8px;padding:4px 8px;font:inherit;font-size:12px;cursor:pointer}
+  .tools button:hover{border-color:var(--line);color:var(--text);background:#ffffff08}
+
+  /* 위키백과 검색 답: 출처 카드 */
+  .src{border:1px solid #2a3a58;border-radius:14px;background:linear-gradient(160deg,#121e33,#0e1828);overflow:hidden}
+  .src-top{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #22314d;font-size:12px;color:#9fb2d4;background:#ffffff05}
+  .src-top svg{flex:none}
+  .src-title{padding:12px 14px 2px;font-size:17px;font-weight:800;letter-spacing:-.01em}
+  .src-text{padding:4px 14px 12px;line-height:1.7;color:#d7deea;word-break:break-word}
+  .src-link{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid #22314d;font-size:13px;color:#7fb2ff;text-decoration:none}
+  .src-link:hover{background:#ffffff08}
+  .src-link small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* 기다리는 중: 점 세 개 */
+  .dots{display:inline-flex;gap:5px;padding:8px 0}
+  .dots i{width:7px;height:7px;border-radius:50%;background:#7f8ba3;animation:bounce 1.2s infinite}
+  .dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+  .wait-note{font-size:13px;color:var(--muted);margin-top:2px}
+
+  /* 오류·알림 */
+  .alert{align-self:flex-start;display:flex;gap:10px;align-items:flex-start;max-width:88%;padding:10px 14px;border-radius:12px;border:1px solid #ff6b7a55;background:#ff6b7a12;color:#ffc2c9;font-size:14px}
+  .alert.warn{border-color:#f5b94a55;background:#f5b94a12;color:#ffe0a6}
+  .sys{align-self:center;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:#ffffff06}
+
   .ai-form{display:flex;gap:10px;padding:14px;border-top:1px solid var(--line);background:#0a1220}
   .ai-form input{flex:1;min-width:0;height:48px;border:1px solid var(--line);background:#09111f;border-radius:12px;padding:0 14px;color:var(--text);font:inherit}
   .ai-form input:focus{outline:2px solid #62a8ff66;border-color:var(--accent)}
@@ -38,7 +72,12 @@
   .ai-opts button{margin-left:auto;border:1px solid var(--line);background:#ffffff08;color:#c6d0e2;border-radius:10px;height:36px;padding:0 12px;font:inherit;font-size:14px;cursor:pointer}
   .ai-chips{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
   .ai-chips button{border:1px solid var(--line);background:#ffffff08;color:#c6d0e2;border-radius:999px;padding:6px 13px;font:inherit;font-size:14px;cursor:pointer}
-  @media (max-width:640px){.navlinks{display:none}.msg{max-width:90%}.ai-box{height:66vh}}
+  .ai-chips button:hover{border-color:var(--accent);color:var(--text)}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-5px);opacity:1}}
+  @keyframes blink{50%{opacity:0}}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.turn,.dots i,.text.typing::after{animation:none}}
+  @media (max-width:640px){.navlinks{display:none}.me{max-width:88%}.turn,.alert{max-width:100%}.ai-box{height:70vh}.ai-log{padding:18px 14px}.tools{opacity:1}}
 </style>
 </head>
 <body>
@@ -51,7 +90,7 @@
     </div>
     <div id="status" class="ai-status"><i></i><span data-ko="연결 확인 중" data-en="Checking"></span></div>
   </div>
-  <p class="ai-note" data-ko="무료 서버에서 돌아가는 실험용 모델이라 엉뚱한 답을 할 때가 많습니다. 한동안 아무도 안 쓰면 서버가 잠들어서 첫 답은 1분쯤 걸릴 수 있습니다. 입력한 글은 저장하지 않습니다." data-en="An experimental model on a free server, so its answers are often off. The server sleeps when idle, so the first answer can take about a minute. Messages are not stored."></p>
+  <p class="ai-note" data-ko="무료 서버에서 돌아가는 실험용 모델이라 엉뚱한 답을 할 때가 많습니다. 지식 질문은 위키백과에서 찾아 출처와 함께 보여 줍니다. 한동안 아무도 안 쓰면 서버가 잠들어서 첫 답은 1분쯤 걸릴 수 있습니다. 입력한 글은 저장하지 않습니다." data-en="An experimental model on a free server, so its answers are often off. Knowledge questions are looked up on Korean Wikipedia and shown with the source. The server sleeps when idle, so the first answer can take about a minute. Messages are not stored."></p>
   <div class="ai-opts">
     <label><span data-ko="모델" data-en="Model"></span>
       <select id="model"><option value="latest" data-ko="최신 모델" data-en="Latest model">최신 모델</option></select>
@@ -70,6 +109,7 @@
     <button type="button">오늘 너무 피곤하다</button>
     <button type="button">배고파</button>
     <button type="button">좋아하는 사람이 생겼어</button>
+    <button type="button">이순신은 누구야?</button>
     <button type="button">심심해</button>
   </div>
 </div></main>
@@ -81,8 +121,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨 · 답변 가능", off: "연결 안 됨 · 잠시 후 다시", wake: "서버 깨우는 중 · 최대 1분", hello: "안녕하세요! 무엇이든 말을 걸어 보세요.", switched: "모델을 바꿨어요. 새 대화를 시작해요.", cleared: "대화를 지웠어요.", waking: "서버를 깨우는 중이에요… 첫 답은 1분쯤 걸릴 수 있어요.", down: "지금은 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요.", busy: "질문이 너무 많아요. 잠시 후 다시 해 주세요.", fail: "답을 받지 못했어요. 잠시 후 다시 해 주세요." },
-    en: { on: "Connected · ready", off: "Unavailable · try later", wake: "Waking server · up to 1 min", hello: "Hi! Say anything (Korean works best).", switched: "Model changed. Starting a new chat.", cleared: "Chat cleared.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again." }
+    ko: { on: "연결됨 · 답변 가능", off: "연결 안 됨 · 잠시 후 다시", wake: "서버 깨우는 중 · 최대 1분", hello: "안녕하세요! 무엇이든 말을 걸어 보세요.", switched: "모델을 바꿨어요. 새 대화를 시작해요.", cleared: "대화를 지웠어요.", waking: "서버를 깨우는 중이에요… 첫 답은 1분쯤 걸릴 수 있어요.", down: "지금은 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요.", busy: "질문이 너무 많아요. 잠시 후 다시 해 주세요.", fail: "답을 받지 못했어요. 잠시 후 다시 해 주세요.", copy: "복사", copied: "복사됨", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변" },
+    en: { on: "Connected · ready", off: "Unavailable · try later", wake: "Waking server · up to 1 min", hello: "Hi! Say anything (Korean works best).", switched: "Model changed. Starting a new chat.", cleared: "Chat cleared.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer" }
   };
   const lang = () => (document.documentElement.lang === "en" ? "en" : "ko");
   const t = (k) => T[lang()][k];
@@ -93,6 +133,7 @@
   let history = [];  // 이전 대화 기억용. 서버는 저장하지 않고, 이 페이지가 들고 있다가 매번 같이 보낸다.
   // 서버가 알려 주는 모델 이름(한국어)의 영어 이름
   const MODEL_EN = { latest: "Latest model", stage3: "Stage 3 model", v1: "First model (13.8M)" };
+  const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // 고른 모델·기억 설정은 이 브라우저에만 기억해 둔다 (못 쓰는 환경이면 그냥 넘어감)
   const store = {
@@ -101,13 +142,100 @@
   };
   if (store.get("mem") === "0") mem.checked = false;
 
-  function add(cls, text) {
-    const div = document.createElement("div");
-    div.className = "msg " + cls;
-    div.textContent = text;
-    log.appendChild(div);
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function put(node) {
+    log.appendChild(node);
     log.scrollTop = log.scrollHeight;
-    return div;
+    return node;
+  }
+  const addMe = (text) => put(el("div", "me", text));
+  const addSys = (text) => put(el("div", "sys", text));
+  function addAlert(text, warn) {
+    const a = el("div", "alert" + (warn ? " warn" : ""));
+    a.append(el("span", "", warn ? "⏳" : "⚠"), el("span", "", text));
+    return put(a);
+  }
+
+  // 쿼리봇 차례 한 칸: 아이콘 + 이름 + 내용. kind = "ai" | "wiki"
+  function turnShell(kind) {
+    const turn = el("div", "turn");
+    const av = el("div", "avatar" + (kind === "wiki" ? " wiki" : ""), kind === "wiki" ? "W" : "Q");
+    av.setAttribute("aria-hidden", "true");
+    const body = el("div", "turn-body");
+    const who = el("div", "who", "QueryBot");
+    who.appendChild(el("span", "who-tag", kind === "wiki" ? t("wikiTag") : t("aiTag")));
+    body.appendChild(who);
+    turn.append(av, body);
+    return { turn, body };
+  }
+
+  function addWaiting() {
+    const { turn, body } = turnShell("ai");
+    body.querySelector(".who-tag").remove();
+    const d = el("div", "dots");
+    d.append(el("i"), el("i"), el("i"));
+    body.appendChild(d);
+    return put(turn);
+  }
+
+  function copyTool(getText) {
+    const tools = el("div", "tools");
+    const b = el("button", "", t("copy"));
+    b.type = "button";
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(getText()); b.textContent = t("copied"); setTimeout(() => (b.textContent = t("copy")), 1500); } catch (e) {}
+    });
+    tools.appendChild(b);
+    return tools;
+  }
+
+  // 모델 답: 한 글자씩 써지듯 보여 준다 (실제로는 다 받은 뒤 보여 주는 것)
+  function addAiReply(text) {
+    const { turn, body } = turnShell("ai");
+    const p = el("div", "text");
+    body.append(p, copyTool(() => text));
+    put(turn);
+    if (reduceMotion) { p.textContent = text; return; }
+    p.classList.add("typing");
+    const chars = [...text];
+    let i = 0;
+    const step = () => {
+      i = Math.min(chars.length, i + 2);
+      p.textContent = chars.slice(0, i).join("");
+      log.scrollTop = log.scrollHeight;
+      if (i < chars.length) setTimeout(step, 22); else p.classList.remove("typing");
+    };
+    step();
+  }
+
+  // 위키백과 답: 서버 글 "위키백과에서 찾아봤어요. <요약>\n(출처: 위키백과 「제목」)"을 나눠 출처 카드로
+  function addWikiReply(text, url) {
+    const m = text.match(/\(출처:\s*위키백과\s*「([^」]+)」\)\s*$/);
+    const title = m ? m[1] : "";
+    const summary = text.replace(/\(출처:[^)]*\)\s*$/, "").replace(/^위키백과에서 찾아봤어요\.\s*/, "").trim();
+    const { turn, body } = turnShell("wiki");
+    const card = el("div", "src");
+    const top = el("div", "src-top");
+    top.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+    top.appendChild(el("span", "", lang() === "en" ? "Found on Korean Wikipedia" : "위키백과에서 찾았어요"));
+    card.appendChild(top);
+    if (title) card.appendChild(el("div", "src-title", title));
+    card.appendChild(el("div", "src-text", summary));
+    let safe = "";
+    try { const u = new URL(url); if (u.protocol === "https:" && /(^|\.)wikipedia\.org$/.test(u.hostname)) safe = u.href; } catch (e) {}
+    if (safe) {
+      const a = el("a", "src-link");
+      a.href = safe; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.append(el("span", "", t("wikiOpen") + " ↗"), el("small", "", "ko.wikipedia.org"));
+      card.appendChild(a);
+    }
+    body.append(card, copyTool(() => summary + (title ? "\n(출처: 위키백과 「" + title + "」)" : "")));
+    put(turn);
   }
 
   function setStatus(key) {
@@ -156,18 +284,19 @@
 
   function resetChat(key) {
     history = [];
-    add("sys", t(key));
+    addSys(t(key));
   }
 
   async function ask(text) {
     if (busy || !text) return;
     busy = true; send.disabled = true;
-    add("me", text);
-    const wait = add("bot wait", "···");
+    addMe(text);
+    const wait = addWaiting();
     const asked = modelSel.value;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), WAKE_TIMEOUT);
-    const slow = setTimeout(() => { wait.textContent = t("waking"); }, 5000);
+    const slow = setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t("waking"))); log.scrollTop = log.scrollHeight; }, 5000);
+    let err = null, warn = false;
     try {
       const r = await fetch(API + "/chat", {
         method: "POST",
@@ -175,12 +304,14 @@
         body: JSON.stringify({ message: text, model: asked, history: mem.checked ? history : [] }),
         signal: ctrl.signal
       });
-      if (r.status === 429) { wait.textContent = t("busy"); }
-      else if ([404, 502, 503, 504].includes(r.status)) { wait.textContent = t("down"); setOnline(false); }
-      else if (!r.ok) { wait.textContent = t("fail"); }
+      if (r.status === 429) { err = t("busy"); warn = true; }
+      else if ([404, 502, 503, 504].includes(r.status)) { err = t("down"); setOnline(false); }
+      else if (!r.ok) { err = t("fail"); }
       else {
-        const reply = (await r.json()).reply;
-        wait.textContent = reply;
+        const j = await r.json();
+        const reply = j.reply || "";
+        wait.remove();
+        if (j.source) addWikiReply(reply, j.source); else addAiReply(reply);
         setOnline(true);
         if (modelSel.value === asked) {  // 기다리는 사이 모델을 바꿨으면 새 대화에 섞지 않는다
           history.push({ role: "user", content: text }, { role: "assistant", content: reply.slice(0, 400) });
@@ -188,13 +319,12 @@
         }
       }
     } catch (e) {
-      wait.textContent = t("down");
+      err = t("down");
       setOnline(false);
     }
     clearTimeout(timer);
     clearTimeout(slow);
-    wait.classList.remove("wait");
-    log.scrollTop = log.scrollHeight;
+    if (err) { wait.remove(); addAlert(err, warn); }
     busy = false; send.disabled = false; input.focus();
   }
 
@@ -214,7 +344,7 @@
   new MutationObserver(applyPlaceholder).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
   document.addEventListener("DOMContentLoaded", () => {
     applyPlaceholder();
-    add("sys", t("hello"));
+    addSys(t("hello"));
     checkHealth();
   });
   // 주기적으로 확인하지 않는다 (확인 요청이 서버를 계속 깨워 무료 사용 시간을 쓰지 않게).
