@@ -105,6 +105,8 @@
   .bdg.wait{color:#7a4a00;background:#fff6e5;border-color:#f1d29a}
   .bdg.no{color:var(--muted);background:var(--panel2);border-color:var(--line)}
   .sync-line{font-size:12px;color:var(--muted);margin:2px 0 6px}
+  .pair+.pair{margin-top:10px;padding-top:6px;border-top:1px dashed var(--line2)}
+  .sub:disabled{opacity:.6;cursor:default}
 
   .ai-form{display:flex;gap:10px;padding:14px;border-top:1px solid var(--line);background:var(--panel2)}
   .ai-form input{flex:1;min-width:0;height:48px;border:1px solid var(--field-line);background:var(--field);border-radius:12px;padding:0 14px;color:var(--text);font:inherit}
@@ -504,13 +506,38 @@
     }
     teachBox.append(el("h3", "", "가르치기 모드 켜짐"),
       el("p", "", "AI 답 아래 '고치기'로 더 좋은 답을 가르치거나, 여기서 새 대화를 가르쳐요. 한 번 주고받은 대화는 몇 분 안에 사이트 AI가 같은 말에 바로 그 답을 하고, 모두 다음 학습에 들어가요. 중요도가 높을수록 학습에 여러 번 넣고, 똑같거나 80% 넘게 비슷한 대화가 있으면 저장 전에 알려 드려요. 개인정보는 넣지 마세요."));
-    const q = el("textarea"); q.maxLength = 200; q.placeholder = "예: 좋아하는 사람이 생겼어";
-    const a = el("textarea"); a.maxLength = 200; a.placeholder = "예: 우와, 정말요? 어떤 사람인지 궁금해요!";
-    const lq = el("label", "f", "사용자 말"), la = el("label", "f", "쿼리봇 답");
+    // 주고받기 칸들: '+ 이어서'를 누르면 한 번 더 주고받는 칸이 붙어서 이어지는 대화로 가르친다 (최대 MAX_EX번)
+    const MAX_EX = 6;
+    const pairsBox = el("div", "pairs");
+    const pairs = [];
+    function addPair() {
+      const n = pairs.length + 1;
+      const wrap = el("div", "pair");
+      const q = el("textarea"); q.maxLength = 200;
+      const a = el("textarea"); a.maxLength = 200;
+      q.placeholder = n === 1 ? "예: 나 요즘 수영 배워" : "앞 이야기에 이어지는 말 (예: 오늘 25미터 갔어)";
+      a.placeholder = n === 1 ? "예: 수영 좋죠! 배운 지 얼마나 됐어요?" : "앞 이야기를 이어받는 답 (예: 처음 수영으로 25미터라니 대단해요!)";
+      wrap.append(el("label", "f", n === 1 ? "사용자 말" : "사용자 말 " + n), q, el("label", "f", n === 1 ? "쿼리봇 답" : "쿼리봇 답 " + n), a);
+      pairsBox.appendChild(wrap);
+      pairs.push({ wrap, q, a });
+      paintPairs();
+      if (n > 1) q.focus();
+    }
+    function paintPairs() {
+      plus.disabled = pairs.length >= MAX_EX;
+      plus.textContent = pairs.length >= MAX_EX ? "최대 " + MAX_EX + "번까지" : "+ 이어서 한 번 더 주고받기";
+      minus.hidden = pairs.length <= 1;
+    }
+    const plus = el("button", "sub", ""); plus.type = "button";
+    const minus = el("button", "sub", "− 마지막 주고받기 빼기"); minus.type = "button";
+    plus.addEventListener("click", addPair);
+    minus.addEventListener("click", () => { const p = pairs.pop(); if (p) p.wrap.remove(); paintPairs(); });
+    const plusRow = el("div", "row");
+    plusRow.append(plus, minus);
     const row = el("div", "row");
     const ctxLabel = el("label");
     const ctxBox = el("input"); ctxBox.type = "checkbox";
-    ctxLabel.append(ctxBox, document.createTextNode("지금 대화의 바로 앞 주고받기도 같이 (이어지는 대화로)"));
+    ctxLabel.append(ctxBox, document.createTextNode("지금 대화의 바로 앞 주고받기도 맨 앞에 같이"));
     const go = el("button", "go", "가르치기"); go.type = "button";
     const listBtn = el("button", "sub", "가르친 대화 보기"); listBtn.type = "button";
     const wp = weightPicker(3);
@@ -519,12 +546,24 @@
     const row2 = el("div", "row");
     row2.append(wp.el, ctxLabel);
     row.append(go, listBtn);
-    teachBox.append(lq, q, la, a, row2, row, msg, list);
+    teachBox.append(pairsBox, plusRow, row2, row, msg, list);
+    addPair();
     go.addEventListener("click", async () => {
-      const uq = q.value.trim(), ua = a.value.trim();
-      if (!uq || !ua) { msg.className = "teach-msg bad"; msg.textContent = "사용자 말과 쿼리봇 답을 둘 다 적어 주세요."; return; }
-      const ctx = ctxBox.checked ? history.slice(-2) : [];
-      if (await saveTeach(ctx.concat([{ role: "user", content: uq }, { role: "assistant", content: ua }]), msg, go, wp.get())) { q.value = ""; a.value = ""; ctxBox.checked = false; if (!list.hidden) loadList(list, msg); }
+      const msgs = [];
+      for (const p of pairs) {
+        const uq = p.q.value.trim(), ua = p.a.value.trim();
+        if (!uq || !ua) { msg.className = "teach-msg bad"; msg.textContent = "모든 칸에 사용자 말과 쿼리봇 답을 적어 주세요(빈 칸은 '− 마지막 주고받기 빼기'로 빼요)."; return; }
+        msgs.push({ role: "user", content: uq }, { role: "assistant", content: ua });
+      }
+      let ctx = ctxBox.checked ? history.slice(-2) : [];
+      if (ctx.length / 2 + pairs.length > MAX_EX) ctx = [];
+      if (await saveTeach(ctx.concat(msgs), msg, go, wp.get())) {
+        while (pairs.length > 1) pairs.pop().wrap.remove();
+        pairs[0].q.value = ""; pairs[0].a.value = "";
+        paintPairs();
+        ctxBox.checked = false;
+        if (!list.hidden) loadList(list, msg);
+      }
     });
     listBtn.addEventListener("click", () => { list.hidden = !list.hidden; if (!list.hidden) loadList(list, msg); });
   }
