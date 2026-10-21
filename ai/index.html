@@ -99,6 +99,12 @@
   .similar .it{margin:6px 0;padding:6px 8px;border-radius:8px;background:#fffdf7;border:1px solid #f3e2bd;word-break:break-word}
   .similar .row{margin-top:8px}
   .teach-item select{border:1px solid var(--field-line);border-radius:8px;background:var(--field);color:var(--text2);font:inherit;font-size:12px;height:28px}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+  .bdg{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid}
+  .bdg.ok{color:#145c37;background:#e3f5ea;border-color:#a8dcbc}
+  .bdg.wait{color:#7a4a00;background:#fff6e5;border-color:#f1d29a}
+  .bdg.no{color:var(--muted);background:var(--panel2);border-color:var(--line)}
+  .sync-line{font-size:12px;color:var(--muted);margin:2px 0 6px}
 
   .ai-form{display:flex;gap:10px;padding:14px;border-top:1px solid var(--line);background:var(--panel2)}
   .ai-form input{flex:1;min-width:0;height:48px;border:1px solid var(--field-line);background:var(--field);border-radius:12px;padding:0 14px;color:var(--text);font:inherit}
@@ -347,6 +353,28 @@
 
   const fmtDialog = (msgs) => msgs.map((m) => (m.role === "user" ? "사용자: " : "쿼리봇: ") + m.content).join(" / ");
 
+  // 사이트 서버(Render)가 지금 쓰는 가르친 대화 — '사이트 반영됨' 표시용. 비교는 서버와 같은 방식(띄어쓰기·문장 부호 무시)
+  const tnorm = (s) => s.replace(/[\s.,!?~…ㅠㅜ"'()\[\]{}:;·\-]+/g, "").toLowerCase();
+  async function siteTaught(refresh) {
+    try {
+      if (refresh) await fetch(API + "/taught/refresh", { method: "POST" });
+      const r = await fetch(API + "/taught", { cache: "no-store" });
+      if (!r.ok) return null;
+      const j = await r.json();
+      j.map = new Map(j.items.map((it) => [it.q, it.a]));
+      return j;
+    } catch (e) { return null; }
+  }
+  const onSite = (st, msgs) => !!st && msgs.length === 2 && st.map.get(tnorm(msgs[0].content)) === msgs[1].content;
+
+  // 가르친 직후: 사이트 서버가 바로 받아 가게 하고, 반영됐는지 메시지에 덧붙인다
+  async function syncSite(messages, msgEl) {
+    if (messages.length !== 2) return;
+    const st = await siteTaught(true);
+    if (!msgEl.isConnected) return;
+    msgEl.textContent += onSite(st, messages) ? " · ✓ 사이트 서버에 반영됨" : " · 사이트 서버 반영 대기(서버가 잠들어 있으면 깨어날 때 받아 가요)";
+  }
+
   // 가르치기 저장. 서버가 '똑같거나 80% 이상 비슷한 가르침이 있다'고 하면 저장하지 않고 주인에게 고르게 한다.
   async function saveTeach(messages, msgEl, btn, weight, opts) {
     const answer = messages[messages.length - 1].content;
@@ -358,9 +386,10 @@
       const j = await teachCall("/teach", Object.assign({ messages, weight: weight || 3, mode: "check" }, opts || {}));
       if (!j.ok && j.similar) return await askSimilar(j.similar, messages, msgEl, btn, weight);
       msgEl.className = "teach-msg";
-      msgEl.textContent = (messages.length === 2 ? "가르쳤어요! 몇 분 안에 사이트 AI가 같은 말에 이 답을 하고, " : "가르쳤어요! 이어지는 대화라서 ")
+      msgEl.textContent = (messages.length === 2 ? "가르쳤어요! 사이트 AI가 같은 말에 이 답을 하고, " : "가르쳤어요! 이어지는 대화라서 ")
         + "다음 학습 라운드에 " + REPEAT[weight || 3] + "번 들어가요. (모두 " + j.count + "개)";
       teachState.textContent = "· 가르친 대화 " + j.count + "개";
+      syncSite(messages, msgEl);
       return true;
     } catch (e) {
       msgEl.className = "teach-msg bad";
@@ -503,10 +532,14 @@
   async function loadList(list, msg) {
     list.textContent = "불러오는 중…";
     try {
-      const j = await teachCall("/teach/list");
+      const [j, st] = await Promise.all([teachCall("/teach/list"), siteTaught(false)]);
       list.innerHTML = "";
       teachState.textContent = "· 가르친 대화 " + j.count + "개";
-      if (!j.items.length) { list.textContent = "아직 가르친 대화가 없어요."; return; }
+      // 반영 상태 요약: 사이트 서버가 마지막으로 받아 간 때, 학습이 마지막으로 가져간 때
+      list.appendChild(el("div", "sync-line",
+        (st ? "사이트 서버: " + st.count + "개 쓰는 중 (" + (st.updated || "아직 못 받음").slice(5, 16) + " 받음)" : "사이트 서버: 확인 못 함(잠들어 있을 수 있어요)")
+        + " · 학습: " + (j.last_export ? j.last_export.slice(5, 16) + "에 마지막으로 가져감" : "아직 안 가져감")));
+      if (!j.items.length) { list.appendChild(el("div", "", "아직 가르친 대화가 없어요.")); return; }
       for (const it of j.items) {
         const row = el("div", "teach-item");
         const d = el("div");
@@ -514,6 +547,14 @@
           if (i) d.appendChild(document.createElement("br"));
           d.append(el("b", "", m.role === "user" ? "사용자: " : "쿼리봇: "), document.createTextNode(m.content));
         });
+        // 실제 서버에 들어갔는지
+        const badges = el("div", "badges");
+        if (it.messages.length !== 2) badges.appendChild(el("span", "bdg no", "이어지는 대화 · 학습에만 쓰여요"));
+        else if (onSite(st, it.messages)) badges.appendChild(el("span", "bdg ok", "✓ 사이트 서버 반영됨"));
+        else badges.appendChild(el("span", "bdg wait", st ? "⏳ 사이트 서버 반영 대기" : "사이트 서버 확인 못 함"));
+        if (j.last_export && it.at && it.at <= j.last_export) badges.appendChild(el("span", "bdg ok", "✓ 학습 데이터에 들어감"));
+        else badges.appendChild(el("span", "bdg wait", "⏳ 다음 학습 라운드에 들어가요"));
+        d.appendChild(badges);
         // 중요도 바꾸기 (학습에 넣는 횟수)
         const sel = el("select");
         sel.title = "중요도 (학습에 넣는 횟수)";
@@ -530,7 +571,7 @@
         const del = el("button", "sub", "삭제"); del.type = "button";
         del.addEventListener("click", async () => {
           if (!confirm("이 가르침을 지울까요?")) return;
-          try { await teachCall("/teach/delete", { id: it.id }); row.remove(); } catch (e) { msg.className = "teach-msg bad"; msg.textContent = e.message; }
+          try { await teachCall("/teach/delete", { id: it.id }); row.remove(); siteTaught(true); } catch (e) { msg.className = "teach-msg bad"; msg.textContent = e.message; }
         });
         row.append(d, sel, del);
         list.appendChild(row);
@@ -543,14 +584,23 @@
   }
 
   $("teachToggle").addEventListener("click", () => {
-    if (owner) { setOwner(false); teachBox.hidden = true; return; }
-    if (!teachBox.hidden) { teachBox.hidden = true; return; }
-    renderTeach();
+    if (!teachBox.hidden) {  // 펼쳐져 있으면: 켜진 상태면 끄고, 키 입력 중이면 접기
+      if (owner) setOwner(false);
+      teachBox.hidden = true;
+      return;
+    }
+    renderTeach();  // 접혀 있으면 펼친다 (켜져 있으면 가르치기 칸, 아니면 키 입력 칸)
   });
-  // 전에 키를 넣어 둔 브라우저면 조용히 다시 확인해서 켠다
+  // 전에 키를 넣어 둔 브라우저면 조용히 다시 확인해서 켜고, 가르치기 칸도 바로 펼친다
+  // (예전엔 켜지기만 하고 칸이 접혀 있어서 '끄기'만 보여 껐다 켜야 했음)
   async function resumeOwner() {
     if (!teachKey) return;
-    try { const j = await teachCall("/teach/check"); setOwner(true); teachState.textContent = "· 가르친 대화 " + j.count + "개"; } catch (e) {}
+    try {
+      const j = await teachCall("/teach/check");
+      setOwner(true);
+      renderTeach();
+      teachState.textContent = "· 가르친 대화 " + j.count + "개";
+    } catch (e) {}
   }
 
   function setStatus(key) {
