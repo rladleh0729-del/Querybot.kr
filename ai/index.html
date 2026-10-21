@@ -90,6 +90,15 @@
   .teach-item b{color:var(--accent-ink)}
   .edit{margin-top:8px;border:1px dashed var(--line2);border-radius:12px;padding:10px 12px;background:var(--panel2)}
   .edit .lbl{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px}
+  .wpick{display:inline-flex;gap:4px;align-items:center;font-size:13px;color:var(--text2);flex-wrap:wrap}
+  .wpick b{font-weight:700;margin-right:2px}
+  .wpick button{width:28px;height:28px;border-radius:8px;border:1px solid var(--field-line);background:var(--field);color:var(--text2);font:inherit;font-size:13px;font-weight:800;cursor:pointer;padding:0}
+  .wpick button[aria-pressed=true]{background:linear-gradient(135deg,var(--accent),var(--accent2));color:var(--on-accent);border-color:transparent}
+  .wpick small{color:var(--muted);margin-left:4px}
+  .similar{margin-top:8px;border:1px solid #f1d29a;background:#fff6e5;border-radius:12px;padding:10px 12px;font-size:13px;color:#5c3a00}
+  .similar .it{margin:6px 0;padding:6px 8px;border-radius:8px;background:#fffdf7;border:1px solid #f3e2bd;word-break:break-word}
+  .similar .row{margin-top:8px}
+  .teach-item select{border:1px solid var(--field-line);border-radius:8px;background:var(--field);color:var(--text2);font:inherit;font-size:12px;height:28px}
 
   .ai-form{display:flex;gap:10px;padding:14px;border-top:1px solid var(--line);background:var(--panel2)}
   .ai-form input{flex:1;min-width:0;height:48px;border:1px solid var(--field-line);background:var(--field);border-radius:12px;padding:0 14px;color:var(--text);font:inherit}
@@ -312,15 +321,45 @@
   const POLITE_END = /(요|죠|니다|니까)$/, INTERJ = /^(와|우와|헉|어머|아이고|저런|오|앗|네|음|아하|에구|아니요)$/;
   const politeOk = (s) => s.split(/(?<=[.!?])\s+/).every((x) => { const c = x.replace(/[^가-힣A-Za-z0-9]+$/, ""); return !c || POLITE_END.test(c) || INTERJ.test(c); });
 
-  async function saveTeach(messages, msgEl, btn) {
+  // 중요도 1~5: 학습 데이터에 넣는 횟수 (PC 서버 teach_store.WEIGHT_REPEAT와 같게)
+  const REPEAT = { 1: 2, 2: 4, 3: 6, 4: 10, 5: 15 };
+  function weightPicker(initial) {
+    let w = initial || 3;
+    const box = el("span", "wpick");
+    box.appendChild(el("b", "", "중요도"));
+    const hint = el("small");
+    const btns = [1, 2, 3, 4, 5].map((n) => {
+      const b = el("button", "", String(n));
+      b.type = "button";
+      b.title = "학습에 " + REPEAT[n] + "번 넣어요";
+      b.addEventListener("click", () => { w = n; paint(); });
+      box.appendChild(b);
+      return b;
+    });
+    box.appendChild(hint);
+    function paint() {
+      btns.forEach((b, i) => b.setAttribute("aria-pressed", String(i + 1 === w)));
+      hint.textContent = "학습에 " + REPEAT[w] + "번";
+    }
+    paint();
+    return { el: box, get: () => w };
+  }
+
+  const fmtDialog = (msgs) => msgs.map((m) => (m.role === "user" ? "사용자: " : "쿼리봇: ") + m.content).join(" / ");
+
+  // 가르치기 저장. 서버가 '똑같거나 80% 이상 비슷한 가르침이 있다'고 하면 저장하지 않고 주인에게 고르게 한다.
+  async function saveTeach(messages, msgEl, btn, weight, opts) {
     const answer = messages[messages.length - 1].content;
-    if (!politeOk(answer) && !confirm("쿼리봇은 해요체(~요)로 말하도록 배우고 있어요. 그래도 이 답으로 가르칠까요?")) return false;
+    if (!(opts && opts.mode) && !politeOk(answer) && !confirm("쿼리봇은 해요체(~요)로 말하도록 배우고 있어요. 그래도 이 답으로 가르칠까요?")) return false;
+    const old = msgEl.parentNode.querySelector(".similar");
+    if (old) old.remove();
     if (btn) btn.disabled = true;
     try {
-      const j = await teachCall("/teach", { messages });
+      const j = await teachCall("/teach", Object.assign({ messages, weight: weight || 3, mode: "check" }, opts || {}));
+      if (!j.ok && j.similar) return await askSimilar(j.similar, messages, msgEl, btn, weight);
       msgEl.className = "teach-msg";
       msgEl.textContent = (messages.length === 2 ? "가르쳤어요! 몇 분 안에 사이트 AI가 같은 말에 이 답을 하고, " : "가르쳤어요! 이어지는 대화라서 ")
-        + "다음 학습 라운드에 들어가요. (모두 " + j.count + "개)";
+        + "다음 학습 라운드에 " + REPEAT[weight || 3] + "번 들어가요. (모두 " + j.count + "개)";
       teachState.textContent = "· 가르친 대화 " + j.count + "개";
       return true;
     } catch (e) {
@@ -330,6 +369,39 @@
     } finally {
       if (btn) btn.disabled = false;
     }
+  }
+
+  // 비슷한 가르침이 있을 때: 기존 것 바꾸기 / 따로 저장 / (완전히 같으면) 중요도만 바꾸기 / 취소
+  function askSimilar(similar, messages, msgEl, btn, weight) {
+    return new Promise((resolve) => {
+      msgEl.textContent = "";
+      const box = el("div", "similar");
+      const same = similar.find((s) => s.same);
+      box.appendChild(el("div", "", same ? "완전히 같은 대화를 이미 가르쳤어요." : "비슷한 대화를 이미 가르쳤어요. 어떻게 할까요?"));
+      for (const s of similar.slice(0, 3)) {
+        box.appendChild(el("div", "it", (s.same ? "같음" : "비슷함 " + s.score + "%") + " · 중요도 " + s.weight + " — " + fmtDialog(s.messages)));
+      }
+      const row = el("div", "row");
+      const done = (v) => { box.remove(); resolve(v); };
+      const mk = (label, cls, fn) => { const b = el("button", cls, label); b.type = "button"; b.addEventListener("click", fn); row.appendChild(b); };
+      if (same) {
+        if (same.weight !== (weight || 3)) {
+          mk("중요도만 " + (weight || 3) + "(으)로 바꾸기", "go", async () => {
+            try {
+              await teachCall("/teach/weight", { id: same.id, weight: weight || 3 });
+              msgEl.className = "teach-msg"; msgEl.textContent = "중요도를 바꿨어요. 다음 학습 라운드부터 " + REPEAT[weight || 3] + "번 들어가요.";
+              done(true);
+            } catch (e) { msgEl.className = "teach-msg bad"; msgEl.textContent = e.message; done(false); }
+          });
+        }
+      } else {
+        mk("이걸로 바꾸기", "go", async () => { box.remove(); resolve(await saveTeach(messages, msgEl, btn, weight, { mode: "replace", replace_id: similar[0].id })); });
+        mk("따로 저장", "sub", async () => { box.remove(); resolve(await saveTeach(messages, msgEl, btn, weight, { mode: "new" })); });
+      }
+      mk("취소", "sub", () => { msgEl.className = "teach-msg"; msgEl.textContent = "저장하지 않았어요."; done(false); });
+      box.appendChild(row);
+      msgEl.parentNode.insertBefore(box, msgEl.nextSibling);
+    });
   }
 
   // AI 답 아래 '고치기': 더 좋은 답을 적어서 가르친다 (질문과 그 앞 대화는 자동으로 같이)
@@ -344,8 +416,9 @@
     const row = el("div", "row");
     const go = el("button", "go", "가르치기"); go.type = "button";
     const no = el("button", "sub", "취소"); no.type = "button";
+    const wp = weightPicker(3);
     const msg = el("div", "teach-msg");
-    row.append(go, no);
+    row.append(go, no, wp.el);
     box.append(ta, row, msg);
     body.appendChild(box);
     ta.focus();
@@ -353,8 +426,8 @@
     go.addEventListener("click", async () => {
       const a = ta.value.trim();
       if (!a) { msg.className = "teach-msg bad"; msg.textContent = "답을 적어 주세요."; return; }
-      const ok = await saveTeach(meta.ctx.concat([{ role: "user", content: meta.user }, { role: "assistant", content: a }]), msg, go);
-      if (ok) setTimeout(() => box.remove(), 2500);
+      const ok = await saveTeach(meta.ctx.concat([{ role: "user", content: meta.user }, { role: "assistant", content: a }]), msg, go, wp.get());
+      if (ok) setTimeout(() => box.remove(), 3000);
     });
   }
 
@@ -401,7 +474,7 @@
       return;
     }
     teachBox.append(el("h3", "", "가르치기 모드 켜짐"),
-      el("p", "", "AI 답 아래 '고치기'로 더 좋은 답을 가르치거나, 여기서 새 대화를 가르쳐요. 한 번 주고받은 대화는 몇 분 안에 사이트 AI가 같은 말에 바로 그 답을 하고, 모두 다음 학습에 들어가요. 개인정보는 넣지 마세요."));
+      el("p", "", "AI 답 아래 '고치기'로 더 좋은 답을 가르치거나, 여기서 새 대화를 가르쳐요. 한 번 주고받은 대화는 몇 분 안에 사이트 AI가 같은 말에 바로 그 답을 하고, 모두 다음 학습에 들어가요. 중요도가 높을수록 학습에 여러 번 넣고, 똑같거나 80% 넘게 비슷한 대화가 있으면 저장 전에 알려 드려요. 개인정보는 넣지 마세요."));
     const q = el("textarea"); q.maxLength = 200; q.placeholder = "예: 좋아하는 사람이 생겼어";
     const a = el("textarea"); a.maxLength = 200; a.placeholder = "예: 우와, 정말요? 어떤 사람인지 궁금해요!";
     const lq = el("label", "f", "사용자 말"), la = el("label", "f", "쿼리봇 답");
@@ -411,15 +484,18 @@
     ctxLabel.append(ctxBox, document.createTextNode("지금 대화의 바로 앞 주고받기도 같이 (이어지는 대화로)"));
     const go = el("button", "go", "가르치기"); go.type = "button";
     const listBtn = el("button", "sub", "가르친 대화 보기"); listBtn.type = "button";
+    const wp = weightPicker(3);
     const msg = el("div", "teach-msg");
     const list = el("div", "teach-list"); list.hidden = true;
-    row.append(go, listBtn, ctxLabel);
-    teachBox.append(lq, q, la, a, row, msg, list);
+    const row2 = el("div", "row");
+    row2.append(wp.el, ctxLabel);
+    row.append(go, listBtn);
+    teachBox.append(lq, q, la, a, row2, row, msg, list);
     go.addEventListener("click", async () => {
       const uq = q.value.trim(), ua = a.value.trim();
       if (!uq || !ua) { msg.className = "teach-msg bad"; msg.textContent = "사용자 말과 쿼리봇 답을 둘 다 적어 주세요."; return; }
       const ctx = ctxBox.checked ? history.slice(-2) : [];
-      if (await saveTeach(ctx.concat([{ role: "user", content: uq }, { role: "assistant", content: ua }]), msg, go)) { q.value = ""; a.value = ""; ctxBox.checked = false; if (!list.hidden) loadList(list, msg); }
+      if (await saveTeach(ctx.concat([{ role: "user", content: uq }, { role: "assistant", content: ua }]), msg, go, wp.get())) { q.value = ""; a.value = ""; ctxBox.checked = false; if (!list.hidden) loadList(list, msg); }
     });
     listBtn.addEventListener("click", () => { list.hidden = !list.hidden; if (!list.hidden) loadList(list, msg); });
   }
@@ -438,12 +514,25 @@
           if (i) d.appendChild(document.createElement("br"));
           d.append(el("b", "", m.role === "user" ? "사용자: " : "쿼리봇: "), document.createTextNode(m.content));
         });
+        // 중요도 바꾸기 (학습에 넣는 횟수)
+        const sel = el("select");
+        sel.title = "중요도 (학습에 넣는 횟수)";
+        for (const n of [1, 2, 3, 4, 5]) {
+          const o = el("option", "", "중요도 " + n + " · " + REPEAT[n] + "번");
+          o.value = String(n);
+          sel.appendChild(o);
+        }
+        sel.value = String(it.weight || 3);
+        sel.addEventListener("change", async () => {
+          try { await teachCall("/teach/weight", { id: it.id, weight: Number(sel.value) }); msg.className = "teach-msg"; msg.textContent = "중요도를 바꿨어요."; }
+          catch (e) { msg.className = "teach-msg bad"; msg.textContent = e.message; sel.value = String(it.weight || 3); }
+        });
         const del = el("button", "sub", "삭제"); del.type = "button";
         del.addEventListener("click", async () => {
           if (!confirm("이 가르침을 지울까요?")) return;
           try { await teachCall("/teach/delete", { id: it.id }); row.remove(); } catch (e) { msg.className = "teach-msg bad"; msg.textContent = e.message; }
         });
-        row.append(d, del);
+        row.append(d, sel, del);
         list.appendChild(row);
       }
     } catch (e) {
