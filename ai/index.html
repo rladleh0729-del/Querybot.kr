@@ -60,6 +60,37 @@
   .alert.warn{border-color:#f1d29a;background:#fff6e5;color:#7a4a00}
   .sys{align-self:center;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:var(--panel)}
 
+  /* 주인이 가르친 답: 초록 표시 */
+  .avatar.taught{background:linear-gradient(135deg,#1e8a52,#2f9e6a);box-shadow:0 4px 14px rgba(30,138,82,.25)}
+  .who-tag.taught{color:#145c37;background:#e3f5ea;border-color:#a8dcbc}
+
+  /* 가르치기 모드 (주인만) */
+  .fix{display:none}
+  body.owner .fix{display:inline-block}
+  .teach-toggle{margin:18px 0 0;font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .teach-toggle button{border:0;background:none;color:var(--accent-ink);font:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+  .teach{margin-top:12px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);box-shadow:var(--shadow-sm);padding:16px 18px}
+  .teach h3{margin:0 0 4px;font-size:16px;color:var(--text)}
+  .teach p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+  .teach label.f{display:block;font-size:13px;font-weight:700;color:var(--text2);margin:10px 0 4px}
+  .teach input[type=password],.teach textarea,.edit textarea{width:100%;border:1px solid var(--field-line);background:var(--field);border-radius:10px;padding:9px 12px;color:var(--text);font:inherit;font-size:14px}
+  .teach textarea,.edit textarea{min-height:60px;resize:vertical}
+  .teach input:focus,.teach textarea:focus,.edit textarea:focus{outline:2px solid var(--focus);border-color:var(--accent)}
+  .teach .row,.edit .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .teach .row label{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--text2);cursor:pointer}
+  .teach .row input[type=checkbox]{accent-color:var(--accent)}
+  .go{border:0;border-radius:10px;padding:8px 14px;font:inherit;font-size:14px;font-weight:800;color:var(--on-accent);background:linear-gradient(135deg,var(--accent),var(--accent2));cursor:pointer}
+  .go:disabled{opacity:.6;cursor:default}
+  .sub{border:1px solid var(--field-line);border-radius:10px;padding:7px 12px;font:inherit;font-size:13px;background:var(--field);color:var(--text2);cursor:pointer}
+  .teach-msg{font-size:13px;margin-top:8px;color:#145c37}
+  .teach-msg.bad{color:#9b1c2c}
+  .teach-list{margin-top:12px;border-top:1px solid var(--line);padding-top:6px;max-height:280px;overflow:auto}
+  .teach-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;color:var(--text2)}
+  .teach-item div{flex:1;min-width:0;word-break:break-word}
+  .teach-item b{color:var(--accent-ink)}
+  .edit{margin-top:8px;border:1px dashed var(--line2);border-radius:12px;padding:10px 12px;background:var(--panel2)}
+  .edit .lbl{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px}
+
   .ai-form{display:flex;gap:10px;padding:14px;border-top:1px solid var(--line);background:var(--panel2)}
   .ai-form input{flex:1;min-width:0;height:48px;border:1px solid var(--field-line);background:var(--field);border-radius:12px;padding:0 14px;color:var(--text);font:inherit}
   .ai-form input:focus{outline:2px solid var(--focus);border-color:var(--accent)}
@@ -113,6 +144,8 @@
     <button type="button">이순신은 누구야?</button>
     <button type="button">심심해</button>
   </div>
+  <div class="teach-toggle"><button id="teachToggle" type="button">가르치기 모드</button><span id="teachState"></span></div>
+  <div id="teach" class="teach" hidden></div>
 </div></main>
 <footer class="footer"><div class="wrap footin"><div class="brand">QueryBot</div><a href="/" data-ko="홈" data-en="Home">홈</a><div>© 2026 QueryBot. All rights reserved.</div></div></footer>
 <script src="/assets/app.js"></script>
@@ -122,8 +155,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨 · 답변 가능", off: "연결 안 됨 · 잠시 후 다시", wake: "서버 깨우는 중 · 최대 1분", hello: "안녕하세요! 무엇이든 말을 걸어 보세요.", switched: "모델을 바꿨어요. 새 대화를 시작해요.", cleared: "대화를 지웠어요.", waking: "서버를 깨우는 중이에요… 첫 답은 1분쯤 걸릴 수 있어요.", down: "지금은 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요.", busy: "질문이 너무 많아요. 잠시 후 다시 해 주세요.", fail: "답을 받지 못했어요. 잠시 후 다시 해 주세요.", copy: "복사", copied: "복사됨", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변" },
-    en: { on: "Connected · ready", off: "Unavailable · try later", wake: "Waking server · up to 1 min", hello: "Hi! Say anything (Korean works best).", switched: "Model changed. Starting a new chat.", cleared: "Chat cleared.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer" }
+    ko: { on: "연결됨 · 답변 가능", off: "연결 안 됨 · 잠시 후 다시", wake: "서버 깨우는 중 · 최대 1분", hello: "안녕하세요! 무엇이든 말을 걸어 보세요.", switched: "모델을 바꿨어요. 새 대화를 시작해요.", cleared: "대화를 지웠어요.", waking: "서버를 깨우는 중이에요… 첫 답은 1분쯤 걸릴 수 있어요.", down: "지금은 서버에 연결할 수 없어요. 잠시 후 다시 해 주세요.", busy: "질문이 너무 많아요. 잠시 후 다시 해 주세요.", fail: "답을 받지 못했어요. 잠시 후 다시 해 주세요.", copy: "복사", copied: "복사됨", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답" },
+    en: { on: "Connected · ready", off: "Unavailable · try later", wake: "Waking server · up to 1 min", hello: "Hi! Say anything (Korean works best).", switched: "Model changed. Starting a new chat.", cleared: "Chat cleared.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer" }
   };
   const lang = () => (document.documentElement.lang === "en" ? "en" : "ko");
   const t = (k) => T[lang()][k];
@@ -162,14 +195,14 @@
     return put(a);
   }
 
-  // 쿼리봇 차례 한 칸: 아이콘 + 이름 + 내용. kind = "ai" | "wiki"
+  // 쿼리봇 차례 한 칸: 아이콘 + 이름 + 내용. kind = "ai" | "wiki" | "taught"(주인이 가르친 답)
   function turnShell(kind) {
     const turn = el("div", "turn");
-    const av = el("div", "avatar" + (kind === "wiki" ? " wiki" : ""), kind === "wiki" ? "W" : "Q");
+    const av = el("div", "avatar" + (kind === "wiki" ? " wiki" : kind === "taught" ? " taught" : ""), kind === "wiki" ? "W" : "Q");
     av.setAttribute("aria-hidden", "true");
     const body = el("div", "turn-body");
     const who = el("div", "who", "QueryBot");
-    who.appendChild(el("span", "who-tag", kind === "wiki" ? t("wikiTag") : t("aiTag")));
+    who.appendChild(el("span", "who-tag" + (kind === "taught" ? " taught" : ""), kind === "wiki" ? t("wikiTag") : kind === "taught" ? t("taughtTag") : t("aiTag")));
     body.appendChild(who);
     turn.append(av, body);
     return { turn, body };
@@ -184,7 +217,8 @@
     return put(turn);
   }
 
-  function copyTool(getText) {
+  // 답 아래 도구: 복사 + (가르치기 모드일 때만 보이는) 고치기. meta = {user, ctx}: 이 답을 부른 질문과 그 앞 대화
+  function copyTool(getText, meta, body) {
     const tools = el("div", "tools");
     const b = el("button", "", t("copy"));
     b.type = "button";
@@ -192,14 +226,21 @@
       try { await navigator.clipboard.writeText(getText()); b.textContent = t("copied"); setTimeout(() => (b.textContent = t("copy")), 1500); } catch (e) {}
     });
     tools.appendChild(b);
+    if (meta && body) {
+      const f = el("button", "fix", "고치기");
+      f.type = "button";
+      f.title = "더 좋은 답을 직접 가르치기 (주인만)";
+      f.addEventListener("click", () => openEdit(body, meta, getText()));
+      tools.appendChild(f);
+    }
     return tools;
   }
 
   // 모델 답: 한 글자씩 써지듯 보여 준다 (실제로는 다 받은 뒤 보여 주는 것)
-  function addAiReply(text) {
-    const { turn, body } = turnShell("ai");
+  function addAiReply(text, meta, kind) {
+    const { turn, body } = turnShell(kind || "ai");
     const p = el("div", "text");
-    body.append(p, copyTool(() => text));
+    body.append(p, copyTool(() => text, meta, body));
     put(turn);
     if (reduceMotion) { p.textContent = text; return; }
     p.classList.add("typing");
@@ -215,7 +256,7 @@
   }
 
   // 위키백과 답: 서버 글 "위키백과에서 찾아봤어요. <요약>\n(출처: 위키백과 「제목」)"을 나눠 출처 카드로
-  function addWikiReply(text, url) {
+  function addWikiReply(text, url, meta) {
     const m = text.match(/\(출처:\s*위키백과\s*「([^」]+)」\)\s*$/);
     const title = m ? m[1] : "";
     const summary = text.replace(/\(출처:[^)]*\)\s*$/, "").replace(/^위키백과에서 찾아봤어요\.\s*/, "").trim();
@@ -235,8 +276,192 @@
       a.append(el("span", "", t("wikiOpen") + " ↗"), el("small", "", "ko.wikipedia.org"));
       card.appendChild(a);
     }
-    body.append(card, copyTool(() => summary + (title ? "\n(출처: 위키백과 「" + title + "」)" : "")));
+    body.append(card, copyTool(() => summary + (title ? "\n(출처: 위키백과 「" + title + "」)" : ""), meta, body));
     put(turn);
+  }
+
+  // =========================================================
+  // 가르치기 모드 (주인만). 가르친 대화는 PC 답변 서버에 저장 → 같은 말엔 몇 분 안에 사이트 AI가 그 답을 하고,
+  // 모두 다음 학습 라운드에 들어간다. 키는 PC에서 '가르치기키만들기.bat'로 정하고, 이 브라우저에만 기억한다.
+  // =========================================================
+  const TEACH_API = "https://poem-defog-septum.ngrok-free.dev";
+  const TEACH_HEADERS = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" };
+  const teachBox = $("teach"), teachState = $("teachState");
+  let teachKey = store.get("teachKey") || "";
+  let owner = false;
+
+  async function teachCall(path, body) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    let r;
+    try {
+      r = await fetch(TEACH_API + path, { method: "POST", headers: TEACH_HEADERS, body: JSON.stringify(Object.assign({ key: teachKey }, body || {})), signal: ctrl.signal });
+    } catch (e) {
+      throw new Error("PC 답변 서버에 연결할 수 없어요. 가르치기는 PC가 켜져 있을 때만 돼요.");
+    } finally {
+      clearTimeout(timer);
+    }
+    let j = {};
+    try { j = await r.json(); } catch (e) {}
+    if (r.status === 401) { setOwner(false); teachKey = ""; store.set("teachKey", ""); }
+    if (!r.ok) throw new Error(j.detail || ("오류 " + r.status));
+    return j;
+  }
+
+  // 쿼리봇은 해요체로 말하도록 배우는 중 → 반말 답이면 한 번 물어본다
+  const POLITE_END = /(요|죠|니다|니까)$/, INTERJ = /^(와|우와|헉|어머|아이고|저런|오|앗|네|음|아하|에구|아니요)$/;
+  const politeOk = (s) => s.split(/(?<=[.!?])\s+/).every((x) => { const c = x.replace(/[^가-힣A-Za-z0-9]+$/, ""); return !c || POLITE_END.test(c) || INTERJ.test(c); });
+
+  async function saveTeach(messages, msgEl, btn) {
+    const answer = messages[messages.length - 1].content;
+    if (!politeOk(answer) && !confirm("쿼리봇은 해요체(~요)로 말하도록 배우고 있어요. 그래도 이 답으로 가르칠까요?")) return false;
+    if (btn) btn.disabled = true;
+    try {
+      const j = await teachCall("/teach", { messages });
+      msgEl.className = "teach-msg";
+      msgEl.textContent = (messages.length === 2 ? "가르쳤어요! 몇 분 안에 사이트 AI가 같은 말에 이 답을 하고, " : "가르쳤어요! 이어지는 대화라서 ")
+        + "다음 학습 라운드에 들어가요. (모두 " + j.count + "개)";
+      teachState.textContent = "· 가르친 대화 " + j.count + "개";
+      return true;
+    } catch (e) {
+      msgEl.className = "teach-msg bad";
+      msgEl.textContent = e.message;
+      return false;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // AI 답 아래 '고치기': 더 좋은 답을 적어서 가르친다 (질문과 그 앞 대화는 자동으로 같이)
+  function openEdit(body, meta, current) {
+    const old = body.querySelector(".edit");
+    if (old) { old.remove(); return; }
+    const box = el("div", "edit");
+    box.appendChild(el("div", "lbl", "\"" + meta.user + "\"에 대한 더 좋은 답" + (meta.ctx.length ? " (앞 대화도 같이 가르쳐요)" : "")));
+    const ta = el("textarea");
+    ta.maxLength = 200;
+    ta.value = current.replace(/\n?\(출처:[^)]*\)\s*$/, "").trim().slice(0, 200);
+    const row = el("div", "row");
+    const go = el("button", "go", "가르치기"); go.type = "button";
+    const no = el("button", "sub", "취소"); no.type = "button";
+    const msg = el("div", "teach-msg");
+    row.append(go, no);
+    box.append(ta, row, msg);
+    body.appendChild(box);
+    ta.focus();
+    no.addEventListener("click", () => box.remove());
+    go.addEventListener("click", async () => {
+      const a = ta.value.trim();
+      if (!a) { msg.className = "teach-msg bad"; msg.textContent = "답을 적어 주세요."; return; }
+      const ok = await saveTeach(meta.ctx.concat([{ role: "user", content: meta.user }, { role: "assistant", content: a }]), msg, go);
+      if (ok) setTimeout(() => box.remove(), 2500);
+    });
+  }
+
+  function setOwner(v) {
+    owner = v;
+    document.body.classList.toggle("owner", v);
+    $("teachToggle").textContent = v ? "가르치기 모드 끄기" : "가르치기 모드";
+    if (!v) teachState.textContent = "";
+  }
+
+  function renderTeach() {
+    teachBox.innerHTML = "";
+    teachBox.hidden = false;
+    if (!owner) {
+      teachBox.append(el("h3", "", "가르치기 모드 (주인만)"),
+        el("p", "", "PC에서 '가르치기키만들기.bat'로 정한 키를 넣어 주세요. 키는 이 브라우저에만 저장돼요."));
+      const form = el("form");
+      const inp = el("input"); inp.type = "password"; inp.autocomplete = "current-password"; inp.placeholder = "가르치기 키"; inp.maxLength = 200;
+      const row = el("div", "row");
+      const go = el("button", "go", "켜기"); go.type = "submit";
+      const msg = el("div", "teach-msg");
+      row.append(go);
+      form.append(inp, row, msg);
+      teachBox.appendChild(form);
+      inp.focus();
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        teachKey = inp.value;
+        go.disabled = true;
+        try {
+          const j = await teachCall("/teach/check");
+          store.set("teachKey", teachKey);
+          setOwner(true);
+          teachState.textContent = "· 가르친 대화 " + j.count + "개";
+          renderTeach();
+        } catch (err) {
+          teachKey = "";
+          msg.className = "teach-msg bad";
+          msg.textContent = err.message;
+        } finally {
+          go.disabled = false;
+        }
+      });
+      return;
+    }
+    teachBox.append(el("h3", "", "가르치기 모드 켜짐"),
+      el("p", "", "AI 답 아래 '고치기'로 더 좋은 답을 가르치거나, 여기서 새 대화를 가르쳐요. 한 번 주고받은 대화는 몇 분 안에 사이트 AI가 같은 말에 바로 그 답을 하고, 모두 다음 학습에 들어가요. 개인정보는 넣지 마세요."));
+    const q = el("textarea"); q.maxLength = 200; q.placeholder = "예: 좋아하는 사람이 생겼어";
+    const a = el("textarea"); a.maxLength = 200; a.placeholder = "예: 우와, 정말요? 어떤 사람인지 궁금해요!";
+    const lq = el("label", "f", "사용자 말"), la = el("label", "f", "쿼리봇 답");
+    const row = el("div", "row");
+    const ctxLabel = el("label");
+    const ctxBox = el("input"); ctxBox.type = "checkbox";
+    ctxLabel.append(ctxBox, document.createTextNode("지금 대화의 바로 앞 주고받기도 같이 (이어지는 대화로)"));
+    const go = el("button", "go", "가르치기"); go.type = "button";
+    const listBtn = el("button", "sub", "가르친 대화 보기"); listBtn.type = "button";
+    const msg = el("div", "teach-msg");
+    const list = el("div", "teach-list"); list.hidden = true;
+    row.append(go, listBtn, ctxLabel);
+    teachBox.append(lq, q, la, a, row, msg, list);
+    go.addEventListener("click", async () => {
+      const uq = q.value.trim(), ua = a.value.trim();
+      if (!uq || !ua) { msg.className = "teach-msg bad"; msg.textContent = "사용자 말과 쿼리봇 답을 둘 다 적어 주세요."; return; }
+      const ctx = ctxBox.checked ? history.slice(-2) : [];
+      if (await saveTeach(ctx.concat([{ role: "user", content: uq }, { role: "assistant", content: ua }]), msg, go)) { q.value = ""; a.value = ""; ctxBox.checked = false; if (!list.hidden) loadList(list, msg); }
+    });
+    listBtn.addEventListener("click", () => { list.hidden = !list.hidden; if (!list.hidden) loadList(list, msg); });
+  }
+
+  async function loadList(list, msg) {
+    list.textContent = "불러오는 중…";
+    try {
+      const j = await teachCall("/teach/list");
+      list.innerHTML = "";
+      teachState.textContent = "· 가르친 대화 " + j.count + "개";
+      if (!j.items.length) { list.textContent = "아직 가르친 대화가 없어요."; return; }
+      for (const it of j.items) {
+        const row = el("div", "teach-item");
+        const d = el("div");
+        it.messages.forEach((m, i) => {
+          if (i) d.appendChild(document.createElement("br"));
+          d.append(el("b", "", m.role === "user" ? "사용자: " : "쿼리봇: "), document.createTextNode(m.content));
+        });
+        const del = el("button", "sub", "삭제"); del.type = "button";
+        del.addEventListener("click", async () => {
+          if (!confirm("이 가르침을 지울까요?")) return;
+          try { await teachCall("/teach/delete", { id: it.id }); row.remove(); } catch (e) { msg.className = "teach-msg bad"; msg.textContent = e.message; }
+        });
+        row.append(d, del);
+        list.appendChild(row);
+      }
+    } catch (e) {
+      list.textContent = "";
+      msg.className = "teach-msg bad";
+      msg.textContent = e.message;
+    }
+  }
+
+  $("teachToggle").addEventListener("click", () => {
+    if (owner) { setOwner(false); teachBox.hidden = true; return; }
+    if (!teachBox.hidden) { teachBox.hidden = true; return; }
+    renderTeach();
+  });
+  // 전에 키를 넣어 둔 브라우저면 조용히 다시 확인해서 켠다
+  async function resumeOwner() {
+    if (!teachKey) return;
+    try { const j = await teachCall("/teach/check"); setOwner(true); teachState.textContent = "· 가르친 대화 " + j.count + "개"; } catch (e) {}
   }
 
   function setStatus(key) {
@@ -294,6 +519,7 @@
     addMe(text);
     const wait = addWaiting();
     const asked = modelSel.value;
+    const ctx = mem.checked ? history.slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), WAKE_TIMEOUT);
     const slow = setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t("waking"))); log.scrollTop = log.scrollHeight; }, 5000);
@@ -302,7 +528,8 @@
       const r = await fetch(API + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, model: asked, history: mem.checked ? history : [] }),
+        // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
+        body: JSON.stringify({ message: text, model: asked, history: mem.checked ? history.slice(-4) : [] }),
         signal: ctrl.signal
       });
       if (r.status === 429) { err = t("busy"); warn = true; }
@@ -312,7 +539,8 @@
         const j = await r.json();
         const reply = j.reply || "";
         wait.remove();
-        if (j.source) addWikiReply(reply, j.source); else addAiReply(reply);
+        const meta = { user: text, ctx };
+        if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, j.taught ? "taught" : "ai");
         setOnline(true);
         if (modelSel.value === asked) {  // 기다리는 사이 모델을 바꿨으면 새 대화에 섞지 않는다
           history.push({ role: "user", content: text }, { role: "assistant", content: reply.slice(0, 400) });
@@ -347,6 +575,7 @@
     applyPlaceholder();
     addSys(t("hello"));
     checkHealth();
+    resumeOwner();
   });
   // 주기적으로 확인하지 않는다 (확인 요청이 서버를 계속 깨워 무료 사용 시간을 쓰지 않게).
   // 탭으로 돌아왔을 때만 2분에 한 번 확인하고, 평소 상태는 /chat 응답으로 갱신된다.
