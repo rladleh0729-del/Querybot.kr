@@ -342,6 +342,41 @@
   @keyframes qa-twinkle{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(90deg) scale(1.3)}}
   @keyframes qa-glow{0%{box-shadow:0 0 0 0 rgba(124,58,237,.35)}100%{box-shadow:0 0 0 8px rgba(124,58,237,0)}}
   @media (prefers-reduced-motion:reduce){.think,.think .spark,.avatar.thinking,.skel i,.qa-form.busy{animation:none}}
+
+  /* ── 그림·파일 첨부와 웹 검색 출처 (2026-11-09) ── */
+  .qa-form.can-attach{padding-left:8px}
+  .qa-attach{flex:none;width:38px;height:38px;margin-bottom:3px;border:0;border-radius:50%;background:transparent;color:var(--text2);cursor:pointer;display:grid;place-items:center;transition:background .15s,color .15s}
+  .qa-attach:hover{background:var(--panel2);color:var(--accent)}
+  .qa-attach[hidden]{display:none}
+  .qa-form.drop{border-color:var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.15)}
+  .qa-atts{max-width:760px;margin:0 auto 8px;display:flex;flex-wrap:wrap;gap:10px;padding-top:6px}
+  .qa-atts[hidden]{display:none}
+  .att{position:relative;display:flex;align-items:center;gap:8px}
+  .att.img img{display:block;width:64px;height:64px;object-fit:cover;border-radius:14px;border:1px solid var(--line)}
+  .att.file{height:40px;padding:0 36px 0 12px;border:1px solid var(--line2);border-radius:999px;background:var(--field);font-size:13px;color:var(--text2);max-width:260px}
+  .att.file .ic{flex:none;font-size:11px;font-weight:800;color:var(--accent)}
+  .att.file .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .att .x{position:absolute;top:-7px;right:-7px;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid var(--line2);background:#fff;color:var(--text2);font-size:14px;line-height:1;cursor:pointer;display:grid;place-items:center;box-shadow:var(--shadow-sm)}
+  .att.file .x{top:50%;right:8px;transform:translateY(-50%);box-shadow:none;border:0;background:var(--panel2)}
+  .att .x:hover{background:var(--accent);color:#fff}
+  .att-note{max-width:760px;margin:0 auto 6px;width:fit-content;font-size:12.5px;color:#7a4a00;background:#fff6e5;border:1px solid #f1d29a;border-radius:999px;padding:5px 13px}
+  .me-wrap{align-self:flex-end;display:flex;flex-direction:column;align-items:flex-end;gap:6px;max-width:78%}
+  .me-wrap .me{max-width:100%}
+  .me-atts{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:flex-end}
+  .me-img{display:block;max-width:220px;max-height:180px;border-radius:16px;border:1px solid var(--line);object-fit:cover}
+  .me-file{font-size:12.5px;color:var(--text2);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srcs{margin-top:10px}
+  .srcs-h{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+  .srcs-row{display:flex;flex-wrap:wrap;gap:6px}
+  .src-chip{display:inline-flex;align-items:center;gap:6px;max-width:300px;padding:4px 12px 4px 5px;border:1px solid var(--line);border-radius:999px;background:var(--field);font-size:12.5px;color:var(--text2);text-decoration:none}
+  .src-chip:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .src-chip b{flex:none;width:18px;height:18px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);font-size:11px;display:grid;place-items:center}
+  .src-chip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .src-chip small{flex:none;color:var(--muted);font-size:11px}
+  .text a.cite{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 4px;margin:0 1px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);font-size:10.5px;font-weight:700;vertical-align:2px;text-decoration:none;line-height:1}
+  .text a.cite:hover{background:var(--accent);color:#fff}
+  .who-tag.web{color:var(--accent-ink);background:var(--accent-soft);border-color:transparent}
+  @media (max-width:640px){.me-wrap{max-width:88%}.me-img{max-width:160px;max-height:140px}.src-chip{max-width:100%}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -387,7 +422,10 @@
       <div class="qa-log" id="log" aria-live="polite"></div>
     </div>
     <div class="qa-composer">
+      <div class="qa-atts" id="atts" hidden></div>
       <form id="form" class="qa-form" autocomplete="off">
+        <button id="attachBtn" class="qa-attach" type="button" aria-label="그림·파일 첨부" title="그림·파일 첨부 (Gemma 4)" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
         <textarea id="input" rows="1" maxlength="200" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg></button>
       </form>
@@ -407,8 +445,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "QueryBot과 이야기해 보세요", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything in Korean. Questions about people or places are answered from Wikipedia." }
+    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "QueryBot과 이야기해 보세요", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything in Korean. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -450,7 +488,17 @@
     toBottom();
     return node;
   }
-  const addMe = (text) => put(el("div", "me", text));
+  // 내 말: 첨부가 있으면 말풍선 위에 그림 썸네일·파일 이름 (저장된 대화는 이름만 남아 있음)
+  function addMe(text, att, live) {
+    if (!att || !att.length) return put(el("div", "me", text));
+    const wrap = el("div", "me-wrap"), row = el("div", "me-atts");
+    (live || att).forEach((a) => {
+      if (a.type === "image" && a.url) { const im = document.createElement("img"); im.src = a.url; im.alt = a.name; im.className = "me-img"; row.appendChild(im); }
+      else row.appendChild(el("span", "me-file", (a.type === "image" ? "🖼 " : "📄 ") + a.name));
+    });
+    wrap.append(row, el("div", "me", text));
+    return put(wrap);
+  }
   const addSys = (text) => put(el("div", "sys", text));
   function addAlert(text, warn) {
     const a = el("div", "alert" + (warn ? " warn" : ""));
@@ -589,11 +637,11 @@
     const msgs = c.messages;
     for (let i = 0; i < msgs.length; i++) {
       const m = msgs[i];
-      if (m.role === "user") { addMe(m.content); continue; }
+      if (m.role === "user") { addMe(m.content, m.att); continue; }
       const prevUser = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content : "";
       const meta = prevUser ? { user: prevUser, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
       if (m.kind === "wiki" && m.source) addWikiReply(m.content, m.source, meta);
-      else addAiReply(m.content, meta, m.kind === "taught" ? "taught" : "ai", false);
+      else addAiReply(m.content, meta, m.kind === "taught" ? "taught" : "ai", false, m.sources);
     }
     if (!msgs.length) showHello();
     if (c.model && [...modelSel.options].some((o) => o.value === c.model)) modelSel.value = c.model;
@@ -604,13 +652,16 @@
   }
 
   // 한 번 주고받을 때마다 지금 대화에 저장 (첫 질문이 대화 제목)
-  function record(text, reply, kind, source) {
+  function record(text, reply, kind, source, more) {
     if (!cur) {
       cur = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title: text.slice(0, 40), created: Date.now(), updated: Date.now(), model: modelSel.value, messages: [] };
     }
     const a = { role: "assistant", content: reply, kind };
     if (source) a.source = source;
-    cur.messages.push({ role: "user", content: text }, a);
+    const u = { role: "user", content: text };
+    if (more && more.att && more.att.length) u.att = more.att;  // 그림·파일 자체는 저장하지 않고 이름만
+    if (more && Array.isArray(more.sources) && more.sources.length) a.sources = more.sources.filter((s) => s && /^https:\/\//.test(s.url || "")).slice(0, 10).map((s) => ({ title: String(s.title || "").slice(0, 120), url: String(s.url).slice(0, 500) }));
+    cur.messages.push(u, a);
     cur.messages = cur.messages.slice(-MAX_MSGS);
     cur.updated = Date.now();
     cur.model = modelSel.value;
@@ -642,6 +693,13 @@
       if (m.role === "assistant") {
         x.kind = ["ai", "wiki", "taught"].includes(m.kind) ? m.kind : "ai";
         if (typeof m.source === "string" && /^https:\/\/([a-z]+\.)?wikipedia\.org\//.test(m.source)) x.source = m.source;
+        if (Array.isArray(m.sources)) {
+          const ss = m.sources.filter((s) => s && typeof s.url === "string" && /^https:\/\//.test(s.url)).slice(0, 10).map((s) => ({ title: String(s.title || "").slice(0, 120), url: s.url.slice(0, 500) }));
+          if (ss.length) x.sources = ss;
+        }
+      } else if (Array.isArray(m.att)) {
+        const aa = m.att.filter((a) => a && (a.type === "image" || a.type === "file")).slice(0, 8).map((a) => ({ type: a.type, name: String(a.name || "").slice(0, 80) }));
+        if (aa.length) x.att = aa;
       }
       messages.push(x);
     }
@@ -704,12 +762,12 @@
   // 반짝임(✨) 아이콘: AI 기능 표시
   function spark() { const s = el("span", "spark"); s.setAttribute("aria-hidden", "true"); return s; }
   // 답을 기다리는 동안: 아이콘에 흐르는 그라데이션 + '✨ 답을 만드는 중' + 글자 모양 회색 줄(스켈레톤)
-  function addWaiting() {
+  function addWaiting(label) {
     const { turn, body } = turnShell("ai");
     turn.querySelector(".avatar").classList.add("thinking");
     body.querySelector(".who-tag").remove();
     const th = el("span", "think");
-    th.append(spark(), el("span", "", t("thinking")));
+    th.append(spark(), el("span", "", label || t("thinking")));
     body.querySelector(".who").appendChild(th);
     const sk = el("div", "skel");
     sk.setAttribute("aria-label", t("thinking"));
@@ -738,12 +796,15 @@
   }
 
   // 모델 답: 새 답은 한 글자씩 써지듯 보여 준다 (실제로는 다 받은 뒤 보여 주는 것). 저장된 대화를 열 땐 바로.
-  function addAiReply(text, meta, kind, animate) {
+  function addAiReply(text, meta, kind, animate, sources) {
     const { turn, body } = turnShell(kind || "ai");
     const p = el("div", "text");
+    const src = Array.isArray(sources) && sources.length ? sourceList(sources) : null;
+    if (src) body.querySelector(".who").appendChild(el("span", "who-tag web", t("webTag")));
     body.append(p, copyTool(() => text, meta, body));
     put(turn);
-    if (reduceMotion || animate === false) { renderRich(p, text); renderMath(p); return; }
+    const finish = () => { renderMath(p); if (src) { linkCites(p, sources); p.after(src); } };
+    if (reduceMotion || animate === false) { renderRich(p, text); finish(); return; }
     p.classList.add("typing");
     const chars = [...text];
     let i = 0;
@@ -751,7 +812,7 @@
       i = Math.min(chars.length, i + 2);
       renderRich(p, chars.slice(0, i).join(""));
       toBottom();
-      if (i < chars.length) setTimeout(step, 22); else { p.classList.remove("typing"); renderMath(p); }
+      if (i < chars.length) setTimeout(step, 22); else { p.classList.remove("typing"); finish(); toBottom(); }
     };
     step();
   }
@@ -1241,6 +1302,7 @@
   function paintModel() {
     const o = modelSel.options[modelSel.selectedIndex];
     $("modelName").textContent = o ? o.textContent : "";
+    paintAttach();
   }
   function closeModels() { modelMenu.hidden = true; modelBtn.setAttribute("aria-expanded", "false"); }
   function openModels() {
@@ -1295,30 +1357,216 @@
     paintModel();
   }
 
-  async function ask(text) {
+  // =========================================================
+  // 그림·파일 첨부 (Gemma 4만, 2026-11-09 사용자 요청) — 그림은 줄여서 data URL로, 파일은 글자만 뽑아서 보낸다. 서버에 저장하지 않음
+  // =========================================================
+  const ATT_MAX_IMG = 4, ATT_MAX_FILE = 3, ATT_MAX_CHARS = 30000;
+  const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|xml|ya?ml|log|py|js|mjs|ts|jsx|tsx|html?|css|java|c|cc|cpp|h|hpp|cs|go|rs|kt|swift|rb|php|sh|bat|ps1|sql|ini|toml|srt|vtt|tex)$/i;
+  var atts = [];  // {type:"image", name, url} | {type:"file", name, text, pdf}  (var: 모델 표시가 먼저 불러도 오류 없게)
+  const canAttach = () => modelSel.value === "gemma4";
+  function paintAttach() {
+    const ok = canAttach();
+    $("attachBtn").hidden = !ok;
+    $("form").classList.toggle("can-attach", ok);
+    if (!ok && atts && atts.length) atts = [];
+    paintAtts();
+  }
+  function paintAtts() {
+    const box = $("atts");
+    box.innerHTML = "";
+    box.hidden = !(atts && atts.length);
+    (atts || []).forEach((a, i) => {
+      const chip = el("div", a.type === "image" ? "att img" : "att file");
+      if (a.type === "image") {
+        const im = document.createElement("img");
+        im.src = a.url; im.alt = a.name;
+        chip.appendChild(im);
+        chip.title = a.name;
+      } else {
+        chip.append(el("span", "ic", a.pdf ? "PDF" : "TXT"), el("span", "nm", a.name));
+        chip.title = a.name + " · " + a.text.length.toLocaleString() + "자" + (a.cut ? " (일부만)" : "");
+      }
+      const x = el("button", "x", "×");
+      x.type = "button";
+      x.setAttribute("aria-label", "첨부 빼기");
+      x.addEventListener("click", () => { atts.splice(i, 1); paintAtts(); input.focus(); });
+      chip.appendChild(x);
+      box.appendChild(chip);
+    });
+  }
+  let noteTimer = 0;
+  function attNote(msg) {
+    let n = document.querySelector(".att-note");
+    if (!n) { n = el("div", "att-note"); $("atts").before(n); }
+    n.textContent = msg;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => n.remove(), 4500);
+  }
+  function shrinkImage(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const s = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.naturalWidth * s));
+        c.height = Math.max(1, Math.round(img.naturalHeight * s));
+        const g = c.getContext("2d");
+        g.fillStyle = "#fff";  // 투명 PNG는 흰 바탕으로
+        g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        res(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("img")); };
+      img.src = url;
+    });
+  }
+  // PDF는 pdf.js(cdnjs, 무결성 확인)를 처음 쓸 때만 불러서 글자만 뽑는다 (스캔한 그림 PDF는 글자가 없음)
+  let pdfjs = null;
+  function loadPdfJs() {
+    if (pdfjs) return pdfjs;
+    pdfjs = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      s.integrity = "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e";
+      s.crossOrigin = "anonymous";
+      s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; res(window.pdfjsLib); };
+      s.onerror = () => { pdfjs = null; rej(new Error("pdfjs")); };
+      document.head.appendChild(s);
+    });
+    return pdfjs;
+  }
+  async function pdfText(file) {
+    const lib = await loadPdfJs();
+    const doc = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let out = "";
+    for (let n = 1; n <= doc.numPages && out.length < ATT_MAX_CHARS; n++) {
+      const tc = await (await doc.getPage(n)).getTextContent();
+      out += tc.items.map((x) => x.str + (x.hasEOL ? "\n" : "")).join("") + "\n\n";
+    }
+    return out;
+  }
+  async function addFiles(list) {
+    if (!canAttach()) { attNote("그림·파일 첨부는 Gemma 4 모델에서만 할 수 있습니다."); return; }
+    for (const f of list) {
+      try {
+        if (/^image\//.test(f.type)) {
+          if (atts.filter((a) => a.type === "image").length >= ATT_MAX_IMG) { attNote("그림은 한 번에 4장까지 올릴 수 있습니다."); continue; }
+          if (f.size > 20e6) { attNote("그림이 너무 큽니다 (20MB까지)."); continue; }
+          atts.push({ type: "image", name: f.name || "그림", url: await shrinkImage(f) });
+        } else {
+          if (atts.filter((a) => a.type === "file").length >= ATT_MAX_FILE) { attNote("파일은 한 번에 3개까지 올릴 수 있습니다."); continue; }
+          const pdf = /\.pdf$/i.test(f.name) || f.type === "application/pdf";
+          if (!pdf && !TEXT_EXT.test(f.name) && !/^text\//.test(f.type)) { attNote("‘" + f.name + "’은 읽을 수 없는 형식입니다. 그림, PDF, 글자 파일(txt·md·csv·코드 등)만 올릴 수 있습니다."); continue; }
+          if (f.size > 15e6) { attNote("파일이 너무 큽니다 (15MB까지)."); continue; }
+          let text = (pdf ? await pdfText(f) : await f.text()).replace(/\u0000/g, "").trim();
+          if (!text) { attNote(pdf ? "이 PDF에서 글자를 찾지 못했습니다 (스캔한 그림 PDF는 읽을 수 없습니다)." : "빈 파일입니다."); continue; }
+          const room = ATT_MAX_CHARS - atts.reduce((n, a) => n + (a.text ? a.text.length : 0), 0);
+          if (room <= 0) { attNote("파일 글자 수 한도(3만 자)를 넘었습니다."); continue; }
+          const cut = text.length > room;
+          if (cut) { text = text.slice(0, room); attNote("‘" + f.name + "’은 길어서 앞부분 " + room.toLocaleString() + "자만 보냅니다."); }
+          atts.push({ type: "file", name: f.name, text, pdf, cut });
+        }
+      } catch (e) {
+        attNote("‘" + (f.name || "파일") + "’을 읽지 못했습니다.");
+      }
+      paintAtts();
+    }
+  }
+  $("attachBtn").addEventListener("click", () => $("attachFile").click());
+  $("attachFile").addEventListener("change", (e) => { const fs = [...e.target.files]; e.target.value = ""; addFiles(fs); });
+  input.addEventListener("paste", (e) => {
+    const fs = [...((e.clipboardData && e.clipboardData.files) || [])];
+    if (!fs.length) return;
+    e.preventDefault();
+    addFiles(fs);
+  });
+  // 끌어 놓기: 채팅 칸 어디에 놓아도 (파일을 놓았을 때 브라우저가 그 파일로 넘어가 버리지 않게 항상 막는다)
+  const chatArea = document.querySelector(".qa-chat");
+  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+  chatArea.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); if (canAttach()) $("form").classList.add("drop"); });
+  chatArea.addEventListener("dragleave", (e) => { if (!chatArea.contains(e.relatedTarget)) $("form").classList.remove("drop"); });
+  chatArea.addEventListener("drop", (e) => {
+    $("form").classList.remove("drop");
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    addFiles([...e.dataTransfer.files]);
+  });
+  const attMeta = (list) => list.map((a) => ({ type: a.type, name: String(a.name || "").slice(0, 80) }));
+
+  // 웹 검색 출처: 답 아래 번호 알약 + 본문의 [1]·[1, 2] 표시를 그 출처로 가는 작은 링크로 (https 주소만)
+  function sourceList(list) {
+    const box = el("div", "srcs");
+    box.appendChild(el("div", "srcs-h", t("sources")));
+    const row = el("div", "srcs-row");
+    list.forEach((s, i) => {
+      if (!s || !/^https:\/\//.test(s.url || "")) return;
+      let host = "";
+      try { host = new URL(s.url).hostname.replace(/^www\./, ""); } catch (e) { return; }
+      const a = el("a", "src-chip");
+      a.href = s.url; a.target = "_blank"; a.rel = "noopener noreferrer nofollow";
+      a.title = (s.title || host) + "\n" + s.url;
+      a.append(el("b", "", String(i + 1)), el("span", "", s.title || host), el("small", "", host));
+      row.appendChild(a);
+    });
+    box.appendChild(row);
+    return row.children.length ? box : null;
+  }
+  function linkCites(node, list) {
+    const walk = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    const hits = [];
+    while (walk.nextNode()) {
+      const n = walk.currentNode;
+      if (n.parentElement && n.parentElement.closest("code,pre,.katex,a")) continue;
+      if (/\[\d+(\s*,\s*\d+)*\]/.test(n.nodeValue)) hits.push(n);
+    }
+    for (const n of hits) {
+      const frag = document.createDocumentFragment();
+      n.nodeValue.split(/(\[\d+(?:\s*,\s*\d+)*\])/).forEach((part, k) => {
+        if (k % 2 === 0) { if (part) frag.appendChild(document.createTextNode(part)); return; }
+        part.slice(1, -1).split(",").map((x) => parseInt(x, 10)).forEach((num) => {
+          const s = list[num - 1];
+          if (!s || !/^https:\/\//.test(s.url || "")) { frag.appendChild(document.createTextNode("[" + num + "]")); return; }
+          const a = el("a", "cite", String(num));
+          a.href = s.url; a.target = "_blank"; a.rel = "noopener noreferrer nofollow"; a.title = s.title || s.url;
+          frag.appendChild(a);
+        });
+      });
+      n.replaceWith(frag);
+    }
+  }
+
+  async function ask(text, sent) {
     text = (text || "").trim();
-    if (busy || !text) return;
+    sent = sent || [];
+    if (busy || (!text && !sent.length)) return;
+    if (!text) text = t("attOnly");  // 그림만 올리고 말없이 보내면
     busy = true; send.disabled = true;
     $("form").classList.add("busy");  // 답 만드는 동안 입력칸 테두리에 그라데이션이 흐른다
     const asked = modelSel.value;
     const ctx = mem.checked ? hist().slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
     const before = mem.checked ? hist().slice(-4) : [];
-    addMe(text);
-    const wait = addWaiting();
+    addMe(text, attMeta(sent), sent);
+    const wait = addWaiting(sent.some((a) => a.type === "image") ? t("looking") : sent.length ? t("reading") : null);
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), WAKE_TIMEOUT);
-    const slow = setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t("waking"))); toBottom(); }, 5000);
+    // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
+    const slow = setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t(online === true ? "working" : "waking"))); toBottom(); }, 5000);
     let err = null, warn = false;
     try {
       const r = await fetch(API + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, model: asked, history: before }),
+        body: JSON.stringify({ message: text, model: asked, history: before,
+          images: sent.filter((a) => a.type === "image").map((a) => a.url),
+          files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })) }),
         signal: ctrl.signal
       });
       if (r.status === 429) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} err = (asked === "gemma4" && d && lang() !== "en") ? d : t("busy"); warn = true; }
       else if ([404, 502, 503, 504].includes(r.status)) { err = t("down"); setOnline(false); }
+      else if (r.status === 400) { let d = ""; try { d = (await r.json()).detail; } catch (e) {} err = typeof d === "string" && d && lang() !== "en" ? d : t("fail"); warn = true; }
       else if (!r.ok) { err = t("fail"); }
       else {
         const j = await r.json();
@@ -1327,9 +1575,9 @@
         wait.remove();
         const meta = { user: text, ctx };
         const kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
-        if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true);
+        if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources);
         setOnline(true);
-        if (modelSel.value === asked) record(text, reply, kind, j.source);  // 기다리는 사이 모델을 바꿨으면 대화에 섞지 않는다
+        if (modelSel.value === asked) record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources });  // 기다리는 사이 모델을 바꿨으면 대화에 섞지 않는다
       }
     } catch (e) {
       err = t("down");
@@ -1356,10 +1604,13 @@
   $("form").addEventListener("submit", (e) => {
     e.preventDefault();
     const text = input.value.trim();
-    if (!text || busy) return;
+    if ((!text && !atts.length) || busy) return;
+    const sent = atts;
+    atts = [];
+    paintAtts();
     input.value = "";
     fitInput();
-    ask(text);
+    ask(text, sent);
   });
   // 모델을 바꾸면 다른 모델이 앞 대화를 이어받지 않게 새 대화로 시작한다.
   modelSel.addEventListener("change", () => {
