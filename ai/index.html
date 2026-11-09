@@ -1476,6 +1476,8 @@
 
   function fillModels(list) {
     if (!Array.isArray(list) || !list.length) return;
+    // 서버가 잠들어 있을 때도 목록이 바로 보이게 이 브라우저에 기억 (2026-11-09: 폰에서 기본 모델 하나만 보이던 문제)
+    store.set("models", JSON.stringify(list.map((m) => ({ key: m.key, label: m.label }))));
     const want = (cur && cur.model) || store.get("model") || modelSel.value;
     modelSel.innerHTML = "";
     for (const m of list) {
@@ -1575,6 +1577,7 @@
     renderList();
     paintFoot();
     initFolder();
+    try { const c = JSON.parse(store.get("models") || "null"); if (Array.isArray(c) && c.length) fillModels(c); } catch (e) {}
     checkHealth();
     resumeOwner();
   });
