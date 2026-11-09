@@ -298,6 +298,13 @@
   .ai-status.quota.off{color:var(--danger)}
   .text .katex{font-size:1.06em}
   .text .katex-display{margin:.45em 0;overflow-x:auto;overflow-y:hidden;padding:2px 0}
+  .text .code{margin:.6em 0;border-radius:16px;overflow:hidden;background:#2b221d;border:1px solid rgba(0,0,0,.1);box-shadow:0 3px 10px rgba(70,35,15,.14);white-space:normal}
+  .text .code-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 6px 15px;background:#3b2f28;color:#eadbcf;font-size:12px;font-weight:600;line-height:1.4}
+  .text .code-head button{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#f5e9df;border-radius:999px;padding:3px 12px;font:inherit;font-size:12px;cursor:pointer}
+  .text .code-head button:hover{background:rgba(255,255,255,.17)}
+  .text .code pre{margin:0;padding:12px 16px 14px;overflow-x:auto;white-space:pre;word-break:normal;overflow-wrap:normal}
+  .text .code code{display:block;font-family:ui-monospace,SFMono-Regular,Consolas,"D2Coding",monospace;font-size:13.5px;line-height:1.6;color:#f7ede5;background:none;padding:0}
+  .text code.inl{font-family:ui-monospace,SFMono-Regular,Consolas,"D2Coding",monospace;font-size:.9em;padding:1px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);white-space:pre-wrap}
   @media (max-width:640px){.ai-status.quota span{display:inline}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
@@ -401,6 +408,8 @@
   // 서버가 알려 주는 모델 이름(한국어)의 영어 이름
   // 모델 이름 (사용자 요청 2026-10-21): 사이트에 올라간 최고 모델은 QueryBot the Best, 예전 모델은 단계 번호로
   const MODEL_NAME = { latest: "QueryBot the Best", stage3: "QueryBot 3", v1: "QueryBot 1" };
+  // 서버가 잠들어 있고 기억한 목록도 없을 때(처음 온 폰 등) 보여 줄 기본 목록. 서버 목록이 오면 그걸로 바뀐다 (2026-11-09)
+  const DEFAULT_MODELS = [{ key: "latest", label: "QueryBot the Best" }, { key: "stage3", label: "QueryBot 3" }, { key: "v1", label: "QueryBot 1" }, { key: "gemma4", label: "Gemma 4 (구글 26B)" }];
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // 고른 모델·기억 설정은 이 브라우저에만 기억해 둔다 (못 쓰는 환경이면 그냥 넘어감)
@@ -973,13 +982,13 @@
     const p = el("div", "text");
     body.append(p, copyTool(() => text, meta, body));
     put(turn);
-    if (reduceMotion || animate === false) { p.textContent = text; renderMath(p); return; }
+    if (reduceMotion || animate === false) { renderRich(p, text); renderMath(p); return; }
     p.classList.add("typing");
     const chars = [...text];
     let i = 0;
     const step = () => {
       i = Math.min(chars.length, i + 2);
-      p.textContent = chars.slice(0, i).join("");
+      renderRich(p, chars.slice(0, i).join(""));
       toBottom();
       if (i < chars.length) setTimeout(step, 22); else { p.classList.remove("typing"); renderMath(p); }
     };
@@ -1387,6 +1396,41 @@
     box.classList.toggle("off", quota.left <= 0);
   }
 
+  // 답 속 코드(```언어 … ```)는 따로 코드 상자로, `짧은 코드`는 알약 모양으로 (2026-11-09 사용자: "코드는 따로 뜨게")
+  // 한 글자씩 써지는 중이라 아직 안 닫힌 ```도 상자로 보여 준다. 글은 전부 textContent로만 넣는다(HTML로 해석 안 함).
+  function addInline(node, s) {
+    s.split(/`([^`\n]+)`/).forEach((x, i) => {
+      if (!x) return;
+      node.appendChild(i % 2 ? el("code", "inl", x) : document.createTextNode(x));
+    });
+  }
+  function codeBox(lng, code) {
+    const box = el("div", "code"), head = el("div", "code-head"), b = el("button", "", t("copy"));
+    b.type = "button";
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(code); b.textContent = t("copied"); setTimeout(() => (b.textContent = t("copy")), 1500); } catch (e) {}
+    });
+    head.append(el("span", "", lng || (lang() === "en" ? "code" : "코드")), b);
+    const pre = document.createElement("pre");
+    pre.appendChild(el("code", "", code));
+    box.append(head, pre);
+    return box;
+  }
+  function renderRich(node, text) {
+    node.textContent = "";
+    if (text.indexOf("`") < 0) { node.textContent = text; return; }
+    const re = /```([^\n`]*)\n?([\s\S]*?)(?:```|$)/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      let seg = text.slice(last, m.index);
+      if (last) seg = seg.replace(/^\n+/, "");
+      addInline(node, seg.replace(/\s+$/, ""));
+      node.appendChild(codeBox(m[1].trim(), m[2].replace(/\n$/, "")));
+      last = re.lastIndex;
+    }
+    addInline(node, last ? text.slice(last).replace(/^\n+/, "") : text);
+  }
+
   // 수식($...$, $$...$$, \( \), \[ \])을 KaTeX로 그린다. KaTeX가 아직 안 불러졌으면 페이지 load 때 한꺼번에.
   function renderMath(node) {
     if (!node || !window.renderMathInElement || !/\$|\\\(|\\\[/.test(node.textContent)) return;
@@ -1577,7 +1621,9 @@
     renderList();
     paintFoot();
     initFolder();
-    try { const c = JSON.parse(store.get("models") || "null"); if (Array.isArray(c) && c.length) fillModels(c); } catch (e) {}
+    let saved = null;
+    try { saved = JSON.parse(store.get("models") || "null"); } catch (e) {}
+    fillModels(Array.isArray(saved) && saved.length ? saved : DEFAULT_MODELS);
     checkHealth();
     resumeOwner();
   });
