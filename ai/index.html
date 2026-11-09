@@ -377,6 +377,30 @@
   .text a.cite:hover{background:var(--accent);color:#fff}
   .who-tag.web{color:var(--accent-ink);background:var(--accent-soft);border-color:transparent}
   @media (max-width:640px){.me-wrap{max-width:88%}.me-img{max-width:160px;max-height:140px}.src-chip{max-width:100%}}
+
+  /* ── 생각하기·기억 (2026-11-09) ── */
+  .qa-think{flex:none;height:34px;margin-bottom:5px;padding:0 12px 0 10px;border:1px solid var(--line2);border-radius:999px;background:var(--field);color:var(--text2);font:inherit;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+  .qa-think:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .qa-think[aria-pressed=true]{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
+  .qa-think[aria-pressed=true] .spark{animation:qa-twinkle 2.4s ease-in-out infinite}
+  .qa-think[hidden]{display:none}
+  .thought{margin:0 0 6px}
+  .thought-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text2);border-radius:999px;padding:3px 11px 3px 9px;font:inherit;font-size:12.5px;cursor:pointer}
+  .thought-btn:disabled{cursor:default;opacity:1}
+  .thought-btn .chev{font-size:10px;color:var(--muted);transition:transform .15s}
+  .thought-btn[aria-expanded=true] .chev{transform:rotate(180deg)}
+  .thought-body{margin-top:6px;padding:10px 14px;border-radius:16px;background:var(--panel2);border:1px solid var(--line);font-size:13.5px;line-height:1.7;color:var(--text2);white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+  .thought-body[hidden]{display:none}
+  .mem-note{margin-top:8px;width:fit-content;max-width:100%;font-size:12px;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:3px 12px}
+  #memRow:empty{display:none}
+  .mem-list{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+  .mem-item{display:flex;align-items:center;gap:6px;padding:4px 5px 4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--field);font-size:12.5px;color:var(--text2)}
+  .mem-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mem-item .x{flex:none;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:var(--panel2);color:var(--text2);cursor:pointer;line-height:1}
+  .mem-item .x:hover{background:var(--accent);color:#fff}
+  .mem-list .qa-mini{align-self:flex-start;border-radius:999px}
+  @media (prefers-reduced-motion:reduce){.qa-think[aria-pressed=true] .spark{animation:none}}
+  @media (max-width:640px){.qa-think .lbl{display:none}.qa-think{padding:0 10px}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -397,6 +421,7 @@
         <button class="qa-mini" id="histOff" type="button">기록 끄기</button>
         <input id="importFile" type="file" accept="application/json,.json" multiple hidden>
       </div>
+      <div id="memRow"></div>
       <label class="qa-mem2"><span data-ko="앞 대화 기억" data-en="Remember context"></span><input id="mem2" type="checkbox" role="switch" checked></label>
       <div class="r"><button class="qa-admin" id="teachToggle" type="button">관리자</button><span id="teachState"></span></div>
     </div>
@@ -425,6 +450,7 @@
       <div class="qa-atts" id="atts" hidden></div>
       <form id="form" class="qa-form" autocomplete="off">
         <button id="attachBtn" class="qa-attach" type="button" aria-label="그림·파일 첨부" title="그림·파일 첨부 (Gemma 4)" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="thinkBtn" class="qa-think" type="button" aria-pressed="false" hidden><span class="spark" aria-hidden="true"></span><span class="lbl">생각</span></button>
         <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
         <textarea id="input" rows="1" maxlength="200" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg></button>
@@ -445,8 +471,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "QueryBot과 이야기해 보세요", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything in Korean. Questions about people or places are answered from Wikipedia." }
+    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "QueryBot과 이야기해 보세요", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything in Korean. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -641,7 +667,7 @@
       const prevUser = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content : "";
       const meta = prevUser ? { user: prevUser, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
       if (m.kind === "wiki" && m.source) addWikiReply(m.content, m.source, meta);
-      else addAiReply(m.content, meta, m.kind === "taught" ? "taught" : "ai", false, m.sources);
+      else addAiReply(m.content, meta, m.kind === "taught" ? "taught" : "ai", false, m.sources, m.thought);
     }
     if (!msgs.length) showHello();
     if (c.model && [...modelSel.options].some((o) => o.value === c.model)) modelSel.value = c.model;
@@ -660,6 +686,7 @@
     if (source) a.source = source;
     const u = { role: "user", content: text };
     if (more && more.att && more.att.length) u.att = more.att;  // 그림·파일 자체는 저장하지 않고 이름만
+    if (more && more.thought && typeof more.thought.seconds === "number") a.thought = { seconds: Math.round(more.thought.seconds), summary: String(more.thought.summary || "").slice(0, 800) };
     if (more && Array.isArray(more.sources) && more.sources.length) a.sources = more.sources.filter((s) => s && /^https:\/\//.test(s.url || "")).slice(0, 10).map((s) => ({ title: String(s.title || "").slice(0, 120), url: String(s.url).slice(0, 500) }));
     cur.messages.push(u, a);
     cur.messages = cur.messages.slice(-MAX_MSGS);
@@ -696,6 +723,9 @@
         if (Array.isArray(m.sources)) {
           const ss = m.sources.filter((s) => s && typeof s.url === "string" && /^https:\/\//.test(s.url)).slice(0, 10).map((s) => ({ title: String(s.title || "").slice(0, 120), url: s.url.slice(0, 500) }));
           if (ss.length) x.sources = ss;
+        }
+        if (m.thought && typeof m.thought.seconds === "number" && m.thought.seconds >= 0 && m.thought.seconds < 3600) {
+          x.thought = { seconds: Math.round(m.thought.seconds), summary: typeof m.thought.summary === "string" ? m.thought.summary.slice(0, 800) : "" };
         }
       } else if (Array.isArray(m.att)) {
         const aa = m.att.filter((a) => a && (a.type === "image" || a.type === "file")).slice(0, 8).map((a) => ({ type: a.type, name: String(a.name || "").slice(0, 80) }));
@@ -796,11 +826,12 @@
   }
 
   // 모델 답: 새 답은 한 글자씩 써지듯 보여 준다 (실제로는 다 받은 뒤 보여 주는 것). 저장된 대화를 열 땐 바로.
-  function addAiReply(text, meta, kind, animate, sources) {
+  function addAiReply(text, meta, kind, animate, sources, thought) {
     const { turn, body } = turnShell(kind || "ai");
     const p = el("div", "text");
     const src = Array.isArray(sources) && sources.length ? sourceList(sources) : null;
     if (src) body.querySelector(".who").appendChild(el("span", "who-tag web", t("webTag")));
+    if (thought && typeof thought.seconds === "number") body.appendChild(thoughtBox(thought));
     body.append(p, copyTool(() => text, meta, body));
     put(turn);
     const finish = () => { renderMath(p); if (src) { linkCites(p, sources); p.after(src); } };
@@ -1367,6 +1398,7 @@
   function paintAttach() {
     const ok = canAttach();
     $("attachBtn").hidden = !ok;
+    $("thinkBtn").hidden = !ok;
     $("form").classList.toggle("can-attach", ok);
     if (!ok && atts && atts.length) atts = [];
     paintAtts();
@@ -1537,6 +1569,86 @@
     }
   }
 
+  // =========================================================
+  // 진짜로 생각하기 + 쿼리봇 기억 (2026-11-09, Gemma 4만)
+  // =========================================================
+  // 서버(cf_chat.think_request)와 같은 규칙: '생각해 봐/고민해 줘/곰곰이…'는 생각하기, '어떻게 생각해?' 같은 의견 질문은 아님
+  const THINK_ASK = /(생각|고민|궁리|숙고|추론)\s*(을|를|좀|해|하고|한\s?뒤|한\s?다음|해서|하면서|하기)|곰곰이|깊게|깊이 있게|천천히 따져|신중하게/;
+  const THINK_OPINION = /(어떻게|뭐라고|무슨|어떤)\s*생각|(다고|라고|냐고|하다고|같다고)\s*생각|생각(해|하니|해요|하세요|하냐|하나요|하시나요)\s*[?？]?\s*$/;
+  let thinkOn = store.get("think") === "1";
+  function paintThink() {
+    const b = $("thinkBtn");
+    b.setAttribute("aria-pressed", thinkOn ? "true" : "false");
+    b.title = thinkOn ? "깊게 생각: 켜짐 — 답하기 전에 실제로 생각합니다 (30초~1분 걸릴 수 있음)" : "깊게 생각: 꺼짐 — 누르면 답하기 전에 실제로 생각합니다";
+  }
+  $("thinkBtn").addEventListener("click", () => { thinkOn = !thinkOn; store.set("think", thinkOn ? "1" : "0"); paintThink(); input.focus(); });
+  paintThink();
+  // 답 위 'n초 동안 생각함' — 누르면 한국어 생각 요약
+  function thoughtBox(th) {
+    const wrap = el("div", "thought"), b = el("button", "thought-btn");
+    b.type = "button";
+    b.append(spark(), el("span", "", lang() === "en" ? "Thought for " + th.seconds + "s" : th.seconds + "초 동안 생각함"));
+    wrap.appendChild(b);
+    if (th.summary) {
+      const box = el("div", "thought-body", th.summary);
+      box.hidden = true;
+      b.appendChild(el("span", "chev", "▾"));
+      b.setAttribute("aria-expanded", "false");
+      b.addEventListener("click", () => { box.hidden = !box.hidden; b.setAttribute("aria-expanded", String(!box.hidden)); if (!box.hidden) renderMath(box); });
+      wrap.appendChild(box);
+    } else b.disabled = true;
+    return wrap;
+  }
+  // 쿼리봇이 기억하는 것: 이 브라우저에만 저장, 질문할 때 Gemma 4에 같이 보냄 (서버에는 남지 않음)
+  const MEM_KEY = "qbAi.memory", MEM_MAX = 12;
+  function memList() {
+    try { const a = JSON.parse(localStorage.getItem(MEM_KEY) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string" && x.trim()).slice(-MEM_MAX) : []; } catch (e) { return []; }
+  }
+  function memSave(a) {
+    try { a.length ? localStorage.setItem(MEM_KEY, JSON.stringify(a.slice(-MEM_MAX))) : localStorage.removeItem(MEM_KEY); } catch (e) {}
+    paintMem();
+  }
+  // 같은 내용(띄어쓰기·끝 문장부호만 다른 것)은 다시 넣지 않는다. 새로 넣은 것만 돌려준다
+  const memKey = (s) => String(s || "").replace(/[\s.,!?·…~]+/g, "").toLowerCase();
+  function memAdd(items) {
+    const a = memList(), have = new Set(a.map(memKey)), added = [];
+    for (const s of items || []) {
+      const v = String(s || "").trim().slice(0, 150), k = memKey(v);
+      if (v && k && !have.has(k)) { a.push(v); have.add(k); added.push(v); }
+    }
+    if (added.length) memSave(a.slice(-MEM_MAX));
+    return added;
+  }
+  let memOpen = false;
+  function paintMem() {
+    const row = $("memRow"), a = memList();
+    row.innerHTML = "";
+    if (!a.length) return;
+    const b = el("button", "qa-mini", "쿼리봇이 기억하는 것 " + a.length + "개");
+    b.type = "button";
+    b.setAttribute("aria-expanded", memOpen ? "true" : "false");
+    b.addEventListener("click", () => { memOpen = !memOpen; paintMem(); });
+    row.appendChild(b);
+    if (!memOpen) return;
+    const ul = el("div", "mem-list");
+    a.forEach((s, i) => {
+      const it = el("div", "mem-item");
+      it.appendChild(el("span", "", s));
+      it.title = s;
+      const x = el("button", "x", "×");
+      x.type = "button";
+      x.setAttribute("aria-label", "이 기억 지우기");
+      x.addEventListener("click", () => { const c = memList(); c.splice(i, 1); memSave(c); });
+      it.appendChild(x);
+      ul.appendChild(it);
+    });
+    const clr = el("button", "qa-mini", "모두 지우기");
+    clr.type = "button";
+    clr.addEventListener("click", () => { if (confirm("쿼리봇이 기억하는 것을 모두 지우시겠습니까?")) { memOpen = false; memSave([]); } });
+    ul.appendChild(clr);
+    row.appendChild(ul);
+  }
+
   async function ask(text, sent) {
     text = (text || "").trim();
     sent = sent || [];
@@ -1549,11 +1661,17 @@
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
     const before = mem.checked ? hist().slice(-4) : [];
     addMe(text, attMeta(sent), sent);
-    const wait = addWaiting(sent.some((a) => a.type === "image") ? t("looking") : sent.length ? t("reading") : null);
+    const thinking = asked === "gemma4" && (thinkOn || (THINK_ASK.test(text) && !THINK_OPINION.test(text)));
+    const wait = addWaiting(thinking ? t("thinkingN") + " · 0" + t("sec") : sent.some((a) => a.type === "image") ? t("looking") : sent.length ? t("reading") : null);
+    let tick = 0;
+    if (thinking) {  // 실제로 생각하는 동안 초를 센다
+      const t0 = Date.now(), lab = wait.querySelector(".think span:last-child");
+      tick = setInterval(() => { lab.textContent = t("thinkingN") + " · " + Math.floor((Date.now() - t0) / 1000) + t("sec"); }, 1000);
+    }
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), WAKE_TIMEOUT);
+    const timer = setTimeout(() => ctrl.abort(), thinking ? 150000 : WAKE_TIMEOUT);  // 생각하기는 1분 넘게 걸릴 수 있음
     // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
-    const slow = setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t(online === true ? "working" : "waking"))); toBottom(); }, 5000);
+    const slow = thinking ? 0 : setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t(online === true ? "working" : "waking"))); toBottom(); }, 5000);
     let err = null, warn = false;
     try {
       const r = await fetch(API + "/chat", {
@@ -1561,7 +1679,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, model: asked, history: before,
           images: sent.filter((a) => a.type === "image").map((a) => a.url),
-          files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })) }),
+          files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
+          think: asked === "gemma4" && thinkOn, memory: asked === "gemma4" ? memList() : [] }),
         signal: ctrl.signal
       });
       if (r.status === 429) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} err = (asked === "gemma4" && d && lang() !== "en") ? d : t("busy"); warn = true; }
@@ -1575,9 +1694,14 @@
         wait.remove();
         const meta = { user: text, ctx };
         const kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
-        if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources);
+        if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought);
+        if (Array.isArray(j.remember) && j.remember.length) {  // 쿼리봇이 기억하기로 한 것 → 이 브라우저에 저장하고 답 아래에 표시
+          const added = memAdd(j.remember);
+          const body = log.lastElementChild && log.lastElementChild.querySelector(".turn-body");
+          if (body && added.length) body.appendChild(el("div", "mem-note", "💾 기억함 · " + added.join(" · ")));
+        }
         setOnline(true);
-        if (modelSel.value === asked) record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources });  // 기다리는 사이 모델을 바꿨으면 대화에 섞지 않는다
+        if (modelSel.value === asked) record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought });  // 기다리는 사이 모델을 바꿨으면 대화에 섞지 않는다
       }
     } catch (e) {
       err = t("down");
@@ -1585,6 +1709,7 @@
     }
     clearTimeout(timer);
     clearTimeout(slow);
+    clearInterval(tick);
     if (err) { wait.remove(); addAlert(err, warn); }
     busy = false; send.disabled = false; $("form").classList.remove("busy"); input.focus();
   }
@@ -1633,6 +1758,7 @@
     showHello();
     renderList();
     paintFoot();
+    paintMem();
     let saved = null;
     try { saved = JSON.parse(store.get("models") || "null"); } catch (e) {}
     fillModels(Array.isArray(saved) && saved.length ? saved : DEFAULT_MODELS);
