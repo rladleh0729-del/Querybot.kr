@@ -50,22 +50,6 @@
   /* 저장 위치 (2026-10-21): 왼쪽 아래 표시 + 고르는 팝업 */
   .qa-where{display:flex;align-items:center;gap:6px;min-width:0;color:var(--text2)}
   .qa-where b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
-  .qa-where .qa-mini{margin-left:auto;flex:none}
-  .qa-where-warn{border:1px solid #f1d29a;background:#fff6e5;color:#6b4100;border-radius:10px;padding:7px 9px;font-size:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-  .qa-place{width:min(520px,100%)}
-  .qa-place-in{padding:22px 22px 18px}
-  .qa-place-in h3{margin:0 0 4px;font-size:18px;color:var(--text)}
-  .qa-place-in>p{margin:0 0 14px;font-size:13.5px;color:var(--text2)}
-  .qa-place-opt{width:100%;display:flex;gap:12px;align-items:flex-start;text-align:left;border:1px solid var(--line2);background:var(--field);border-radius:14px;padding:13px 14px;margin:0 0 10px;font:inherit;color:var(--text);cursor:pointer;box-shadow:var(--shadow-sm);transition:border-color .15s,transform .15s}
-  .qa-place-opt:hover:not([aria-disabled=true]){border-color:var(--accent);transform:translateY(-1px)}
-  .qa-place-opt[aria-disabled=true]{cursor:not-allowed;opacity:.6;box-shadow:none}
-  .qa-place-opt .ic{flex:none;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:19px;background:var(--accent-soft)}
-  .qa-place-opt b{display:flex;align-items:center;gap:8px;font-size:15px}
-  .qa-place-opt small{display:block;margin-top:2px;font-size:12.5px;color:var(--text2);line-height:1.55}
-  .qa-place-opt .now{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;color:#145c37;background:#e3f5ea;border:1px solid #a8dcbc}
-  .qa-place-no{margin:-4px 0 12px;border:1px solid #f1d29a;background:#fff6e5;color:#5c3a00;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.6}
-  .qa-place-no code{display:inline-block;margin:4px 6px 0 0;padding:2px 7px;border-radius:6px;background:#fffdf7;border:1px solid #f3e2bd;font-size:12px;word-break:break-all}
-  .qa-place-fine{margin:4px 0 0;font-size:12px;color:var(--muted)}
 
   /* 오른쪽: 채팅 */
   .qa-chat{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -219,7 +203,7 @@
   @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.turn,.dots i,.text.typing::after{animation:none}}
   .qa-side-foot [hidden]{display:none}
-  .qa-hello p,.qa-offer-side,.qa-offer,.qa-place-in{word-break:keep-all;overflow-wrap:anywhere}
+  .qa-hello p,.qa-offer-side,.qa-offer{word-break:keep-all;overflow-wrap:anywhere}
   /* 아주 넓은 화면(큰 모니터): 글자·칸을 키워 휑하지 않게 */
   @media (min-width:1800px){
     .qa-side{width:330px}
@@ -322,6 +306,10 @@
   .qa-form:focus-within{box-shadow:0 0 0 3px rgba(37,99,235,.13)}
   .qa-send,.go,.wpick button[aria-pressed=true]{background:var(--accent)}
   .qa-send:disabled{background:#e4e6e9;color:#9aa0a8}
+  .qa-send{border-radius:50%;transition:background .15s,transform .1s}
+  .qa-send:not(:disabled):hover{background:var(--accent-ink)}
+  .qa-send:not(:disabled):active{transform:scale(.94)}
+  .qa-send svg{display:block}
   .qa-logo{background:var(--accent);box-shadow:0 8px 22px rgba(37,99,235,.2)}
   .avatar{background:var(--accent);box-shadow:none}
   .avatar.wiki{background:#ffffff;box-shadow:none}
@@ -334,6 +322,26 @@
   .text .code-head button:hover{background:#f4f5f7}
   .text .code code{color:#1f2328}
   .text code.inl{background:#f0f1f3;border:1px solid #e3e5e8;color:#1f2328}
+
+  /* ── AI 작동 표시 (2026-11-09 사용자가 붙여 준 안내): ✨ 반짝임 아이콘, 답 만드는 동안 흐르는 그라데이션(파랑·보라·분홍), 스켈레톤 줄 ── */
+  .qa-where{font-size:12px;color:var(--muted)}
+  .spark{display:inline-block;flex:none;width:13px;height:13px;background:linear-gradient(135deg,#2563eb,#7c3aed 55%,#db2777);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5c.6 5.3 3.3 8 10.5 10.5C15.3 14.5 12.6 17.2 12 22.5 11.4 17.2 8.7 14.5 1.5 12 8.7 9.5 11.4 6.8 12 1.5z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5c.6 5.3 3.3 8 10.5 10.5C15.3 14.5 12.6 17.2 12 22.5 11.4 17.2 8.7 14.5 1.5 12 8.7 9.5 11.4 6.8 12 1.5z'/%3E%3C/svg%3E") center/contain no-repeat}
+  .who-tag .spark{width:10px;height:10px;margin-right:4px;vertical-align:-1px}
+  .think{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:transparent;background:linear-gradient(90deg,#2563eb,#7c3aed,#db2777,#7c3aed,#2563eb);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;animation:qa-flow 2.2s linear infinite}
+  .think .spark{animation:qa-twinkle 1.6s ease-in-out infinite}
+  .avatar.thinking{background:linear-gradient(120deg,#2563eb,#7c3aed,#db2777,#7c3aed,#2563eb);background-size:200% 200%;animation:qa-flow 2.4s linear infinite,qa-glow 1.6s ease-out infinite}
+  .skel{display:flex;flex-direction:column;gap:9px;margin-top:8px;width:min(520px,100%)}
+  .skel i{display:block;height:12px;border-radius:999px;background:linear-gradient(90deg,#eef0f3 0%,#e3e9fb 22%,#eee4fb 38%,#eef0f3 58%);background-size:300% 100%;animation:qa-shimmer 1.5s linear infinite}
+  .skel i:nth-child(1){width:94%}
+  .skel i:nth-child(2){width:80%;animation-delay:.12s}
+  .skel i:nth-child(3){width:52%;animation-delay:.24s}
+  .qa-form.busy{border-color:transparent;background:linear-gradient(var(--field),var(--field)) padding-box,linear-gradient(90deg,#2563eb,#7c3aed,#db2777,#7c3aed,#2563eb) border-box;background-size:100% 100%,200% 100%;animation:qa-border 2.4s linear infinite}
+  @keyframes qa-flow{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+  @keyframes qa-border{0%{background-position:0 0,0% 0}100%{background-position:0 0,200% 0}}
+  @keyframes qa-shimmer{0%{background-position:100% 0}100%{background-position:-50% 0}}
+  @keyframes qa-twinkle{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(90deg) scale(1.3)}}
+  @keyframes qa-glow{0%{box-shadow:0 0 0 0 rgba(124,58,237,.35)}100%{box-shadow:0 0 0 8px rgba(124,58,237,0)}}
+  @media (prefers-reduced-motion:reduce){.think,.think .spark,.avatar.thinking,.skel i,.qa-form.busy{animation:none}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -352,7 +360,7 @@
         <button class="qa-mini" id="exportBtn" type="button" data-ko="내보내기" data-en="Export"></button>
         <button class="qa-mini" id="importBtn" type="button" data-ko="가져오기" data-en="Import"></button>
         <button class="qa-mini" id="histOff" type="button">기록 끄기</button>
-        <input id="importFile" type="file" accept="application/json,.json" hidden>
+        <input id="importFile" type="file" accept="application/json,.json" multiple hidden>
       </div>
       <label class="qa-mem2"><span data-ko="앞 대화 기억" data-en="Remember context"></span><input id="mem2" type="checkbox" role="switch" checked></label>
       <div class="r"><button class="qa-admin" id="teachToggle" type="button">관리자</button><span id="teachState"></span></div>
@@ -381,7 +389,7 @@
     <div class="qa-composer">
       <form id="form" class="qa-form" autocomplete="off">
         <textarea id="input" rows="1" maxlength="200" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
-        <button id="send" class="qa-send" type="submit" aria-label="보내기">↑</button>
+        <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg></button>
       </form>
     </div>
   </main>
@@ -392,25 +400,6 @@
     <div id="teach" class="teach"></div>
   </div>
 </div>
-<div class="qa-modal" id="placeModal" hidden>
-  <div class="qa-modal-card qa-place" role="dialog" aria-modal="true" aria-labelledby="placeTitle">
-    <button class="qa-x" id="placeClose" type="button" aria-label="닫기">×</button>
-    <div class="qa-place-in">
-      <h3 id="placeTitle">프로젝트 저장 위치</h3>
-      <p id="placeLead">대화를 저장할 곳을 고릅니다. 어느 쪽이든 서버에는 저장되지 않습니다.</p>
-      <button class="qa-place-opt" id="placeDir" type="button">
-        <span class="ic" aria-hidden="true">📁</span>
-        <span><b>내 컴퓨터 폴더<span class="now" id="nowDir" hidden>사용 중</span></b><small>파일 탐색기에서 폴더를 직접 고릅니다. 대화 하나가 .json 파일 하나로 저장되어 백업·옮기기가 쉽습니다.</small></span>
-      </button>
-      <div class="qa-place-no" id="placeNo" hidden></div>
-      <button class="qa-place-opt" id="placeLocal" type="button">
-        <span class="ic" aria-hidden="true">🗂</span>
-        <span><b>이 브라우저에 저장<span class="now" id="nowLocal" hidden>사용 중</span></b><small>브라우저 저장소에 보관합니다. 사이트 데이터를 지우면 함께 지워집니다.</small></span>
-      </button>
-      <p class="qa-place-fine">브라우저는 보안상 폴더의 전체 경로를 알려 주지 않아 폴더 이름까지만 표시합니다.</p>
-    </div>
-  </div>
-</div>
 <script src="/assets/app.js"></script>
 <script>
 (() => {
@@ -418,8 +407,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "QueryBot과 이야기해 보세요", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything in Korean. Questions about people or places are answered from Wikipedia." }
+    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "QueryBot과 이야기해 보세요", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything in Korean. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -489,12 +478,11 @@
   }
 
   // =========================================================
-  // 대화 기록 — 사용자가 '대화 보관함 만들기'에 동의했을 때만, 이 기기(브라우저)에만 저장. 서버에는 남지 않는다.
-  // 동의 전에는 지금 대화만 화면에 있고, 새로고침하면 사라진다. (2026-10-21 사용자 요청: 자동 저장 대신 설득 후 동의)
+  // 대화 기록 — 이 브라우저에만 저장. 서버에는 남지 않는다. 기본 켜짐, '기록 끄기'로 끌 수 있다.
+  // 폴더(프로젝트) 저장·저장 위치 고르기는 뺐다 (2026-11-09 사용자: "앱이면 괜찮은데 사이트라 아직 넣을 때 아님")
   // =========================================================
-  const CONV_KEY = "qbAi.convs", GONE_KEY = "qbAi.convGone", MAX_CONVS = 60, MAX_DIR_CONVS = 300, MAX_MSGS = 200;
-  let histOn = store.get("histOn") === "1";
-  let askedThisVisit = false;  // 이번 방문에 채팅 안 안내를 이미 띄웠는지
+  const CONV_KEY = "qbAi.convs", MAX_CONVS = 100, MAX_MSGS = 200;
+  let histOn = store.get("histOn") !== "0";  // 예전에 끈 사람('0')만 꺼짐
   let convs = [];
   if (histOn) {
     try { convs = JSON.parse(localStorage.getItem(CONV_KEY) || "[]"); if (!Array.isArray(convs)) convs = []; } catch (e) { convs = []; }
@@ -502,303 +490,46 @@
   let cur = null;  // 지금 대화 {id, title, created, updated, model, messages: [{role, content, kind?, source?}]}
   function saveConvs() {
     if (!histOn) return;
-    convs = convs.slice(0, dir ? MAX_DIR_CONVS : MAX_CONVS);
-    // 폴더에 저장할 때도 최근 대화는 브라우저에 같이 둔다 (새로고침하자마자 목록이 보이고, 폴더 연결이 끊겨도 잃지 않게)
-    try { localStorage.setItem(CONV_KEY, JSON.stringify(convs.slice(0, MAX_CONVS))); } catch (e) { /* 저장 공간이 꽉 찼거나 막힘 → 이번 화면에서만 유지 */ }
+    convs = convs.slice(0, MAX_CONVS);
+    try { localStorage.setItem(CONV_KEY, JSON.stringify(convs)); } catch (e) { /* 저장 공간이 꽉 찼거나 막힘 → 이번 화면에서만 유지 */ }
   }
 
-  // ---------- 저장 위치: 내 컴퓨터 폴더 (2026-10-21 사용자 요청: 파일 탐색기에서 폴더를 직접 고르고, 어디에 저장되는지 표시) ----------
-  // 폴더 = showDirectoryPicker로 고른 폴더. 대화 하나 = QueryBot_날짜_시각_id.json 파일 하나.
-  // 고른 폴더(핸들)는 IndexedDB에 보관하고, 새로고침 뒤에는 권한을 다시 확인한다 (권한 요청은 버튼을 눌렀을 때만 가능).
-  const canPickDir = typeof window.showDirectoryPicker === "function";
-  let dir = null;          // FileSystemDirectoryHandle
-  let dirState = "none";   // none | ok | need(권한 다시 받아야 함) | lost(폴더를 못 찾음·이 브라우저에서 못 씀)
-  let fileQ = Promise.resolve();  // 파일 쓰기는 한 줄로 차례대로 (같은 파일을 동시에 열지 않게)
-  const fileOf = new Map();       // 대화 id → 폴더 안 파일 이름
-  const useDir = () => store.get("histDir") === "1";
-  const kv = {
-    open() {
-      return new Promise((res, rej) => {
-        const r = indexedDB.open("qbAi", 1);
-        r.onupgradeneeded = () => r.result.createObjectStore("kv");
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
-      });
-    },
-    async get(k) {
-      const db = await kv.open();
-      return new Promise((res, rej) => { const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
-    },
-    async set(k, v) {
-      const db = await kv.open();
-      return new Promise((res, rej) => {
-        const tx = db.transaction("kv", "readwrite");
-        if (v == null) tx.objectStore("kv").delete(k); else tx.objectStore("kv").put(v, k);
-        tx.oncomplete = () => res();
-        tx.onerror = () => rej(tx.error);
-      });
-    }
-  };
-  const pad2 = (n) => String(n).padStart(2, "0");
-  function fileName(c) {
-    const d = new Date(c.created || Date.now());
-    return "QueryBot_" + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + "_" + pad2(d.getHours()) + pad2(d.getMinutes()) + "_" + c.id.replace(/[^a-z0-9_-]/gi, "") + ".json";
-  }
-  function folderTrouble(e) {
-    dirState = e && e.name === "NotFoundError" ? "lost" : "need";
-    paintFoot();
-  }
-  function writeConv(c) {
-    if (!dir || dirState !== "ok" || !c) return fileQ;
-    const name = fileOf.get(c.id) || fileName(c);
-    const body = JSON.stringify(Object.assign({ app: "querybot-ai", version: 1 }, c), null, 1);  // 지금 내용을 바로 떠 둔다
-    const d = dir;
-    fileQ = fileQ.then(async () => {
-      const w = await (await d.getFileHandle(name, { create: true })).createWritable();
-      await w.write(body);
-      await w.close();
-      fileOf.set(c.id, name);
-    }).catch(folderTrouble);
-    return fileQ;
-  }
-  // 지운 대화: 폴더가 연결돼 있으면 파일도 지우고, 끊겨 있으면 기억해 두었다가 다시 연결될 때 지운다
-  const gone = {
-    get() { try { const a = JSON.parse(localStorage.getItem(GONE_KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } },
-    set(a) { try { a.length ? localStorage.setItem(GONE_KEY, JSON.stringify(a.slice(-500))) : localStorage.removeItem(GONE_KEY); } catch (e) {} }
-  };
-  function removeConvFile(c) {
-    if (!useDir()) return;
-    if (!dir || dirState !== "ok") { gone.set(gone.get().concat(c.id)); return; }
-    const name = fileOf.get(c.id) || fileName(c);
-    const d = dir;
-    fileQ = fileQ.then(() => d.removeEntry(name)).then(() => fileOf.delete(c.id)).catch((e) => { if (e && e.name !== "NotFoundError") folderTrouble(e); });
-  }
-  // 폴더와 이 브라우저의 대화를 합친다: 같은 대화면 더 나중에 고친 쪽, 폴더에만 있으면 목록에 추가, 브라우저에만 있으면 폴더에 쓰기
-  async function syncFolder() {
-    if (!dir || dirState !== "ok") return 0;
-    const disk = new Map();  // id → {c, name}
-    try {
-      for await (const [name, h] of dir.entries()) {
-        if (h.kind !== "file" || !/\.json$/i.test(name)) continue;
-        try {
-          const f = await h.getFile();
-          if (f.size > 5e6) continue;
-          const data = JSON.parse(await f.text());
-          if (!data || data.app !== "querybot-ai" || !Array.isArray(data.messages)) continue;  // 대화 파일만 (내보내기 묶음 등은 건드리지 않음)
-          const c = cleanConv(data);
-          if (c && (!disk.has(c.id) || (disk.get(c.id).c.updated || 0) < (c.updated || 0))) disk.set(c.id, { c, name });
-        } catch (e) { /* 읽을 수 없는 파일은 건너뜀 */ }
-      }
-    } catch (e) { folderTrouble(e); return 0; }
-    const goneIds = new Set(gone.get());
-    const byId = new Map(convs.map((c) => [c.id, c]));
-    let added = 0;
-    for (const [id, { c, name }] of disk) {
-      if (goneIds.has(id)) { try { await dir.removeEntry(name); } catch (e) {} continue; }
-      fileOf.set(id, name);
-      const mine = byId.get(id);
-      if (!mine) { convs.push(c); byId.set(id, c); added++; }
-      else if ((c.updated || 0) > (mine.updated || 0)) Object.assign(mine, c);
-    }
-    gone.set([]);
-    convs.sort((a, b) => (b.updated || 0) - (a.updated || 0));
-    saveConvs();
-    for (const c of convs) {
-      const d = disk.get(c.id);
-      if (!d || (d.c.updated || 0) < (c.updated || 0)) writeConv(c);
-    }
-    await fileQ;
-    return added;
-  }
-  // 폴더를 저장 위치로 정한다 (고른 직후 또는 다시 연결했을 때)
-  async function useFolder(h) {
-    dir = h;
-    dirState = "ok";
-    fileOf.clear();
-    store.set("histDir", "1");
-    try { await kv.set("dir", h); } catch (e) {}
-    return syncFolder();
-  }
-  async function forgetFolder() {
-    dir = null;
-    dirState = "none";
-    fileOf.clear();
-    store.set("histDir", "0");
-    gone.set([]);
-    try { await kv.set("dir", null); } catch (e) {}
-  }
-  async function pickFolder() {
-    try {
-      return await window.showDirectoryPicker({ id: "querybot", mode: "readwrite", startIn: "documents" });
-    } catch (e) {
-      if (e && e.name !== "AbortError") alert("이 폴더는 사용할 수 없습니다. 다른 폴더를 골라 주세요.");
-      return null;
-    }
-  }
-  // 새로고침 뒤: 보관해 둔 폴더를 꺼내 권한이 살아 있으면 바로 합치고, 아니면 '폴더 다시 연결' 버튼을 보인다
-  async function initFolder() {
-    if (!histOn || !useDir()) return;
-    let h = null;
-    try { if (canPickDir) h = await kv.get("dir"); } catch (e) {}
-    if (!h || typeof h.queryPermission !== "function") { dirState = "lost"; paintFoot(); return; }
-    dir = h;
-    let p = "prompt";
-    try { p = await h.queryPermission({ mode: "readwrite" }); } catch (e) {}
-    dirState = p === "granted" ? "ok" : "need";
-    paintFoot();
-    if (dirState === "ok" && (await syncFolder())) renderList();
-    else if (dirState === "ok") renderList();
-    paintFoot();
-  }
-  async function reconnectFolder() {
-    if (dirState === "need" && dir) {
-      let p = "denied";
-      try { p = await dir.requestPermission({ mode: "readwrite" }); } catch (e) {}
-      if (p !== "granted") { alert("폴더 사용 권한을 받지 못했습니다. 다시 눌러 '허용'을 골라 주세요."); return; }
-      dirState = "ok";
-      const n = await syncFolder();
-      renderList();
-      paintFoot();
-      if (dirState === "ok") addSys("‘📁 " + dir.name + "’에 다시 연결했습니다." + (n ? " 폴더에 있던 대화 " + n + "개를 불러왔습니다." : ""));
-      return;
-    }
-    openPlace("change");
-  }
-
-  // 저장 위치 고르기 팝업. mode = "create"(프로젝트 만들기) | "change"(위치 바꾸기)
-  const placeModal = $("placeModal");
-  let placeMode = "create";
-  function openPlace(mode) {
-    placeMode = mode;
-    $("placeTitle").textContent = mode === "create" ? "프로젝트 저장 위치" : "저장 위치 바꾸기";
-    $("placeLead").textContent = mode === "create"
-      ? "대화를 저장할 곳을 고릅니다. 어느 쪽이든 서버에는 저장되지 않습니다."
-      : "지금까지의 대화는 새 위치로 함께 옮겨집니다. 서버에는 저장되지 않습니다.";
-    $("nowDir").hidden = !(mode === "change" && useDir());
-    $("nowLocal").hidden = !(mode === "change" && !useDir());
-    const opt = $("placeDir"), no = $("placeNo");
-    opt.setAttribute("aria-disabled", canPickDir ? "false" : "true");
-    no.hidden = canPickDir;
-    if (!canPickDir) {
-      no.innerHTML = "";
-      const phone = window.matchMedia && matchMedia("(pointer:coarse)").matches;
-      if (phone) no.textContent = "휴대폰 브라우저는 폴더 저장을 지원하지 않습니다. '이 브라우저에 저장'을 이용해 주세요.";
-      else {
-        no.append("이 브라우저는 폴더 저장이 꺼져 있거나 지원하지 않습니다. Chrome·Edge에서는 바로 쓸 수 있습니다. Brave는 주소창에 아래 주소를 붙여 넣고 'File System Access API'를 Enabled로 바꾼 뒤 브라우저를 다시 시작하면 쓸 수 있습니다.", el("br"));
-        const flag = "brave://flags/#file-system-access-api";
-        const code = el("code", "", flag);
-        const cp = el("button", "qa-mini", "주소 복사"); cp.type = "button";
-        cp.addEventListener("click", async () => { try { await navigator.clipboard.writeText(flag); cp.textContent = "복사됨"; } catch (e) { cp.textContent = "복사 실패"; } setTimeout(() => (cp.textContent = "주소 복사"), 1500); });
-        no.append(code, cp);
-      }
-    }
-    placeModal.hidden = false;
-    closeSide();
-  }
-  const closePlace = () => { placeModal.hidden = true; };
-  $("placeClose").addEventListener("click", closePlace);
-  placeModal.addEventListener("click", (e) => { if (e.target === placeModal) closePlace(); });
-  $("placeDir").addEventListener("click", async () => {
-    if (!canPickDir) return;
-    const h = await pickFolder();
-    if (!h) return;
-    closePlace();
-    if (placeMode === "create" || !histOn) return startHistory(h);
-    let same = false;
-    try { same = !!dir && (await h.isSameEntry(dir)); } catch (e) {}
-    const n = await useFolder(h);
-    renderList();
-    paintFoot();
-    if (dirState === "ok") addSys((same ? "‘📁 " + h.name + "’에 다시 연결했습니다." : "저장 위치를 ‘📁 " + h.name + "’(으)로 바꿨습니다. 대화 " + convs.length + "개를 이 폴더에 저장했습니다.") + (n ? " 폴더에 있던 대화 " + n + "개를 불러왔습니다." : ""));
-  });
-  $("placeLocal").addEventListener("click", async () => {
-    closePlace();
-    if (placeMode === "create" || !histOn) return startHistory(null);
-    if (!useDir()) return;
-    if (!confirm("폴더 저장을 끄고 이 브라우저에만 저장하시겠습니까? 폴더에 있는 대화 파일은 지워지지 않고 그대로 남습니다.")) return;
-    await forgetFolder();
-    saveConvs();
-    renderList();
-    paintFoot();
-    addSys("저장 위치를 이 브라우저 저장소로 바꿨습니다. (최근 대화 " + Math.min(convs.length, MAX_CONVS) + "개 보관)");
-  });
-
-  // 동의하면(저장 위치까지 고르면) 보관함을 바로 만들고, 지금 하던 대화부터 저장한다
-  async function startHistory(h) {
+  // 기록 켜기 (꺼 둔 사람이 왼쪽 칸에서 다시 켤 때): 지금 하던 대화부터 저장
+  function startHistory() {
     histOn = true;
     store.set("histOn", "1");
     convs = cur && cur.messages.length ? [cur] : [];
     saveConvs();
-    let n = 0;
-    if (h) n = await useFolder(h); else await forgetFolder();
     renderList();
     paintFoot();
-    log.querySelectorAll(".qa-offer").forEach((x) => x.remove());
-    const where = h ? "‘📁 " + h.name + "’" : "이 브라우저";
-    if (cur && cur.messages.length) addSys("프로젝트를 만들었습니다. 이 대화부터 " + where + "에 저장됩니다." + (n ? " 폴더에 있던 대화 " + n + "개를 불러왔습니다." : ""));
-    // 빈 화면이면 첫 화면(추천 질문)은 그대로 두고, 저장 위치는 왼쪽 아래에 보인다
   }
-  const enableHistory = () => openPlace("create");
-  async function disableHistory() {
-    const msg = useDir()
-      ? "대화 기록을 끄시겠습니까? 이 브라우저에 있는 사본은 삭제되고, 폴더" + (dir ? "(📁 " + dir.name + ")" : "") + "의 대화 파일은 그대로 남습니다."
-      : "대화 기록을 끄시겠습니까? 이 기기에 저장된 대화가 모두 삭제됩니다. (먼저 '내보내기'로 백업할 수 있습니다)";
-    if (!confirm(msg)) return;
+  function disableHistory() {
+    if (!confirm("대화 기록을 끄시겠습니까? 이 브라우저에 저장된 대화가 모두 삭제됩니다. (먼저 '내보내기'로 백업할 수 있습니다)")) return;
     histOn = false;
     store.set("histOn", "0");
     try { localStorage.removeItem(CONV_KEY); } catch (e) {}
-    await forgetFolder();
     convs = [];
     renderList();
     paintFoot();
   }
-  // 보관함 설명 (왼쪽 칸과 채팅 안내에서 같이 씀)
-  const OFFER_POINTS = ["지난 대화를 왼쪽에서 다시 열어 볼 수 있습니다", "열어 둔 대화에 이어서 이야기할 수 있습니다", "이 기기에만 저장되며 서버에는 남지 않습니다", "언제든 끄고 한 번에 삭제할 수 있습니다"];
-  function offerCard(compact) {
-    const box = el("div", compact ? "qa-offer" : "qa-offer-side");
-    box.appendChild(el("b", "", compact ? "이 대화를 프로젝트에 저장하시겠습니까?" : "대화 기록이 꺼져 있습니다"));
-    if (!compact) box.appendChild(el("p", "", "지금 대화는 저장되지 않아 새로고침하면 사라집니다. 프로젝트를 만들면 다음 기능을 쓸 수 있습니다."));
-    const ul = el("ul");
-    for (const s of compact ? OFFER_POINTS.slice(0, 3) : OFFER_POINTS) ul.appendChild(el("li", "", s));
-    box.appendChild(ul);
+  // 기록이 꺼져 있을 때 왼쪽 칸 안내
+  function offCard() {
+    const box = el("div", "qa-offer-side");
+    box.appendChild(el("b", "", "대화 기록이 꺼져 있습니다"));
+    box.appendChild(el("p", "", "켜면 지난 대화를 왼쪽에서 다시 열어 볼 수 있습니다. 이 브라우저에만 저장되고 서버에는 남지 않습니다."));
     const row = el("div", "r");
-    const yes = el("button", "go", "프로젝트 만들기"); yes.type = "button";
-    yes.addEventListener("click", enableHistory);
+    const yes = el("button", "go", "기록 켜기"); yes.type = "button";
+    yes.addEventListener("click", startHistory);
     row.appendChild(yes);
-    if (compact) {
-      const no = el("button", "sub", "괜찮습니다"); no.type = "button";
-      no.addEventListener("click", () => { store.set("histOn", "0"); box.remove(); });  // 다음 방문부턴 채팅 안에서 다시 권하지 않음 (왼쪽 칸에선 언제든 켤 수 있음)
-      row.appendChild(no);
-    }
     box.appendChild(row);
     return box;
   }
-  // 왼쪽 아래: 기록이 켜져 있을 때만 저장 위치·위치 바꾸기·내보내기·가져오기·끄기
+  // 왼쪽 아래: 기록이 켜져 있을 때만 저장 안내·내보내기·가져오기·끄기
   function paintFoot() {
     const note = $("histNote");
     note.innerHTML = "";
     $("histTools").hidden = !histOn;
-    if (!histOn) return;
-    const line = el("div", "qa-where");
-    const name = useDir() ? "📁 " + (dir ? dir.name : "폴더") : "이 브라우저 저장소";
-    const b = el("b", "", name);
-    b.title = useDir() ? "폴더 이름: " + (dir ? dir.name : "") + " (브라우저는 전체 경로를 알려 주지 않습니다)" : "이 브라우저의 사이트 저장소";
-    const chg = el("button", "qa-mini", "위치 바꾸기"); chg.type = "button";
-    chg.addEventListener("click", () => openPlace("change"));
-    line.append("저장 위치", b, chg);
-    note.appendChild(line);
-    if (useDir() && dirState !== "ok" && dirState !== "none") {
-      const w = el("div", "qa-where-warn");
-      w.appendChild(el("span", "", dirState === "need"
-        ? "폴더 연결이 끊겼습니다. 새 대화는 우선 이 브라우저에 보관되고, 다시 연결하면 폴더에 저장됩니다."
-        : canPickDir ? "저장 폴더를 찾을 수 없습니다. 폴더를 다시 골라 주세요." : "이 브라우저에서는 폴더 저장을 쓸 수 없습니다. 대화는 이 브라우저에 보관됩니다."));
-      if (canPickDir) {
-        const re = el("button", "qa-mini", dirState === "need" ? "폴더 다시 연결" : "폴더 고르기"); re.type = "button";
-        re.addEventListener("click", reconnectFolder);
-        w.appendChild(re);
-      }
-      note.appendChild(w);
-    }
+    if (histOn) note.appendChild(el("div", "qa-where", "대화는 이 브라우저에만 저장됩니다"));
   }
   // 앞 대화 (서버에 보낼 것·가르치기 때 같이 저장할 것)
   const hist = () => (cur ? cur.messages.map((m) => ({ role: m.role, content: m.content.slice(0, 400) })) : []);
@@ -814,7 +545,7 @@
 
   function renderList() {
     convList.innerHTML = "";
-    if (!histOn) { convList.appendChild(offerCard(false)); return; }
+    if (!histOn) { convList.appendChild(offCard()); return; }
     if (!convs.length) { convList.appendChild(el("div", "qa-empty-list", t("noChats"))); return; }
     let group = "";
     for (const c of convs) {
@@ -831,10 +562,9 @@
       del.setAttribute("aria-label", t("delAsk"));
       del.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (!confirm(useDir() && lang() === "ko" ? "이 대화를 삭제하시겠습니까? 폴더에 있는 이 대화 파일(" + (fileOf.get(c.id) || fileName(c)) + ")도 함께 삭제됩니다." : t("delAsk"))) return;
+        if (!confirm(t("delAsk"))) return;
         convs = convs.filter((x) => x.id !== c.id);
         saveConvs();
-        removeConvFile(c);
         if (cur && cur.id === c.id) newChat(); else renderList();
       });
       item.append(open, del);
@@ -884,14 +614,9 @@
     cur.messages = cur.messages.slice(-MAX_MSGS);
     cur.updated = Date.now();
     cur.model = modelSel.value;
-    if (!histOn) {
-      // 기록이 꺼져 있으면 저장하지 않고, 첫 대화를 나눈 뒤 한 번만 채팅 안에서 권해 본다
-      if (!askedThisVisit && store.get("histOn") !== "0") { askedThisVisit = true; setTimeout(() => put(offerCard(true)), 900); }
-      return;
-    }
+    if (!histOn) return;  // 기록이 꺼져 있으면 저장하지 않는다
     convs = [cur].concat(convs.filter((c) => c.id !== cur.id));
     saveConvs();
-    writeConv(cur);
     renderList();
   }
 
@@ -907,7 +632,7 @@
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });
-  // 파일에서 읽은 대화는 그대로 믿지 않고 필요한 모양만 골라 담는다 (가져오기·폴더 읽기 공용). 모양이 틀리면 null
+  // 파일에서 읽은 대화는 그대로 믿지 않고 필요한 모양만 골라 담는다 (가져오기). 모양이 틀리면 null
   function cleanConv(c) {
     if (!c || typeof c.id !== "string" || !c.id || !Array.isArray(c.messages)) return null;
     const messages = [];
@@ -925,34 +650,32 @@
   }
   $("importBtn").addEventListener("click", () => $("importFile").click());
   $("importFile").addEventListener("change", async (e) => {
-    const f = e.target.files[0];
+    const files = [...e.target.files];
     e.target.value = "";
-    if (!f) return;
-    let added = 0;
-    try {
-      if (f.size > 5e6) throw new Error("big");
-      const data = JSON.parse(await f.text());
-      // 내보내기 묶음({convs:[…]}), 대화 목록([…]), 폴더에 저장된 대화 파일 하나({app, messages…}) 모두 받는다
-      const list = Array.isArray(data) ? data : data && Array.isArray(data.convs) ? data.convs : data && Array.isArray(data.messages) ? [data] : null;
-      if (!list) throw new Error("form");
-      const have = new Set(convs.map((c) => c.id));
-      const fresh = [];
-      for (const raw of list) {
-        const c = cleanConv(raw);
-        if (!c || have.has(c.id)) continue;
-        convs.push(c);
-        fresh.push(c);
-        have.add(c.id);
-        added++;
-      }
-      convs.sort((a, b) => (b.updated || 0) - (a.updated || 0));
-      saveConvs();
-      fresh.forEach(writeConv);
-      renderList();
-      alert(added ? "대화 " + added + "개를 가져왔습니다." : "새로 가져올 대화가 없습니다.");
-    } catch (err) {
-      alert("가져올 수 없는 파일입니다. 이 페이지에서 '내보내기'로 만든 파일인지 확인해 주세요.");
+    if (!files.length) return;
+    let added = 0, bad = 0;
+    const have = new Set(convs.map((c) => c.id));
+    for (const f of files) {
+      try {
+        if (f.size > 5e6) throw new Error("big");
+        const data = JSON.parse(await f.text());
+        // 내보내기 묶음({convs:[…]}), 대화 목록([…]), 예전 폴더 저장 파일 하나({app, messages…}) 모두 받는다 — 폴더 파일은 여러 개를 한꺼번에 골라도 됨
+        const list = Array.isArray(data) ? data : data && Array.isArray(data.convs) ? data.convs : data && Array.isArray(data.messages) ? [data] : null;
+        if (!list) throw new Error("form");
+        for (const raw of list) {
+          const c = cleanConv(raw);
+          if (!c || have.has(c.id)) continue;
+          convs.push(c);
+          have.add(c.id);
+          added++;
+        }
+      } catch (err) { bad++; }
     }
+    convs.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    saveConvs();
+    renderList();
+    if (bad && !added) alert("가져올 수 없는 파일입니다. 이 페이지에서 '내보내기'로 만든 파일인지 확인해 주세요.");
+    else alert((added ? "대화 " + added + "개를 가져왔습니다." : "새로 가져올 대화가 없습니다.") + (bad ? " (읽지 못한 파일 " + bad + "개)" : ""));
   });
 
   // 폰: 대화 기록 서랍
@@ -970,18 +693,28 @@
     av.setAttribute("aria-hidden", "true");
     const body = el("div", "turn-body");
     const who = el("div", "who", "QueryBot");
-    who.appendChild(el("span", "who-tag" + (kind === "taught" ? " taught" : ""), kind === "wiki" ? t("wikiTag") : kind === "taught" ? t("taughtTag") : t("aiTag")));
+    const tag = el("span", "who-tag" + (kind === "taught" ? " taught" : ""), kind === "wiki" ? t("wikiTag") : kind === "taught" ? t("taughtTag") : t("aiTag"));
+    if (kind !== "wiki" && kind !== "taught") tag.prepend(spark());  // AI가 만든 답에는 ✨
+    who.appendChild(tag);
     body.appendChild(who);
     turn.append(av, body);
     return { turn, body };
   }
 
+  // 반짝임(✨) 아이콘: AI 기능 표시
+  function spark() { const s = el("span", "spark"); s.setAttribute("aria-hidden", "true"); return s; }
+  // 답을 기다리는 동안: 아이콘에 흐르는 그라데이션 + '✨ 답을 만드는 중' + 글자 모양 회색 줄(스켈레톤)
   function addWaiting() {
     const { turn, body } = turnShell("ai");
+    turn.querySelector(".avatar").classList.add("thinking");
     body.querySelector(".who-tag").remove();
-    const d = el("div", "dots");
-    d.append(el("i"), el("i"), el("i"));
-    body.appendChild(d);
+    const th = el("span", "think");
+    th.append(spark(), el("span", "", t("thinking")));
+    body.querySelector(".who").appendChild(th);
+    const sk = el("div", "skel");
+    sk.setAttribute("aria-label", t("thinking"));
+    sk.append(el("i"), el("i"), el("i"));
+    body.appendChild(sk);
     return put(turn);
   }
 
@@ -1382,7 +1115,7 @@
   $("teachToggle").addEventListener("click", openModal);
   $("teachClose").addEventListener("click", closeModal);
   modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!placeModal.hidden) closePlace(); else if (!modal.hidden) closeModal(); else closeSide(); } });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!modal.hidden) closeModal(); else closeSide(); } });
   // 전에 키를 넣어 둔 브라우저면 조용히 다시 확인해서 관리자 모드만 켠다 (팝업은 안 띄움)
   async function resumeOwner() {
     if (!teachKey) return;
@@ -1566,6 +1299,7 @@
     text = (text || "").trim();
     if (busy || !text) return;
     busy = true; send.disabled = true;
+    $("form").classList.add("busy");  // 답 만드는 동안 입력칸 테두리에 그라데이션이 흐른다
     const asked = modelSel.value;
     const ctx = mem.checked ? hist().slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
@@ -1604,7 +1338,7 @@
     clearTimeout(timer);
     clearTimeout(slow);
     if (err) { wait.remove(); addAlert(err, warn); }
-    busy = false; send.disabled = false; input.focus();
+    busy = false; send.disabled = false; $("form").classList.remove("busy"); input.focus();
   }
 
   // 입력창: Enter로 보내고 Shift+Enter는 줄 바꿈. 한글 조합 중 Enter는 무시(글자가 끊겨 보내지는 것 막기). 내용에 맞춰 높이가 늘어남.
@@ -1648,7 +1382,6 @@
     showHello();
     renderList();
     paintFoot();
-    initFolder();
     let saved = null;
     try { saved = JSON.parse(store.get("models") || "null"); } catch (e) {}
     fillModels(Array.isArray(saved) && saved.length ? saved : DEFAULT_MODELS);
