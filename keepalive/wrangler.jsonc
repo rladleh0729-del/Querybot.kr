@@ -1,0 +1,11 @@
+{
+  // Render AI 서버 깨우기 전용 Worker (사이트 Worker querybot-flac과 따로)
+  "name": "querybot-keepalive",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-25",
+  "workers_dev": false,
+  "triggers": {
+    // 10분마다, UTC 22~23시·0~16시 = 한국 시각 오전 7시~새벽 2시
+    "crons": ["*/10 22-23,0-16 * * *"]
+  }
+}

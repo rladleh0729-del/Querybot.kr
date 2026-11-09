@@ -19,11 +19,21 @@ jobs:
         run: |
           rm -rf _deploy
           mkdir -p _deploy
-          rsync -a --exclude '.git' --exclude '.github' --exclude 'README.txt' --exclude 'wrangler.jsonc' --exclude '.deploy-trigger' --exclude '_deploy' ./ _deploy/
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'README.txt' --exclude 'wrangler.jsonc' --exclude '.deploy-trigger' --exclude '_deploy' --exclude 'keepalive' ./ _deploy/
 
       - name: Deploy to Cloudflare Worker
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      # AI 서버(Render 무료) 깨우기 Worker — 사이트 배포가 끝난 뒤 따로, 실패해도 사이트 배포에는 영향 없음 (2026-11-09)
+      - name: Deploy keep-awake cron worker
+        uses: cloudflare/wrangler-action@v4
+        continue-on-error: true
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: keepalive
           command: deploy
