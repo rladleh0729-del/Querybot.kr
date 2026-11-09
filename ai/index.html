@@ -825,6 +825,20 @@
     return tools;
   }
 
+  // 답 속 수식 위치를 글자(코드 포인트) 단위로 [시작, 끝]. 코드 안의 $는 빼고, 닫히지 않은 $는 수식이 아님 (2026-11-09)
+  function mathSpans(text) {
+    if (!/\$|\\\(|\\\[/.test(text)) return [];
+    const code = [];
+    for (const m of text.matchAll(/```[\s\S]*?(?:```|$)|`[^`\n]+`/g)) code.push([m.index, m.index + m[0].length]);
+    const inCode = (k) => code.some(([a, b]) => k >= a && k < b);
+    const cp = (k) => [...text.slice(0, k)].length;
+    const out = [];
+    for (const m of text.matchAll(/\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$/g)) {
+      if (!inCode(m.index)) out.push([cp(m.index), cp(m.index + m[0].length)]);
+    }
+    return out;
+  }
+
   // 모델 답: 새 답은 한 글자씩 써지듯 보여 준다 (실제로는 다 받은 뒤 보여 주는 것). 저장된 대화를 열 땐 바로.
   function addAiReply(text, meta, kind, animate, sources, thought) {
     const { turn, body } = turnShell(kind || "ai");
@@ -838,10 +852,13 @@
     if (reduceMotion || animate === false) { renderRich(p, text); finish(); return; }
     p.classList.add("typing");
     const chars = [...text];
+    const spans = mathSpans(text);  // 수식이 있는 곳(글자 위치): 한 글자씩 보여 주지 않고 통째로
     let i = 0;
     const step = () => {
       i = Math.min(chars.length, i + 2);
+      for (const [s, e] of spans) if (i > s && i < e) { i = e; break; }  // 수식 안으로 들어가면 수식 끝까지 한 번에
       renderRich(p, chars.slice(0, i).join(""));
+      if (spans.length) renderMath(p);  // 다 나오기 전에도 이미 나온 수식은 바로 그림으로
       toBottom();
       if (i < chars.length) setTimeout(step, 22); else { p.classList.remove("typing"); finish(); toBottom(); }
     };
