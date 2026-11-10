@@ -645,6 +645,26 @@
   html[data-theme=dark] .qa-set-back{background:rgba(0,0,0,.55)}
   html[data-theme=dark] .set-seg button[aria-checked=true]{background:#3a3f47}
   html[data-theme=dark] .me-tools,html[data-theme=dark] .me-tools button{color:#7d838c}
+
+  /* ── 22차 (2026-11-10): 데이터 관리 ── */
+  .set-sec{margin-bottom:14px}
+  .set-desc{margin:6px 0 12px;font-size:13px;line-height:1.6;color:var(--text2)}
+  .set-btns{display:flex;flex-wrap:wrap;gap:8px}
+  .set-btn{border:1px solid var(--line2);background:var(--panel);color:var(--text);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;cursor:pointer}
+  .set-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent-ink)}
+  .set-btn.go{background:var(--accent);border-color:var(--accent);color:#fff}
+  .set-btn.go:hover:not(:disabled){background:var(--accent-ink);color:#fff}
+  .set-btn:disabled{opacity:.45;cursor:default}
+  .set-inc{display:flex;flex-direction:column;gap:8px;margin:0 0 14px}
+  .set-inc-h{font-size:12.5px;font-weight:700;color:var(--muted)}
+  .set-inc-row{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--text2)}
+  .set-inc-row .mk{flex:none;width:34px;text-align:center;color:var(--muted);font-weight:700}
+  .set-inc-row .mk.on{color:var(--accent)}
+  .set-switch.sm{width:34px;height:20px}
+  .set-switch.sm i{top:2px;left:2px;width:16px;height:16px}
+  .set-switch.sm[aria-checked=true] i{transform:translateX(14px)}
+  .set-note2{margin-top:10px;font-size:12.5px;color:var(--muted)}
+  @media (max-width:640px){.qa-set-tabs{overflow-x:auto}.qa-set-tabs button{flex:none}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1042,6 +1062,7 @@
     for (const m of c.messages.slice(-MAX_MSGS)) {
       if (!m || (m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string") continue;
       const x = { role: m.role, content: m.content.slice(0, 200000) };
+      if (typeof m.ts === "number") x.ts = m.ts;
       if (m.role === "assistant") {
         x.kind = ["ai", "wiki", "taught"].includes(m.kind) ? m.kind : "ai";
         if (typeof m.source === "string" && /^https:\/\/([a-z]+\.)?wikipedia\.org\//.test(m.source)) x.source = m.source;
@@ -1059,7 +1080,7 @@
       messages.push(x);
     }
     if (!messages.length) return null;
-    return { id: c.id.slice(0, 40), title: String(c.title || messages[0].content).slice(0, 40), created: Number(c.created) || Date.now(), updated: Number(c.updated) || Date.now(), model: typeof c.model === "string" ? c.model.slice(0, 32) : "latest", messages };
+    return { id: c.id.slice(0, 40), title: String(c.title || messages[0].content).slice(0, 40), created: Number(c.created) || Date.now(), updated: Number(c.updated) || Date.now(), model: typeof c.model === "string" ? c.model.slice(0, 32) : "latest", titled: c.titled !== false || !!c.userTitle, userTitle: !!c.userTitle, messages };
   }
   $("importBtn").addEventListener("click", () => $("importFile").click());
   $("importFile").addEventListener("change", async (e) => {
@@ -2130,12 +2151,13 @@
     const tabs = el("nav", "qa-set-tabs");
     tabs.setAttribute("role", "tablist");
     const ICON = {
+      data: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 9.5"/><path d="M12 12v8M9 17l3 3 3-3"/></svg>',
       general: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M3 9h18"/><circle cx="7" cy="6.5" r=".6" fill="currentColor"/></svg>',
       usage: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 14l3.5-3.5"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/></svg>',
       memory: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3a3.5 3.5 0 0 0-3.4 4.3A3.5 3.5 0 0 0 4 13.5a3.5 3.5 0 0 0 4 4.5 3 3 0 0 0 4 1.6V4.3A3.4 3.4 0 0 0 9.5 3z"/><path d="M14.5 3a3.5 3.5 0 0 1 3.4 4.3 3.5 3.5 0 0 1 2.1 6.2 3.5 3.5 0 0 1-4 4.5 3 3 0 0 1-4 1.6"/></svg>',
       instr: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>'
     };
-    for (const k of ["general", "usage", "memory", "instr"]) {
+    for (const k of ["general", "usage", "memory", "instr", "data"]) {
       const b = el("button");
       b.type = "button";
       b.dataset.tab = k;
@@ -2178,7 +2200,7 @@
     setBack.querySelector("#setTitle").textContent = L("설정", "Settings");
     setBack.querySelectorAll(".qa-set-tabs button").forEach((b) => {
       b.setAttribute("aria-selected", b.dataset.tab === setTab ? "true" : "false");
-      b.querySelector(".lbl").textContent = { general: L("일반", "General"), usage: L("사용량", "Usage"), memory: L("메모리", "Memory"), instr: L("사용자 지침", "Instructions") }[b.dataset.tab];
+      b.querySelector(".lbl").textContent = { general: L("일반", "General"), usage: L("사용량", "Usage"), memory: L("메모리", "Memory"), instr: L("사용자 지침", "Instructions"), data: L("데이터 관리", "Data") }[b.dataset.tab];
     });
     const pane = setBack.querySelector("#setPane");
     pane.innerHTML = "";
@@ -2214,6 +2236,8 @@
       }
       pane.appendChild(card);
       pane.appendChild(el("p", "us-foot", L("QueryBot 기본 모델(the Best·3·1)은 사용량 제한이 없어요.", "QueryBot's own models (the Best, 3, 1) have no limit.")));
+    } else if (setTab === "data") {
+      paintData(pane);
     } else if (setTab === "instr") {
       paintInstr(pane);
     } else {
@@ -2354,6 +2378,156 @@
     if (sel.selectedIndex < 0) sel.value = "";
     sel.addEventListener("change", () => store.set("defModel", sel.value));
     setRow(pane, L("새 대화 기본 모델", "Default model for new chats"), L("새 대화를 열 때 이 모델로 시작해요.", "New chats start with this model."), sel);
+  }
+
+  // ---------- 데이터 관리: 파일 백업 + Google Drive 백업·복원 ----------
+  const GDRIVE_CLIENT_ID = "";  // Google Cloud > 사용자 인증 정보 > OAuth 클라이언트 ID(웹 앱). 비어 있으면 '준비 중'
+  const GD_FILE = "QueryBot 대화 백업.json";
+  var gdTok = null, gdExp = 0, gdMsg = "", gdBusy = false;
+  const gsiReady = () => !!(window.google && window.google.accounts && window.google.accounts.oauth2);
+  function gdLoad() {  // 탭을 열 때 미리 불러 둔다 (단추를 누른 그 순간에 권한 창을 띄워야 팝업이 안 막힘)
+    if (!GDRIVE_CLIENT_ID || gsiReady() || document.getElementById("gsiJs")) return;
+    const s = document.createElement("script");
+    s.id = "gsiJs";
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    document.head.appendChild(s);
+  }
+  function gdToken() {
+    return new Promise((res, rej) => {
+      if (gdTok && Date.now() < gdExp - 60000) { res(gdTok); return; }
+      if (!gsiReady()) { rej(new Error("gsi")); return; }
+      const tc = window.google.accounts.oauth2.initTokenClient({
+        client_id: GDRIVE_CLIENT_ID,
+        scope: "https://www.googleapis.com/auth/drive.file",
+        callback: (r) => {
+          if (r && r.access_token) { gdTok = r.access_token; gdExp = Date.now() + (Number(r.expires_in) || 3600) * 1000; res(gdTok); }
+          else rej(new Error((r && r.error) || "denied"));
+        },
+        error_callback: (er) => rej(new Error((er && er.type) || "popup"))
+      });
+      tc.requestAccessToken();
+    });
+  }
+  async function gdApi(url, opt) {
+    const tok = await gdToken();
+    const o = Object.assign({}, opt || {});
+    o.headers = Object.assign({ Authorization: "Bearer " + tok }, (opt && opt.headers) || {});
+    const r = await fetch(url, o);
+    if (r.status === 401) { gdTok = null; throw new Error("auth"); }
+    if (!r.ok) throw new Error("http " + r.status);
+    return r;
+  }
+  async function gdFind() {
+    const q = encodeURIComponent("name = '" + GD_FILE + "' and trashed = false");
+    const r = await gdApi("https://www.googleapis.com/drive/v3/files?spaces=drive&pageSize=1&orderBy=modifiedTime%20desc&fields=files(id,modifiedTime)&q=" + q);
+    const j = await r.json();
+    return j.files && j.files[0] ? j.files[0] : null;
+  }
+  function gdErr(e) {
+    const m = String((e && e.message) || e);
+    if (m === "gsi") return L("Google 로그인을 불러오는 중이에요. 잠시 뒤 다시 눌러 주세요.", "Loading Google sign-in… try again in a moment.");
+    if (/popup|denied|access_denied/.test(m)) return L("Google 권한을 받지 못했어요. 팝업이 막혔다면 허용한 뒤 다시 눌러 주세요.", "Google permission was not granted. Allow pop-ups and try again.");
+    if (m === "auth") return L("Google 권한 시간이 끝났어요. 다시 눌러 주세요.", "Google access expired. Please try again.");
+    return L("Drive 작업에 실패했어요 (" + m + ").", "Drive request failed (" + m + ").");
+  }
+  async function gdBackup() {
+    if (gdBusy) return;
+    gdBusy = true; gdMsg = L("백업하는 중…", "Backing up…"); paintSet();
+    try {
+      const pack = { app: "querybot-ai", version: 2, exported: new Date().toISOString(), convs };
+      if (store.get("gdMem") === "1") pack.memory = memList();
+      if (store.get("gdInstr") === "1") pack.instr = { style: store.get("style") || "", text: store.get("instr") || "" };
+      const body = JSON.stringify(pack), f = await gdFind();
+      if (f) {
+        await gdApi("https://www.googleapis.com/upload/drive/v3/files/" + f.id + "?uploadType=media&fields=id", { method: "PATCH", headers: { "Content-Type": "application/json" }, body });
+      } else {
+        const b = "qb" + Math.random().toString(36).slice(2);
+        const meta = JSON.stringify({ name: GD_FILE, mimeType: "application/json" });
+        await gdApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", { method: "POST", headers: { "Content-Type": "multipart/related; boundary=" + b },
+          body: "--" + b + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta + "\r\n--" + b + "\r\nContent-Type: application/json\r\n\r\n" + body + "\r\n--" + b + "--" });
+      }
+      store.set("gdLast", String(Date.now()));
+      gdMsg = L("대화 " + convs.length + "개를 Drive에 백업했어요.", "Backed up " + convs.length + " chats to Drive.");
+    } catch (e) { gdMsg = gdErr(e); }
+    gdBusy = false;
+    paintSet();
+  }
+  async function gdRestore() {
+    if (gdBusy) return;
+    gdBusy = true; gdMsg = L("Drive에서 가져오는 중…", "Restoring from Drive…"); paintSet();
+    try {
+      const f = await gdFind();
+      if (!f) throw new Error("none");
+      const data = await (await gdApi("https://www.googleapis.com/drive/v3/files/" + f.id + "?alt=media")).json();
+      let added = 0, newer = 0, curChanged = false;
+      const curId = cur && cur.id;
+      for (const raw of (data && Array.isArray(data.convs) ? data.convs : [])) {
+        const c = cleanConv(raw);
+        if (!c) continue;
+        const i = convs.findIndex((x) => x.id === c.id);
+        if (i < 0) { convs.push(c); added++; }
+        else if ((c.updated || 0) > (convs[i].updated || 0)) { if (cur && cur.id === c.id) curChanged = true; convs[i] = c; newer++; }  // 같은 대화는 더 최근 것으로
+      }
+      convs.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+      saveConvs();
+      if (curChanged) { cur = null; openConv(curId); }  // 지금 보던 대화가 더 최근 것으로 바뀌었으면 다시 그리기
+      renderList();
+      if (data && Array.isArray(data.memory)) memAdd(data.memory.filter((s) => typeof s === "string"));
+      if (data && data.instr && typeof data.instr === "object") {
+        if (!store.get("instr") && typeof data.instr.text === "string") store.set("instr", data.instr.text.slice(0, 1500));
+        if (!store.get("style") && typeof data.instr.style === "string") store.set("style", data.instr.style.slice(0, 20));
+      }
+      gdMsg = L("새 대화 " + added + "개" + (newer ? ", 더 최근 내용 " + newer + "개" : "") + "를 가져왔어요.", "Restored " + added + " new chats" + (newer ? ", updated " + newer : "") + ".");
+    } catch (e) { gdMsg = e && e.message === "none" ? L("Drive에 백업 파일이 아직 없어요.", "No backup in Drive yet.") : gdErr(e); }
+    gdBusy = false;
+    paintSet();
+  }
+  function paintData(pane) {
+    pane.appendChild(el("h3", "", L("데이터 관리", "Data")));
+    const sec = (title, desc) => {
+      const s = el("div", "us-card set-sec");
+      s.appendChild(el("div", "us-name", title));
+      if (desc) s.appendChild(el("p", "set-desc", desc));
+      pane.appendChild(s);
+      return s;
+    };
+    const btn = (text, cls, fn) => { const b = el("button", "set-btn" + (cls ? " " + cls : ""), text); b.type = "button"; b.addEventListener("click", fn); return b; };
+    const a = sec(L("파일로 백업", "Back up to a file"), L("구글 계정 없이 이 기기에 파일로 저장하거나, 저장해 둔 파일에서 대화를 가져와요. 같은 대화는 겹치지 않아요.",
+      "Save chats to a file on this device or load them back — no Google account needed. Duplicates are skipped."));
+    const r1 = el("div", "set-btns");
+    r1.append(btn(L("파일로 내보내기", "Export"), "", () => $("exportBtn").click()), btn(L("파일 가져오기", "Import"), "", () => $("importBtn").click()));
+    a.appendChild(r1);
+    const ready = !!GDRIVE_CLIENT_ID;
+    const g = sec("Google Drive", L("누를 때만 내 Google Drive에 'QueryBot 대화 백업.json' 파일 하나로 저장해요. QueryBot은 이 백업 파일에만 접근해요.",
+      "Saves one file, 'QueryBot 대화 백업.json', to your Google Drive only when you press the button. QueryBot can access only that file."));
+    const inc = el("div", "set-inc");
+    inc.appendChild(el("div", "set-inc-h", L("백업에 들어가는 것", "Included in the backup")));
+    const fixed = (on, text) => { const r = el("div", "set-inc-row"); r.append(el("span", "mk" + (on ? " on" : ""), on ? "✓" : "–"), el("span", "", text)); inc.appendChild(r); };
+    const toggle = (key, text) => {
+      const r = el("div", "set-inc-row"), sw = el("button", "set-switch sm");
+      sw.type = "button"; sw.setAttribute("role", "switch"); sw.setAttribute("aria-label", text);
+      sw.setAttribute("aria-checked", store.get(key) === "1" ? "true" : "false");
+      sw.appendChild(el("i"));
+      sw.addEventListener("click", () => { store.set(key, store.get(key) === "1" ? "0" : "1"); paintSet(); });
+      r.append(sw, el("span", "", text));
+      inc.appendChild(r);
+    };
+    fixed(true, L("대화 제목·내용 (" + convs.length + "개)", "Chat titles & messages (" + convs.length + ")"));
+    fixed(false, L("첨부한 그림·파일은 이름만 (그림·파일 자체는 저장되지 않아요)", "Attachments: names only (files themselves are not saved)"));
+    toggle("gdMem", L("메모리 (" + memList().length + "개)", "Memory (" + memList().length + ")"));
+    toggle("gdInstr", L("사용자 지침·말투", "Instructions & tone"));
+    g.appendChild(inc);
+    const r2 = el("div", "set-btns");
+    const bk = btn(L("Drive에 백업", "Back up to Drive"), "go", gdBackup), rs = btn(L("Drive에서 복원", "Restore from Drive"), "", gdRestore);
+    bk.disabled = rs.disabled = !ready || gdBusy;
+    r2.append(bk, rs);
+    g.appendChild(r2);
+    const last = Number(store.get("gdLast") || 0);
+    const lastTx = last ? L("마지막 백업: ", "Last backup: ") + new Date(last).toLocaleString(lang() === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+                        : L("아직 백업하지 않았어요.", "Not backed up yet.");
+    g.appendChild(el("div", "set-note2", ready ? (gdMsg ? gdMsg + " · " : "") + lastTx : L("Google Drive 연결은 준비 중이에요.", "Google Drive backup is coming soon.")));
+    gdLoad();
   }
   $("setBtn").addEventListener("click", () => openSettings("general"));
   $("usageBtn").addEventListener("click", () => openSettings("usage"));
