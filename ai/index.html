@@ -447,6 +447,21 @@
 
   /* 마우스를 따라오는 빛: 흰 바탕이라 연한 파랑 (공통 style.css의 주황을 이 페이지에서만 덮어씀, 2026-11-10) */
   .cursor-glow{background:radial-gradient(circle,rgba(37,99,235,.11) 0%,rgba(96,165,250,.07) 38%,rgba(147,197,253,0) 70%)}
+
+  /* ── 첫 화면: 제목 바로 아래 입력창 (2026-11-10 사용자 의견) — 대화를 시작하면(.chatting) 입력창은 원래대로 맨 아래 ── */
+  @media (min-width:761px){
+    .qa-chat:not(.chatting) .qa-scroll{flex:0 0 auto;margin-top:auto;overflow:visible}
+    .qa-chat:not(.chatting) .qa-composer{margin-bottom:auto;padding-bottom:calc(56px + env(safe-area-inset-bottom))}
+    .qa-chat:not(.chatting) .qa-log{min-height:0;padding-bottom:14px}
+    .qa-chat:not(.chatting) .qa-hello{padding:0}
+    /* 하늘빛: 제목+입력창 덩어리만 감싸게 (가운데 = 위쪽 띠 높이의 절반만큼 아래) */
+    .qa-glow{filter:saturate(.7)}
+    .qa-glow .g-layer{top:calc(50% + 6px);width:min(860px,88%);height:250px}
+    .qa-glow .g-layer.bg{opacity:.18}
+    .qa-glow .g-layer.fg{opacity:.34;width:min(580px,66%);height:210px}
+    .qa-glow .bg .blob{filter:blur(90px)}
+    .qa-glow .fg .blob{filter:blur(70px)}
+  }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -500,7 +515,7 @@
         <button id="thinkBtn" class="qa-think" type="button" aria-pressed="false" hidden><span class="spark" aria-hidden="true"></span><span class="lbl">생각</span></button>
         <button id="locBtn" class="qa-think qa-loc" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span class="lbl">위치</span></button>
         <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
-        <textarea id="input" rows="1" maxlength="200" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
+        <textarea id="input" rows="1" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg></button>
       </form>
     </div>
@@ -519,8 +534,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "어떤 일을 할까요?", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What can I do for you?", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
+    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "무엇이 궁금하세요?", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What would you like to know?", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -609,7 +624,13 @@
   function saveConvs() {
     if (!histOn) return;
     convs = convs.slice(0, MAX_CONVS);
-    try { localStorage.setItem(CONV_KEY, JSON.stringify(convs)); } catch (e) { /* 저장 공간이 꽉 찼거나 막힘 → 이번 화면에서만 유지 */ }
+    try { localStorage.setItem(CONV_KEY, JSON.stringify(convs)); } catch (e) {
+      // 저장 공간이 꽉 참(아주 긴 글) → 저장본에서만 긴 글을 2만 자로 줄이고, 그래도 안 되면 오래된 대화부터 빼고 저장. 막혀 있으면 이번 화면에서만 유지
+      const cut = (c) => ({ ...c, messages: c.messages.map((m) => (m.content.length > 20000 ? { ...m, content: m.content.slice(0, 20000) + " …" } : m)) });
+      for (let n = convs.length; n > 0; n = Math.floor(n / 2)) {
+        try { localStorage.setItem(CONV_KEY, JSON.stringify(convs.slice(0, n).map(cut))); break; } catch (e2) {}
+      }
+    }
   }
 
   // 기록 켜기 (꺼 둔 사람이 왼쪽 칸에서 다시 켤 때): 지금 하던 대화부터 저장
@@ -760,7 +781,7 @@
     const messages = [];
     for (const m of c.messages.slice(-MAX_MSGS)) {
       if (!m || (m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string") continue;
-      const x = { role: m.role, content: m.content.slice(0, 2000) };
+      const x = { role: m.role, content: m.content.slice(0, 200000) };
       if (m.role === "assistant") {
         x.kind = ["ai", "wiki", "taught"].includes(m.kind) ? m.kind : "ai";
         if (typeof m.source === "string" && /^https:\/\/([a-z]+\.)?wikipedia\.org\//.test(m.source)) x.source = m.source;
@@ -1795,7 +1816,8 @@
       const t0 = Date.now(), lab = wait.querySelector(".think span:last-child");
       tick = setInterval(() => { lab.textContent = t("thinkingN") + " · " + Math.floor((Date.now() - t0) / 1000) + t("sec"); }, 1000);
     }
-    const limit = thinking ? 200000 : WAKE_TIMEOUT;  // 생각하기는 1분 넘게 걸릴 수 있음
+    // 생각하기는 1분 넘게 걸릴 수 있음. 아주 긴 글은 읽는 시간만큼 더 기다림(2천 자에 1초, 최대 +2분)
+    const limit = (thinking ? 200000 : WAKE_TIMEOUT) + Math.min(120000, Math.round(text.length / 2));
     // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
     const slow = thinking ? 0 : setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t(online === true ? "working" : "waking"))); toBottom(); }, 5000);
     let err = null, warn = false;
