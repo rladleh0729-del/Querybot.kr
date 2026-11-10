@@ -566,10 +566,90 @@
     .qa-set-pane{padding:12px 18px 20px}
     .us-big b{font-size:26px}
   }
+
+  /* ── 19차 (2026-11-10): 내 말풍선 아래 시각·복사·고치기, 버전 ‹ 1/2 ›, 고치기 칸 ── */
+  .me-tools{align-self:flex-end;display:flex;align-items:center;gap:1px;margin-top:-14px;opacity:0;transition:opacity .15s;color:#a3a8b0;font-size:12.5px}
+  .me:hover+.me-tools,.me-wrap:hover+.me-tools,.me-tools:hover,.me-tools:focus-within,.me-tools.has-ver{opacity:1}
+  @media (hover:none){.me-tools{opacity:1}}
+  .me-tools[hidden]{display:none}
+  .me-time{margin:0 6px 0 4px;white-space:nowrap}
+  .me-tools button{width:28px;height:28px;padding:0;border:0;background:none;border-radius:999px;color:#a3a8b0;cursor:pointer;display:grid;place-items:center}
+  .me-tools button:hover{background:var(--hover);color:var(--text2)}
+  .me-tools button:disabled{opacity:.35;cursor:default;background:none}
+  .me-ver{min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
+  .me-edit{align-self:flex-end;width:min(640px,100%);border:1px solid var(--line2);background:#f0f1f3;border-radius:24px;padding:12px 14px 10px}
+  .me-edit textarea{display:block;width:100%;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:15.5px;line-height:1.6;color:var(--text);min-height:26px;max-height:320px;padding:2px 4px}
+  .me-edit .row{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+  .me-edit button{border:1px solid var(--line2);background:var(--panel);color:var(--text);border-radius:999px;padding:7px 16px;font:inherit;font-size:14px;cursor:pointer}
+  .me-edit button:hover{border-color:var(--text2)}
+  .me-edit button.go{background:var(--accent);border-color:var(--accent);color:#fff}
+  .me-edit button.go:hover{background:var(--accent-ink)}
+
+  /* ── 20차 (2026-11-10): 메모리 직접 추가·사용자 지침 ── */
+  .set-mem-add{display:flex;gap:8px;margin-top:12px}
+  .set-mem-add input{flex:1;min-width:0;border:1px solid var(--line2);border-radius:999px;background:var(--field);padding:9px 16px;font:inherit;font-size:14px;color:var(--text);outline:0}
+  .set-mem-add input:focus{border-color:var(--accent)}
+  .set-mem-add .go{flex:none;border:0;border-radius:999px;background:var(--accent);color:#fff;padding:0 18px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+  .set-mem-add .go:hover{background:var(--accent-ink)}
+  .set-lbl{margin:16px 2px 9px;font-size:13.5px;font-weight:700;color:var(--text2)}
+  .set-lbl:first-of-type{margin-top:4px}
+  .set-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .set-chip{border:1px solid var(--line2);background:var(--field);color:var(--text2);border-radius:999px;padding:7px 15px;font:inherit;font-size:14px;cursor:pointer}
+  .set-chip:hover{border-color:var(--accent);color:var(--text)}
+  .set-chip[aria-checked=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+  .set-instr{display:block;width:100%;box-sizing:border-box;border:1px solid var(--line2);border-radius:20px;background:var(--field);padding:12px 16px;font:inherit;font-size:14.5px;line-height:1.6;color:var(--text);resize:vertical;min-height:120px;outline:0}
+  .set-instr:focus{border-color:var(--accent)}
+  .set-note{margin:6px 8px 0;text-align:right;font-size:12px;color:var(--muted)}
+
+  /* ── 21차 (2026-11-10): 설정 '일반' 탭 ── */
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 2px;border-bottom:1px solid var(--line)}
+  .set-row:last-of-type{border-bottom:0}
+  .set-row-tx{min-width:0}
+  .set-row-tx b{display:block;font-size:14.5px;font-weight:600;color:var(--text)}
+  .set-row-tx small{display:block;margin-top:3px;font-size:12.5px;color:var(--muted)}
+  .set-seg{flex:none;display:flex;gap:3px;padding:3px;border-radius:999px;background:var(--panel2)}
+  .set-seg button{border:0;background:none;border-radius:999px;padding:6px 13px;font:inherit;font-size:13.5px;color:var(--text2);cursor:pointer;white-space:nowrap}
+  .set-seg button[aria-checked=true]{background:var(--panel);color:var(--text);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .set-switch{flex:none;position:relative;width:44px;height:26px;border:0;border-radius:999px;background:var(--line2);cursor:pointer;transition:background .15s}
+  .set-switch i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
+  .set-switch[aria-checked=true]{background:var(--accent)}
+  .set-switch[aria-checked=true] i{transform:translateX(18px)}
+  .set-select{flex:none;max-width:210px;border:1px solid var(--line2);border-radius:999px;background:var(--field);color:var(--text);padding:7px 14px;font:inherit;font-size:13.5px;cursor:pointer;outline:0}
+  .set-select:focus{border-color:var(--accent)}
+  @media (max-width:640px){.set-row{flex-wrap:wrap}.set-seg button{padding:6px 11px}}
+
+  /* ── 다크 테마 (설정 > 일반 > 테마) ── */
+  html[data-theme=dark]{color-scheme:dark;--bg:#16181c;--panel:#1f2227;--panel2:#2a2e35;--text:#e8eaed;--text2:#c2c7ce;--muted:#8d939c;--line:#30343b;--line2:#3d424a;
+    --field:#1f2227;--field-line:#3d424a;--accent:#4f8cff;--accent2:#4f8cff;--accent-ink:#8fb5ff;--accent-soft:#1f2c47;--on-accent:#ffffff;--idle:#6b7079;--track:#2a2e35;
+    --card-a:#1f2227;--card-b:#1f2227;--hover:rgba(255,255,255,.06);--focus:#4f8cff;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);--shadow-lg:0 2px 6px rgba(0,0,0,.35),0 24px 60px rgba(0,0,0,.5)}
+  html[data-theme=dark] body{background:var(--bg)}
+  html[data-theme=dark] .nav{background:rgba(22,24,28,.94)}
+  html[data-theme=dark] .tabbar{background:rgba(31,34,39,.97)}
+  html[data-theme=dark] .qa-side{background:#1b1d21}
+  html[data-theme=dark] .qa-conv.on{background:#2a2e35}
+  html[data-theme=dark] .me,html[data-theme=dark] .me-edit{background:#2a2e35;color:var(--text)}
+  html[data-theme=dark] .qa-send:disabled{background:#2f333a;color:#6b7079}
+  html[data-theme=dark] .avatar.wiki,html[data-theme=dark] .src,html[data-theme=dark] .att .x,html[data-theme=dark] .alert .retry{background:var(--panel)}
+  html[data-theme=dark] .text .code{background:#1b1e23;border-color:#30343b}
+  html[data-theme=dark] .text .code-head{background:#23272d;color:#aab0b8}
+  html[data-theme=dark] .text .code-head button{border-color:#3d424a;background:#2a2e35;color:#c2c7ce}
+  html[data-theme=dark] .text .code-head button:hover{background:#343941}
+  html[data-theme=dark] .text .code code{color:#e8eaed}
+  html[data-theme=dark] .text code.inl{background:#2a2e35;border-color:#3d424a;color:#e8eaed}
+  html[data-theme=dark] .skel i{background:linear-gradient(90deg,#2a2e35 0%,#2c3550 22%,#352c4a 38%,#2a2e35 58%);background-size:300% 100%}
+  html[data-theme=dark] .alert{background:#3a1d22;border-color:#6b2c35;color:#f5b5bd}
+  html[data-theme=dark] .alert.warn,html[data-theme=dark] .att-note,html[data-theme=dark] .similar{background:#3a2f17;border-color:#6b5320;color:#f1d29a}
+  html[data-theme=dark] .who-tag.taught,html[data-theme=dark] .bdg.ok{background:#173426;border-color:#2b6b49;color:#8fdcb0}
+  html[data-theme=dark] .qa-chat:not(.chatting) .qa-glow{opacity:.45}
+  html[data-theme=dark] .qa-set-back{background:rgba(0,0,0,.55)}
+  html[data-theme=dark] .set-seg button[aria-checked=true]{background:#3a3f47}
+  html[data-theme=dark] .me-tools,html[data-theme=dark] .me-tools button{color:#7d838c}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
+<script>try{var qbT=localStorage.getItem("qbAi.theme");if(qbT==="dark"||(qbT==="system"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.dataset.theme="dark";}catch(e){}</script>
 </head>
 <body class="qa-page">
 <header class="nav"><div class="wrap navin"><a class="brand" href="/">Query<b>Bot</b> AI</a><nav class="navlinks"><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button></div></header>
@@ -644,8 +724,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", stopped: "답을 멈췄어요.", stopTip: "멈추기", sendTip: "보내기", rename: "이름 바꾸기", del: "삭제", more: "더 보기", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "무엇이 궁금하세요?", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", stopped: "Stopped.", stopTip: "Stop", sendTip: "Send", rename: "Rename", del: "Delete", more: "More", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What would you like to know?", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
+    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", stopped: "답을 멈췄어요.", editQ: "수정", cancel: "취소", prevVer: "이전 버전", nextVer: "다음 버전", stopTip: "멈추기", sendTip: "보내기", rename: "이름 바꾸기", del: "삭제", more: "더 보기", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "무엇이 궁금하세요?", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", stopped: "Stopped.", editQ: "Edit", cancel: "Cancel", prevVer: "Previous version", nextVer: "Next version", stopTip: "Stop", sendTip: "Send", rename: "Rename", del: "Delete", more: "More", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What would you like to know?", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -818,6 +898,8 @@
 
   function newChat() {
     cur = null;
+    const dm = store.get("defModel");  // 설정 > 일반 > 새 대화 기본 모델
+    if (dm && dm !== modelSel.value && [...modelSel.options].some((o) => o.value === dm)) { modelSel.value = dm; store.set("model", dm); paintModel(); setQuota(); }
     showHello();
     renderList();
     closeSide();
@@ -825,15 +907,15 @@
   }
 
   // 저장된 대화 다시 보기 (한 글자씩 써지는 효과 없이)
-  function openConv(id) {
-    const c = convs.find((x) => x.id === id);
+  function openConv(id, upto) {
+    const c = cur && cur.id === id ? cur : convs.find((x) => x.id === id);
     if (!c) return;
     cur = c;
     log.innerHTML = "";
-    const msgs = c.messages;
+    const msgs = upto != null ? c.messages.slice(0, upto) : c.messages;  // upto: 질문 고치기 때 고친 말 앞까지만
     for (let i = 0; i < msgs.length; i++) {
       const m = msgs[i];
-      if (m.role === "user") { addMe(m.content, m.att); continue; }
+      if (m.role === "user") { meTools(addMe(m.content, m.att), i); continue; }
       const prevUser = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content : "";
       const meta = prevUser ? { user: prevUser, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
       if (m.kind === "wiki" && m.source) addWikiReply(m.content, m.source, meta);
@@ -860,6 +942,12 @@
     if (more && more.att && more.att.length) u.att = more.att;  // 그림·파일 자체는 저장하지 않고 이름만
     if (more && more.thought && typeof more.thought.seconds === "number") a.thought = { seconds: Math.round(more.thought.seconds), summary: String(more.thought.summary || "").slice(0, 800) };
     if (more && Array.isArray(more.sources) && more.sources.length) a.sources = more.sources.filter((s) => s && /^https:\/\//.test(s.url || "")).slice(0, 10).map((s) => ({ title: String(s.title || "").slice(0, 120), url: String(s.url).slice(0, 500) }));
+    u.ts = a.ts = Date.now();
+    if (more && more.branch && cur.messages.length >= more.branch.i) {  // 질문 고치기: 고친 말 자리부터 새 버전 (예전 버전들은 u.vers에)
+      cur.messages = cur.messages.slice(0, more.branch.i);
+      u.vers = more.branch.vers;
+      u.vi = more.branch.vi;
+    }
     cur.messages.push(u, a);
     cur.messages = cur.messages.slice(-MAX_MSGS);
     cur.updated = Date.now();
@@ -1655,7 +1743,7 @@
     if (!Array.isArray(list) || !list.length) return;
     // 서버가 잠들어 있을 때도 목록이 바로 보이게 이 브라우저에 기억 (2026-11-09: 폰에서 기본 모델 하나만 보이던 문제)
     store.set("models", JSON.stringify(list.map((m) => ({ key: m.key, label: m.label }))));
-    const want = (cur && cur.model) || store.get("model") || modelSel.value;
+    const want = (cur && cur.model) || store.get("defModel") || store.get("model") || modelSel.value;
     modelSel.innerHTML = "";
     for (const m of list) {
       const o = document.createElement("option");
@@ -2042,10 +2130,12 @@
     const tabs = el("nav", "qa-set-tabs");
     tabs.setAttribute("role", "tablist");
     const ICON = {
+      general: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M3 9h18"/><circle cx="7" cy="6.5" r=".6" fill="currentColor"/></svg>',
       usage: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 14l3.5-3.5"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/></svg>',
-      memory: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3a3.5 3.5 0 0 0-3.4 4.3A3.5 3.5 0 0 0 4 13.5a3.5 3.5 0 0 0 4 4.5 3 3 0 0 0 4 1.6V4.3A3.4 3.4 0 0 0 9.5 3z"/><path d="M14.5 3a3.5 3.5 0 0 1 3.4 4.3 3.5 3.5 0 0 1 2.1 6.2 3.5 3.5 0 0 1-4 4.5 3 3 0 0 1-4 1.6"/></svg>'
+      memory: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3a3.5 3.5 0 0 0-3.4 4.3A3.5 3.5 0 0 0 4 13.5a3.5 3.5 0 0 0 4 4.5 3 3 0 0 0 4 1.6V4.3A3.4 3.4 0 0 0 9.5 3z"/><path d="M14.5 3a3.5 3.5 0 0 1 3.4 4.3 3.5 3.5 0 0 1 2.1 6.2 3.5 3.5 0 0 1-4 4.5 3 3 0 0 1-4 1.6"/></svg>',
+      instr: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>'
     };
-    for (const k of ["usage", "memory"]) {
+    for (const k of ["general", "usage", "memory", "instr"]) {
       const b = el("button");
       b.type = "button";
       b.dataset.tab = k;
@@ -2088,11 +2178,13 @@
     setBack.querySelector("#setTitle").textContent = L("설정", "Settings");
     setBack.querySelectorAll(".qa-set-tabs button").forEach((b) => {
       b.setAttribute("aria-selected", b.dataset.tab === setTab ? "true" : "false");
-      b.querySelector(".lbl").textContent = b.dataset.tab === "usage" ? L("사용량", "Usage") : L("메모리", "Memory");
+      b.querySelector(".lbl").textContent = { general: L("일반", "General"), usage: L("사용량", "Usage"), memory: L("메모리", "Memory"), instr: L("사용자 지침", "Instructions") }[b.dataset.tab];
     });
     const pane = setBack.querySelector("#setPane");
     pane.innerHTML = "";
-    if (setTab === "usage") {
+    if (setTab === "general") {
+      paintGeneral(pane);
+    } else if (setTab === "usage") {
       pane.appendChild(el("h3", "", L("사용량", "Usage")));
       const q = getQuota();
       const card = el("div", "us-card");
@@ -2122,10 +2214,31 @@
       }
       pane.appendChild(card);
       pane.appendChild(el("p", "us-foot", L("QueryBot 기본 모델(the Best·3·1)은 사용량 제한이 없어요.", "QueryBot's own models (the Best, 3, 1) have no limit.")));
+    } else if (setTab === "instr") {
+      paintInstr(pane);
     } else {
       pane.appendChild(el("h3", "", L("메모리", "Memory")));
-      pane.appendChild(el("p", "us-foot", L("쿼리봇이 대화에서 기억하기로 한 것이에요. 이 브라우저에만 저장되고, Gemma 4에 질문할 때 같이 보내요.",
-        "Things QueryBot chose to remember. Stored only in this browser and sent with Gemma 4 questions.")));
+      pane.appendChild(el("p", "us-foot", L("쿼리봇이 기억하는 것이에요. 직접 추가할 수도 있어요. 이 브라우저에만 저장되고, Gemma 4에 질문할 때 같이 보내요.",
+        "What QueryBot remembers about you. You can add your own. Stored only in this browser and sent with Gemma 4 questions.")));
+      // 직접 추가 (2026-11-10 사용자 요청)
+      const add = el("div", "set-mem-add");
+      const mi = el("input");
+      mi.type = "text";
+      mi.maxLength = 150;
+      mi.placeholder = L("기억할 것 (예: 내 이름은 민준이야)", "Something to remember (e.g. My name is Minjun)");
+      mi.setAttribute("aria-label", L("기억할 것", "Something to remember"));
+      const mb = el("button", "go", L("추가", "Add"));
+      mb.type = "button";
+      const doAdd = () => {
+        const v = mi.value.replace(/\s+/g, " ").trim();
+        if (!v) { mi.focus(); return; }
+        if (!memAdd([v]).length) mi.value = "";  // 이미 있는 것
+        setTimeout(() => { const n = setBack && setBack.querySelector(".set-mem-add input"); if (n) n.focus(); }, 0);
+      };
+      mb.addEventListener("click", doAdd);
+      mi.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); doAdd(); } });
+      add.append(mi, mb);
+      pane.appendChild(add);
       const a = memList();
       if (!a.length) {
         pane.appendChild(el("div", "us-empty", L("아직 기억하는 것이 없어요.", "Nothing remembered yet.")));
@@ -2149,9 +2262,213 @@
       }
     }
   }
-  $("setBtn").addEventListener("click", () => openSettings("usage"));
+  // 사용자 지침: 말투 + 바라는 점 (이 브라우저에만 저장, Gemma 4에 같이 보냄)
+  const STYLES = [["", "기본", "Default"], ["friendly", "친근하게", "Friendly"], ["casual", "반말", "Casual"], ["formal", "정중하게", "Formal"], ["brief", "간결하게", "Brief"], ["detailed", "자세하게", "Detailed"]];
+  function paintInstr(pane) {
+    pane.appendChild(el("h3", "", L("사용자 지침", "Instructions")));
+    pane.appendChild(el("div", "set-lbl", L("말투", "Tone")));
+    const chips = el("div", "set-chips");
+    chips.setAttribute("role", "radiogroup");
+    chips.setAttribute("aria-label", L("말투", "Tone"));
+    const now = store.get("style") || "";
+    for (const [k, ko, en] of STYLES) {
+      const c = el("button", "set-chip", L(ko, en));
+      c.type = "button";
+      c.setAttribute("role", "radio");
+      c.setAttribute("aria-checked", k === now ? "true" : "false");
+      c.addEventListener("click", () => { store.set("style", k); paintSet(); });
+      chips.appendChild(c);
+    }
+    pane.appendChild(chips);
+    pane.appendChild(el("div", "set-lbl", L("쿼리봇에게 바라는 점", "What QueryBot should know or do")));
+    const ta = el("textarea", "set-instr");
+    ta.maxLength = 1500;
+    ta.rows = 6;
+    ta.placeholder = L("예: 나는 고등학생이야. 수학은 풀이 과정을 단계별로 보여 줘.", "e.g. I'm a high-school student. Show math step by step.");
+    ta.setAttribute("aria-label", L("쿼리봇에게 바라는 점", "Instructions"));
+    ta.value = store.get("instr") || "";
+    const note = el("div", "set-note");
+    const count = () => ta.value.length.toLocaleString() + " / 1,500";
+    note.textContent = count();
+    let tm = 0;
+    const save = () => { clearTimeout(tm); store.set("instr", ta.value.trim()); note.textContent = L("저장됨", "Saved") + " · " + count(); };
+    ta.addEventListener("input", () => { note.textContent = count(); clearTimeout(tm); tm = setTimeout(save, 500); });
+    ta.addEventListener("blur", save);
+    pane.append(ta, note);
+    pane.appendChild(el("p", "us-foot", L("Gemma 4로 대화할 때 적용돼요. 이 브라우저에만 저장돼요.", "Applies to Gemma 4 chats. Stored only in this browser.")));
+  }
+  // ---------- 일반 탭 ----------
+  function enterSends() { return store.get("enterSend") !== "0"; }  // 기본: Enter로 보내기
+  var darkMq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  function applyTheme() {
+    const th = store.get("theme") || "light";
+    const dark = th === "dark" || (th === "system" && !!darkMq && darkMq.matches);
+    if (dark) document.documentElement.dataset.theme = "dark"; else delete document.documentElement.dataset.theme;
+  }
+  if (darkMq && darkMq.addEventListener) darkMq.addEventListener("change", applyTheme);
+  applyTheme();
+  function setRow(pane, title, desc, control) {
+    const r = el("div", "set-row"), tx = el("div", "set-row-tx");
+    tx.appendChild(el("b", "", title));
+    if (desc) tx.appendChild(el("small", "", desc));
+    r.append(tx, control);
+    pane.appendChild(r);
+  }
+  function seg(options, value, onPick, label) {  // 알약 묶음에서 하나 고르기
+    const g = el("div", "set-seg");
+    g.setAttribute("role", "radiogroup");
+    g.setAttribute("aria-label", label);
+    for (const [k, text] of options) {
+      const b = el("button", "", text);
+      b.type = "button";
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", k === value ? "true" : "false");
+      b.addEventListener("click", () => { onPick(k); paintSet(); });
+      g.appendChild(b);
+    }
+    return g;
+  }
+  function paintGeneral(pane) {
+    pane.appendChild(el("h3", "", L("일반", "General")));
+    setRow(pane, L("화면 언어", "Language"), "", seg([["ko", "한국어"], ["en", "English"]], lang(),
+      (k) => { if (k !== lang() && typeof window.setLang === "function") window.setLang(k); }, L("화면 언어", "Language")));
+    setRow(pane, L("테마", "Theme"), "", seg([["light", L("라이트", "Light")], ["dark", L("다크", "Dark")], ["system", L("시스템", "System")]],
+      store.get("theme") || "light", (k) => { store.set("theme", k); applyTheme(); }, L("테마", "Theme")));
+    const sw = el("button", "set-switch");
+    sw.type = "button";
+    sw.setAttribute("role", "switch");
+    sw.setAttribute("aria-checked", enterSends() ? "true" : "false");
+    sw.setAttribute("aria-label", L("Enter로 보내기", "Send with Enter"));
+    sw.appendChild(el("i"));
+    sw.addEventListener("click", () => { store.set("enterSend", enterSends() ? "0" : "1"); paintSet(); });
+    setRow(pane, L("Enter로 보내기", "Send with Enter"),
+      enterSends() ? L("Shift+Enter는 줄 바꿈이에요.", "Shift+Enter adds a new line.") : L("Enter는 줄 바꿈, Ctrl+Enter로 보내요.", "Enter adds a new line, Ctrl+Enter sends."), sw);
+    const sel = el("select", "set-select");
+    sel.setAttribute("aria-label", L("새 대화 기본 모델", "Default model for new chats"));
+    for (const [v, text] of [["", L("마지막에 쓴 모델", "Last used")]].concat([...modelSel.options].map((o) => [o.value, o.textContent]))) {
+      const o = el("option", "", text);
+      o.value = v;
+      sel.appendChild(o);
+    }
+    sel.value = store.get("defModel") || "";
+    if (sel.selectedIndex < 0) sel.value = "";
+    sel.addEventListener("change", () => store.set("defModel", sel.value));
+    setRow(pane, L("새 대화 기본 모델", "Default model for new chats"), L("새 대화를 열 때 이 모델로 시작해요.", "New chats start with this model."), sel);
+  }
+  $("setBtn").addEventListener("click", () => openSettings("general"));
   $("usageBtn").addEventListener("click", () => openSettings("usage"));
   paintUsage();
+
+
+  // =========================================================
+  // 내 말풍선 아래: 보낸 시각 · 복사 · 고치기(연필) + 고치기 전 버전 ‹ 1/2 › (2026-11-10 사용자 요청)
+  // =========================================================
+  const IC = {
+    copy: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="3"/><path d="M5 15V6a3 3 0 0 1 3-3h7"/></svg>',
+    ok: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    pen: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
+    prev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+    next: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>'
+  };
+  function icBtn(svg, label) {
+    const b = el("button");
+    b.type = "button";
+    b.innerHTML = svg;
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    return b;
+  }
+  const stripVer = (x) => { const y = Object.assign({}, x); delete y.vers; delete y.vi; return y; };
+  function meTools(node, i) {
+    if (!node || !cur) return;
+    const m = cur.messages[i];
+    if (!m || m.role !== "user") return;
+    const old = node.nextElementSibling;
+    if (old && old.classList.contains("me-tools")) old.remove();
+    node.dataset.mi = i;
+    const bar = el("div", "me-tools");
+    if (Array.isArray(m.vers) && m.vers.length > 1) {  // 고치기 전 버전 오가기
+      bar.classList.add("has-ver");
+      const pv = icBtn(IC.prev, t("prevVer")), nv = icBtn(IC.next, t("nextVer"));
+      pv.disabled = m.vi <= 0;
+      nv.disabled = m.vi >= m.vers.length - 1;
+      pv.addEventListener("click", () => switchVer(i, m.vi - 1));
+      nv.addEventListener("click", () => switchVer(i, m.vi + 1));
+      bar.append(pv, el("span", "me-ver", (m.vi + 1) + "/" + m.vers.length), nv);
+    }
+    if (m.ts) bar.appendChild(el("span", "me-time", new Date(m.ts).toLocaleTimeString(lang() === "en" ? "en-US" : "ko-KR", { hour: "numeric", minute: "2-digit" })));
+    const cp = icBtn(IC.copy, t("copy"));
+    cp.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(m.content); } catch (e) { return; }
+      cp.innerHTML = IC.ok;
+      setTimeout(() => { cp.innerHTML = IC.copy; }, 1300);
+    });
+    const ed = icBtn(IC.pen, t("editQ"));
+    ed.addEventListener("click", () => startEdit(node, i));
+    bar.append(cp, ed);
+    node.after(bar);
+  }
+  // 연필: 그 자리에서 고치고 보내면, 그 말 앞까지의 대화로 다시 답을 받는다. 고치기 전 대화는 버전으로 남김
+  function startEdit(node, i) {
+    if (busy || !cur) return;
+    const m = cur.messages[i];
+    if (!m || m.role !== "user") return;
+    const bar = node.nextElementSibling && node.nextElementSibling.classList.contains("me-tools") ? node.nextElementSibling : null;
+    const box = el("div", "me-edit");
+    const ta = el("textarea");
+    ta.value = m.content;
+    ta.rows = 1;
+    ta.setAttribute("aria-label", t("editQ"));
+    const row = el("div", "row");
+    const no = el("button", "", t("cancel")), go = el("button", "go", t("sendTip"));
+    no.type = go.type = "button";
+    row.append(no, go);
+    box.append(ta, row);
+    node.replaceWith(box);
+    if (bar) bar.hidden = true;
+    const fit = () => { ta.style.height = "auto"; ta.style.height = Math.min(320, ta.scrollHeight + 2) + "px"; };
+    ta.addEventListener("input", fit);
+    fit();
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    const cancel = () => { box.replaceWith(node); if (bar) bar.hidden = false; };
+    no.addEventListener("click", cancel);
+    ta.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.preventDefault(); cancel(); }
+      else if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229 && (enterSends() || e.ctrlKey || e.metaKey)) { e.preventDefault(); go.click(); }
+    });
+    go.addEventListener("click", () => {
+      const v = ta.value.trim();
+      if (!v || busy || !cur) return;
+      const head = cur.messages[i];
+      const vers = Array.isArray(head.vers) ? head.vers.slice() : [null];
+      const vi = typeof head.vi === "number" ? head.vi : 0;
+      vers[vi] = [stripVer(head)].concat(cur.messages.slice(i + 1));  // 지금 버전(고치기 전)을 보관
+      vers.push(null);  // 새 버전 자리 (답이 오면 record가 채움)
+      const mdl = modelSel.value, g = mdl === "gemma4";
+      const opts = { model: mdl, think: g && thinkOn, loc: g && locOn && myLoc ? myLoc : null, branch: { i, vers, vi: vers.length - 1 } };
+      openConv(cur.id, i);  // 고친 말 앞까지만 보이게 (저장은 답이 온 뒤에 — 실패하면 예전 대화 그대로)
+      if (modelSel.value !== mdl) { modelSel.value = mdl; paintModel(); }
+      ask(v, [], opts);
+    });
+  }
+  // ‹ › 버전 바꾸기: 지금 버전을 보관하고 고른 버전을 그 자리에
+  function switchVer(i, k) {
+    if (busy || !cur) return;
+    const head = cur.messages[i];
+    if (!head || !Array.isArray(head.vers) || k < 0 || k >= head.vers.length || k === head.vi || !head.vers[k]) return;
+    const vers = head.vers.slice();
+    vers[head.vi] = [stripVer(head)].concat(cur.messages.slice(i + 1));
+    const tail = vers[k];
+    vers[k] = null;
+    cur.messages = cur.messages.slice(0, i).concat([Object.assign({}, tail[0], { vers, vi: k })], tail.slice(1));
+    saveConvs();
+    const mdl = modelSel.value;
+    openConv(cur.id);
+    if (modelSel.value !== mdl) { modelSel.value = mdl; paintModel(); }
+    const n = log.querySelector('[data-mi="' + i + '"]');
+    if (n) n.scrollIntoView({ block: "center" });
+  }
 
   // ■ 멈추기 (2026-11-10 사용자: "ai가 답변 중 멈추기 기능"): 기다리는 동안·답이 써지는 동안 보내기 단추가 멈춤 단추로
   var stopper = null;
@@ -2214,7 +2531,9 @@
     const ctx = mem.checked ? hist().slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
     // Gemma 4는 앞 대화 8개(4번 주고받기)·한 줄 1,000자까지 (2026-11-10 '기억 한도 늘려'), 기본 모델은 4개·400자
-    const before = asked === "gemma4" ? hist(1000).slice(-8) : hist().slice(-4);
+    let before = asked === "gemma4" ? hist(1000) : hist();
+    if (opts.branch) before = before.slice(0, opts.branch.i);  // 질문 고치기: 고친 말 앞까지만
+    before = asked === "gemma4" ? before.slice(-8) : before.slice(-4);
     const meNode = addMe(text, attMeta(sent), sent);
     const thinking = asked === "gemma4" && (opts.think || (THINK_ASK.test(text) && !THINK_OPINION.test(text)));
     const wait = addWaiting(thinking ? t("thinkingN") + " · 0" + t("sec") : sent.some((a) => a.type === "image") ? t("looking") : sent.length ? t("reading") : null);
@@ -2232,6 +2551,7 @@
       images: sent.filter((a) => a.type === "image").map((a) => a.url),
       files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
       think: asked === "gemma4" && !!opts.think, memory: asked === "gemma4" ? memList() : [],
+      style: asked === "gemma4" ? store.get("style") || "" : "", instructions: asked === "gemma4" ? (store.get("instr") || "").slice(0, 1500) : "",
       location: asked === "gemma4" ? opts.loc || null : null });
     try {
       let r = null;
@@ -2271,7 +2591,8 @@
         }
         setOnline(true);
         if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
-          record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought });
+          record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch });
+          meTools(meNode, cur.messages.length - 2);  // 이제 저장됐으니 말풍선 아래 복사·고치기
           if (asked === "gemma4") nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
         }
       }
@@ -2299,7 +2620,7 @@
   }
   input.addEventListener("input", fitInput);
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229 && (enterSends() || e.ctrlKey || e.metaKey)) {  // 설정에서 끄면 Ctrl+Enter
       e.preventDefault();
       $("form").requestSubmit();
     }
