@@ -498,6 +498,74 @@
   .qa-conv-menu button:hover,.qa-conv-menu button:focus-visible{background:var(--hover);outline:0}
   .qa-conv-menu .danger{color:#c0262d}
   .qa-conv-edit{flex:1;min-width:0;margin:3px 4px;padding:6px 12px;border:1px solid var(--accent);border-radius:999px;font:inherit;font-size:14.5px;background:var(--field);color:var(--text);outline:0}
+
+  /* ── 18차 (2026-11-10): 위쪽 정리·사용량 한 줄·설정 창 ── */
+  body.qa-page>.nav .wrap{width:auto;margin:0;padding:0 24px}  /* 로고를 왼쪽 끝으로 */
+  .qa-send.stop{background:var(--accent);color:#fff}  /* ■ 멈춤: 색은 그대로 파란 원, 화살표만 네모로 (2026-11-10 사용자) */
+  .qa-send.stop:not(:disabled):hover{background:var(--accent-ink)}
+  .qa-title{display:none}
+  @media (min-width:861px){.qa-top{display:none}}  /* PC: 둘째 줄이 비므로 줄째 숨김 */
+  #quota{display:none!important}
+  #memRow{display:none!important}
+  .qa-usage{max-width:760px;margin:6px auto 0;display:flex;justify-content:flex-end;align-items:center;gap:8px;min-height:22px;padding:0 6px}
+  .qa-usage .ai-status.on{display:none}
+  .qa-usage .ai-status{border:0;background:none;padding:0;font-size:12px}
+  .u-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;border-radius:999px;padding:3px 9px;font:inherit;font-size:12.5px;color:var(--muted);cursor:pointer}
+  .u-btn[hidden]{display:none}
+  .u-btn:hover{background:var(--hover);color:var(--text2)}
+  .u-btn .ring{transform:rotate(-90deg)}
+  .u-btn .ring circle{fill:none;stroke-width:2.6}
+  .u-btn .ring .bg{stroke:var(--line2)}
+  .u-btn .ring .fg{stroke:var(--accent);stroke-linecap:round}
+  .u-btn.low{color:var(--danger)}
+  .u-btn.low .ring .fg{stroke:var(--danger)}
+  @media (min-width:1400px){.qa-usage{max-width:920px}}
+  .qa-gear{display:inline-flex;align-items:center;gap:9px;width:fit-content;border:0;background:none;border-radius:999px;padding:8px 13px 8px 10px;font:inherit;font-size:14px;color:var(--text2);cursor:pointer}
+  .qa-gear:hover{background:var(--hover);color:var(--text)}
+  /* 설정 창 */
+  .qa-set-back{position:fixed;inset:0;z-index:200;background:rgba(20,24,31,.32);display:grid;place-items:center;padding:16px}
+  .qa-set-back[hidden]{display:none}
+  .qa-set{width:min(760px,100%);height:min(540px,calc(100dvh - 32px));background:var(--panel);border-radius:26px;box-shadow:0 24px 64px rgba(0,0,0,.22);display:flex;flex-direction:column;overflow:hidden}
+  .qa-set-head{display:flex;align-items:center;padding:16px 16px 8px 26px}
+  .qa-set-head h2{margin:0;flex:1;font-size:18px;font-weight:700}
+  .qa-set-x{width:36px;height:36px;border:0;border-radius:50%;background:none;font-size:22px;line-height:1;color:var(--text2);cursor:pointer}
+  .qa-set-x:hover{background:var(--hover);color:var(--text)}
+  .qa-set-body{flex:1;min-height:0;display:flex}
+  .qa-set-tabs{flex:none;width:190px;padding:6px 10px 16px 14px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line)}
+  .qa-set-tabs button{display:flex;align-items:center;gap:10px;border:0;background:none;border-radius:999px;padding:9px 14px;font:inherit;font-size:14.5px;color:var(--text2);cursor:pointer;text-align:left}
+  .qa-set-tabs button:hover{background:var(--hover)}
+  .qa-set-tabs button[aria-selected=true]{background:var(--panel2);color:var(--text);font-weight:700}
+  .qa-set-pane{flex:1;min-width:0;overflow-y:auto;padding:6px 28px 24px}
+  .qa-set-pane h3{margin:6px 0 14px;font-size:16px}
+  .us-card{border:1px solid var(--line);border-radius:22px;padding:18px 20px;background:var(--field)}
+  .us-name{font-size:13.5px;font-weight:700;color:var(--text2)}
+  .us-big{display:flex;align-items:baseline;gap:7px;margin:8px 0 12px}
+  .us-big b{font-size:30px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+  .us-big span{font-size:14px;color:var(--text2)}
+  .us-big em{margin-left:auto;font-style:normal;font-size:15px;font-weight:700;color:var(--accent-ink)}
+  .us-bar{height:10px;border-radius:999px;background:var(--panel2);overflow:hidden}
+  .us-bar i{display:block;height:100%;border-radius:999px;background:var(--accent)}
+  .us-bar.low i{background:var(--danger)}
+  .us-rows{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+  .us-rows div{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+  .us-rows span{color:var(--text2)}
+  .us-note{margin:14px 0 0;font-size:12.5px;line-height:1.6;color:var(--muted)}
+  .us-foot{margin:12px 2px 0;font-size:13px;line-height:1.6;color:var(--text2)}
+  .us-empty{margin-top:14px;padding:22px;border:1px dashed var(--line2);border-radius:20px;text-align:center;font-size:14px;color:var(--muted)}
+  .set-mem{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+  .set-mem-item{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;border:1px solid var(--line);border-radius:999px;background:var(--field);font-size:14px;color:var(--text)}
+  .set-mem-item span{flex:1;min-width:0;overflow-wrap:anywhere}
+  .set-mem-item .x{flex:none;width:26px;height:26px;border:0;border-radius:50%;background:var(--panel2);color:var(--text2);cursor:pointer;font-size:15px;line-height:1}
+  .set-mem-item .x:hover{background:var(--danger);color:#fff}
+  .set-clear{margin-top:12px;border:1px solid var(--line2);background:none;border-radius:999px;padding:7px 16px;font:inherit;font-size:13px;color:var(--text2);cursor:pointer}
+  .set-clear:hover{border-color:var(--danger);color:var(--danger)}
+  @media (max-width:640px){
+    .qa-set{height:min(620px,calc(100dvh - 24px))}
+    .qa-set-body{flex-direction:column}
+    .qa-set-tabs{width:auto;flex-direction:row;border-right:0;border-bottom:1px solid var(--line);padding:0 14px 10px}
+    .qa-set-pane{padding:12px 18px 20px}
+    .us-big b{font-size:26px}
+  }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -519,6 +587,7 @@
         <input id="importFile" type="file" accept="application/json,.json" multiple hidden>
       </div>
       <div id="memRow"></div>
+      <button class="qa-gear" id="setBtn" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-ko="설정" data-en="Settings">설정</span></button>
       <label class="qa-mem2"><span data-ko="앞 대화 기억" data-en="Remember context"></span><input id="mem2" type="checkbox" role="switch" checked></label>
       <div class="r"><button class="qa-admin" id="teachToggle" type="button">관리자</button><span id="teachState"></span></div>
     </div>
@@ -558,6 +627,7 @@
         </div>
         <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
       </form>
+      <div class="qa-usage" id="usageLine"><button class="u-btn" id="usageBtn" type="button" hidden><svg class="ring" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="7.5"/><circle class="fg" cx="10" cy="10" r="7.5"/></svg><span class="u-txt"></span></button></div>
     </div>
   </main>
 </div>
@@ -708,7 +778,7 @@
     const note = $("histNote");
     note.innerHTML = "";
     $("histTools").hidden = !histOn;
-    if (histOn) note.appendChild(el("div", "qa-where", "대화는 이 브라우저에만 저장됩니다"));
+    // '대화는 이 브라우저에만 저장됩니다' 문구는 뺌 (2026-11-10 사용자: "불필요한 요소들 삭제")
   }
   // 앞 대화 (서버에 보낼 것·가르치기 때 같이 저장할 것)
   const hist = (n) => (cur ? cur.messages.map((m) => ({ role: m.role, content: m.content.slice(0, n || 400) })) : []);
@@ -1438,6 +1508,7 @@
   let quota = null;
   function setQuota(q) {
     if (q && typeof q.left === "number") quota = q;
+    paintUsage();
     const box = $("quota");
     if (!box) return;
     const show = !!quota && modelSel.value === "gemma4";
@@ -1541,6 +1612,7 @@
     const o = modelSel.options[modelSel.selectedIndex];
     $("modelName").textContent = o ? o.textContent : "";
     paintAttach();
+    paintUsage();
   }
   function closeModels() { modelMenu.hidden = true; modelBtn.setAttribute("aria-expanded", "false"); }
   function openModels() {
@@ -1897,6 +1969,7 @@
   }
   let memOpen = false;
   function paintMem() {
+    paintSetMem();
     const row = $("memRow"), a = memList();
     row.innerHTML = "";
     if (!a.length) return;
@@ -1924,6 +1997,161 @@
     ul.appendChild(clr);
     row.appendChild(ul);
   }
+
+
+  // =========================================================
+  // 입력창 아래 사용량 한 줄 + 설정 창(사용량·메모리) — 2026-11-10 사용자: "클로드 앱 같이"
+  // =========================================================
+  function L(ko, en) { return lang() === "en" ? en : ko; }  // 함수 선언: 위쪽 코드가 먼저 불러도 됨
+  var RING = 2 * Math.PI * 7.5;
+  function getQuota() { try { return quota; } catch (e) { return null; } }  // 아직 선언 전이면 null
+  function paintUsage() {
+    const b = document.getElementById("usageBtn");
+    if (!b || !modelSel) return;
+    const q = getQuota();
+    b.hidden = !(q && modelSel.value === "gemma4");
+    if (b.hidden) return;
+    const lim = q.limit || 10000, left = Math.max(0, Math.round(q.left)), pct = Math.max(0, Math.min(100, Math.round((left / lim) * 100)));
+    b.querySelector(".u-txt").textContent = L("남은 뉴런 " + left.toLocaleString() + " · " + pct + "%", left.toLocaleString() + " neurons left · " + pct + "%");
+    const R = 2 * Math.PI * 7.5;
+    b.querySelector(".fg").setAttribute("stroke-dasharray", ((1 - left / lim) * R).toFixed(2) + " " + R.toFixed(2));
+    b.classList.toggle("low", pct <= 10);
+    b.title = L("Gemma 4 오늘 사용량 — 누르면 자세히", "Gemma 4 usage today — click for details");
+  }
+  // 연결 상태 알약은 이 줄로 (연결돼 있을 땐 CSS로 숨김)
+  document.getElementById("usageLine").prepend(status);
+
+  var setOpen = false, setTab = "usage", setBack = null;
+  function buildSettings() {
+    if (setBack) return;
+    setBack = el("div", "qa-set-back");
+    setBack.hidden = true;
+    const box = el("div", "qa-set");
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.setAttribute("aria-labelledby", "setTitle");
+    const head = el("div", "qa-set-head");
+    const h = el("h2", "", "");
+    h.id = "setTitle";
+    const x = el("button", "qa-set-x", "×");
+    x.type = "button";
+    x.setAttribute("aria-label", "닫기");
+    x.addEventListener("click", closeSettings);
+    head.append(h, x);
+    const body = el("div", "qa-set-body");
+    const tabs = el("nav", "qa-set-tabs");
+    tabs.setAttribute("role", "tablist");
+    const ICON = {
+      usage: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 14l3.5-3.5"/><path d="M3.3 17a9 9 0 1 1 17.4 0"/></svg>',
+      memory: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3a3.5 3.5 0 0 0-3.4 4.3A3.5 3.5 0 0 0 4 13.5a3.5 3.5 0 0 0 4 4.5 3 3 0 0 0 4 1.6V4.3A3.4 3.4 0 0 0 9.5 3z"/><path d="M14.5 3a3.5 3.5 0 0 1 3.4 4.3 3.5 3.5 0 0 1 2.1 6.2 3.5 3.5 0 0 1-4 4.5 3 3 0 0 1-4 1.6"/></svg>'
+    };
+    for (const k of ["usage", "memory"]) {
+      const b = el("button");
+      b.type = "button";
+      b.dataset.tab = k;
+      b.setAttribute("role", "tab");
+      b.innerHTML = ICON[k];
+      b.appendChild(el("span", "lbl"));
+      b.addEventListener("click", () => { setTab = k; paintSet(); });
+      tabs.appendChild(b);
+    }
+    const pane = el("div", "qa-set-pane");
+    pane.id = "setPane";
+    pane.setAttribute("role", "tabpanel");
+    body.append(tabs, pane);
+    box.append(head, body);
+    setBack.appendChild(box);
+    setBack.addEventListener("mousedown", (e) => { if (e.target === setBack) closeSettings(); });
+    document.addEventListener("keydown", (e) => { if (setOpen && e.key === "Escape") closeSettings(); });
+    document.body.appendChild(setBack);
+  }
+  function openSettings(tab) {
+    buildSettings();
+    setTab = tab || setTab || "usage";
+    setOpen = true;
+    setBack.hidden = false;
+    closeSide();
+    paintSet();
+    setBack.querySelector(".qa-set-x").focus();
+    // 사용량은 열 때 새로 받아 온다
+    fetch(API + "/state", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.quota) { setQuota(j.quota); if (setOpen && setTab === "usage") paintSet(); } }).catch(() => {});
+  }
+  function closeSettings() { if (!setBack) return; setOpen = false; setBack.hidden = true; }
+  function paintSetMem() { if (setOpen && setTab === "memory") paintSet(); }
+  function untilReset() {  // 매일 한국 오전 9시 = UTC 0시
+    const now = new Date(), next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    const m = Math.max(0, Math.round((next - now.getTime()) / 60000)), hh = Math.floor(m / 60), mm = m % 60;
+    return L((hh ? hh + "시간 " : "") + mm + "분 뒤", (hh ? hh + "h " : "") + mm + "m");
+  }
+  function paintSet() {
+    if (!setBack) return;
+    setBack.querySelector("#setTitle").textContent = L("설정", "Settings");
+    setBack.querySelectorAll(".qa-set-tabs button").forEach((b) => {
+      b.setAttribute("aria-selected", b.dataset.tab === setTab ? "true" : "false");
+      b.querySelector(".lbl").textContent = b.dataset.tab === "usage" ? L("사용량", "Usage") : L("메모리", "Memory");
+    });
+    const pane = setBack.querySelector("#setPane");
+    pane.innerHTML = "";
+    if (setTab === "usage") {
+      pane.appendChild(el("h3", "", L("사용량", "Usage")));
+      const q = getQuota();
+      const card = el("div", "us-card");
+      card.appendChild(el("div", "us-name", L("Gemma 4 · 하루 무료 사용량", "Gemma 4 · free daily quota")));
+      if (!q) {
+        card.appendChild(el("p", "us-note", L("서버에 연결되면 사용량이 보여요.", "Usage appears once the server is connected.")));
+      } else {
+        const lim = q.limit || 10000, left = Math.max(0, Math.round(q.left)), used = Math.max(0, Math.round(lim - left));
+        const pct = Math.max(0, Math.min(100, Math.round((left / lim) * 100)));
+        const big = el("div", "us-big");
+        big.append(el("b", "", left.toLocaleString()), el("span", "", L("뉴런 남음", "neurons left")), el("em", "", pct + "%"));
+        card.appendChild(big);
+        const bar = el("div", "us-bar" + (pct <= 10 ? " low" : ""));
+        const fill = el("i");
+        fill.style.width = (100 - pct) + "%";
+        bar.appendChild(fill);
+        card.appendChild(bar);
+        const rows = el("div", "us-rows");
+        const row = (k, v) => { const r = el("div"); r.append(el("span", "", k), el("b", "", v)); rows.appendChild(r); };
+        row(L("사용한 뉴런", "Used"), used.toLocaleString() + " (" + (100 - pct) + "%)");
+        row(L("남은 뉴런", "Left"), left.toLocaleString() + " (" + pct + "%)");
+        row(L("하루 한도", "Daily limit"), lim.toLocaleString());
+        row(L("다시 채워짐", "Resets"), L("매일 오전 9시 · ", "daily 09:00 KST · ") + untilReset());
+        card.appendChild(rows);
+        card.appendChild(el("p", "us-note", L("질문 하나에 보통 3~10뉴런, 그림·생각·검색은 조금 더 써요. 다 쓰면 기본 모델이 대신 답해요.",
+          "A question usually uses 3-10 neurons; images, thinking and search use more. When it runs out, the basic model answers instead.")));
+      }
+      pane.appendChild(card);
+      pane.appendChild(el("p", "us-foot", L("QueryBot 기본 모델(the Best·3·1)은 사용량 제한이 없어요.", "QueryBot's own models (the Best, 3, 1) have no limit.")));
+    } else {
+      pane.appendChild(el("h3", "", L("메모리", "Memory")));
+      pane.appendChild(el("p", "us-foot", L("쿼리봇이 대화에서 기억하기로 한 것이에요. 이 브라우저에만 저장되고, Gemma 4에 질문할 때 같이 보내요.",
+        "Things QueryBot chose to remember. Stored only in this browser and sent with Gemma 4 questions.")));
+      const a = memList();
+      if (!a.length) {
+        pane.appendChild(el("div", "us-empty", L("아직 기억하는 것이 없어요.", "Nothing remembered yet.")));
+      } else {
+        const ul = el("div", "set-mem");
+        a.forEach((s, i) => {
+          const it = el("div", "set-mem-item");
+          it.appendChild(el("span", "", s));
+          const x = el("button", "x", "×");
+          x.type = "button";
+          x.setAttribute("aria-label", L("이 기억 지우기", "Forget this"));
+          x.addEventListener("click", () => { const c = memList(); c.splice(i, 1); memSave(c); });
+          it.appendChild(x);
+          ul.appendChild(it);
+        });
+        pane.appendChild(ul);
+        const clr = el("button", "set-clear", L("모두 지우기", "Clear all"));
+        clr.type = "button";
+        clr.addEventListener("click", () => { if (confirm(L("쿼리봇이 기억하는 것을 모두 지우시겠습니까?", "Forget everything?"))) memSave([]); });
+        pane.appendChild(clr);
+      }
+    }
+  }
+  $("setBtn").addEventListener("click", () => openSettings("usage"));
+  $("usageBtn").addEventListener("click", () => openSettings("usage"));
+  paintUsage();
 
   // ■ 멈추기 (2026-11-10 사용자: "ai가 답변 중 멈추기 기능"): 기다리는 동안·답이 써지는 동안 보내기 단추가 멈춤 단추로
   var stopper = null;
@@ -1982,6 +2210,7 @@
     // 이번 질문의 설정 — [다시 시도]는 처음 보낼 때의 설정 그대로
     opts = opts || { model: modelSel.value, think: modelSel.value === "gemma4" && thinkOn, loc: modelSel.value === "gemma4" && locOn && myLoc ? myLoc : null };
     const asked = opts.model;
+    const convAtAsk = cur;  // 기다리는 사이 다른 대화를 열면 답을 그 대화에 섞지 않으려고
     const ctx = mem.checked ? hist().slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
     // Gemma 4는 앞 대화 8개(4번 주고받기)·한 줄 1,000자까지 (2026-11-10 '기억 한도 늘려'), 기본 모델은 4개·400자
@@ -2041,7 +2270,7 @@
           if (body && added.length) body.appendChild(el("div", "mem-note", "💾 기억함 · " + added.join(" · ")));
         }
         setOnline(true);
-        if (modelSel.value === asked) {  // 기다리는 사이 모델을 바꿨으면 대화에 섞지 않는다
+        if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
           record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought });
           if (asked === "gemma4") nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
         }
@@ -2091,7 +2320,7 @@
   modelSel.addEventListener("change", () => {
     store.set("model", modelSel.value);
     setQuota();
-    if (cur && cur.messages.length) { newChat(); addSys(t("switched")); }
+    // 모델을 바꿔도 같은 대화에서 이어서 (예전: 새 대화 + '모델을 바꿨습니다' 안내 — 2026-11-10 사용자: "자동으로 새 대화 넘어가지 않게")
   });
   mem.addEventListener("change", () => { store.set("mem", mem.checked ? "1" : "0"); $("mem2").checked = mem.checked; });
   // 폰: '앞 대화 기억'은 서랍 안 스위치로 (위쪽 체크와 같은 값)
