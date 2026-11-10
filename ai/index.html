@@ -415,6 +415,30 @@
   .alert .retry{flex:none;margin-left:4px;border:1px solid var(--accent);background:#fff;color:var(--accent-ink);border-radius:999px;padding:4px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
   .alert .retry:hover{background:var(--accent);color:#fff}
 
+  /* ── 배경 하늘빛 (2026-11-10, PC 쿼리봇 앱과 같은 빛) — 첫 화면에서만, 대화가 시작되면 사라짐 ── */
+  .qa-chat{position:relative}
+  .qa-top,.qa-scroll,.qa-composer{position:relative;z-index:1}
+  .qa-glow{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;transition:opacity .6s ease}
+  .qa-chat.chatting .qa-glow{opacity:0}
+  .qa-glow .g-layer{position:absolute;left:50%;top:55%;width:min(1130px,92%);height:500px;transform:translate(-50%,-50%)}
+  .qa-glow .g-layer.bg{opacity:.22}
+  .qa-glow .g-layer.fg{opacity:.42;width:min(620px,70%);height:520px}
+  .qa-glow .blob{position:absolute;inset:0;overflow:hidden}
+  .qa-glow .bg .blob{border-radius:61.9% 41.5% 33.1% 63.5%/39.9% 66.9% 43.3% 60.1%;filter:blur(146px)}
+  .qa-glow .fg .blob{border-radius:38.3% 58.3% 44.2% 59.4%/64.9% 43.1% 53.5% 41.4%;filter:blur(116px)}
+  .qa-glow .blob i{position:absolute;left:-50%;right:-50%;top:0;height:800%;
+    background:repeating-linear-gradient(#9dd2ff 0,#b9ddff 14%,#7cbcff 28%,#c2e7ff 42%,#9dd2ff 56%,#b6c8ff 70%,#a9dcf5 84%,#9dd2ff 100%);
+    animation:qa-drift 90s linear infinite}
+  .qa-glow .fg .blob i{animation-duration:70s;animation-direction:reverse}
+  @keyframes qa-drift{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+  @media (max-width:760px){
+    .qa-glow .g-layer{top:48%;height:380px}
+    .qa-glow .g-layer.fg{width:80%;height:360px}
+    .qa-glow .bg .blob{filter:blur(90px)}
+    .qa-glow .fg .blob{filter:blur(70px)}
+  }
+  @media (prefers-reduced-motion:reduce){.qa-glow .blob i{animation:none}}
+
   /* ── 앞 대화 기억 스위치 숨김: 항상 켜짐 (2026-11-10) ── */
   .qa-mem2{display:none!important}
 </style>
@@ -444,6 +468,7 @@
   </aside>
   <div class="qa-scrim" id="scrim"></div>
   <main class="qa-chat">
+    <div class="qa-glow" aria-hidden="true"><div class="g-layer bg"><div class="blob"><i></i></div></div><div class="g-layer fg"><div class="blob"><i></i></div></div></div>
     <div class="qa-top">
       <button class="qa-menu" id="menuBtn" type="button" aria-label="대화 기록 열기">☰</button>
       <div class="qa-title"><b>QueryBot AI</b><span class="qa-feats"><i data-ko="위키백과 검색" data-en="Wikipedia search"></i><i data-ko="앞 대화 기억" data-en="Remembers context"></i></span></div>
@@ -1558,6 +1583,10 @@
   });
   // 끌어 놓기: 채팅 칸 어디에 놓아도 (파일을 놓았을 때 브라우저가 그 파일로 넘어가 버리지 않게 항상 막는다)
   const chatArea = document.querySelector(".qa-chat");
+  // 첫 화면(인사말)에서만 뒤쪽 하늘빛 — 대화가 시작되면 서서히 사라짐
+  const paintGlow = () => chatArea.classList.toggle("chatting", !log.querySelector(".qa-hello"));
+  new MutationObserver(paintGlow).observe(log, { childList: true });
+  paintGlow();
   const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
   chatArea.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); if (canAttach()) $("form").classList.add("drop"); });
   chatArea.addEventListener("dragleave", (e) => { if (!chatArea.contains(e.relatedTarget)) $("form").classList.remove("drop"); });
