@@ -415,29 +415,8 @@
   .alert .retry{flex:none;margin-left:4px;border:1px solid var(--accent);background:#fff;color:var(--accent-ink);border-radius:999px;padding:4px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
   .alert .retry:hover{background:var(--accent);color:#fff}
 
-  /* ── 배경 하늘빛 (2026-11-10, PC 쿼리봇 앱과 같은 빛) — 첫 화면에서만, 대화가 시작되면 사라짐 ── */
-  .qa-chat{position:relative}
-  .qa-top,.qa-scroll,.qa-composer{position:relative;z-index:1}
-  .qa-glow{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;transition:opacity .6s ease}
-  .qa-chat.chatting .qa-glow{opacity:0}
-  .qa-glow .g-layer{position:absolute;left:50%;top:55%;width:min(1130px,92%);height:500px;transform:translate(-50%,-50%)}
-  .qa-glow .g-layer.bg{opacity:.22}
-  .qa-glow .g-layer.fg{opacity:.42;width:min(620px,70%);height:520px}
-  .qa-glow .blob{position:absolute;inset:0;overflow:hidden}
-  .qa-glow .bg .blob{border-radius:61.9% 41.5% 33.1% 63.5%/39.9% 66.9% 43.3% 60.1%;filter:blur(146px)}
-  .qa-glow .fg .blob{border-radius:38.3% 58.3% 44.2% 59.4%/64.9% 43.1% 53.5% 41.4%;filter:blur(116px)}
-  .qa-glow .blob i{position:absolute;left:-50%;right:-50%;top:0;height:800%;
-    background:repeating-linear-gradient(#9dd2ff 0,#b9ddff 14%,#7cbcff 28%,#c2e7ff 42%,#9dd2ff 56%,#b6c8ff 70%,#a9dcf5 84%,#9dd2ff 100%);
-    animation:qa-drift 90s linear infinite}
-  .qa-glow .fg .blob i{animation-duration:70s;animation-direction:reverse}
-  @keyframes qa-drift{from{transform:translateY(0)}to{transform:translateY(-50%)}}
-  @media (max-width:760px){
-    .qa-glow .g-layer{top:48%;height:380px}
-    .qa-glow .g-layer.fg{width:80%;height:360px}
-    .qa-glow .bg .blob{filter:blur(90px)}
-    .qa-glow .fg .blob{filter:blur(70px)}
-  }
-  @media (prefers-reduced-motion:reduce){.qa-glow .blob i{animation:none}}
+  /* ── 앞 대화 기억 스위치 숨김: 항상 켜짐 (2026-11-10) ── */
+  .qa-mem2{display:none!important}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -465,17 +444,16 @@
   </aside>
   <div class="qa-scrim" id="scrim"></div>
   <main class="qa-chat">
-    <div class="qa-glow" aria-hidden="true"><div class="g-layer bg"><div class="blob"><i></i></div></div><div class="g-layer fg"><div class="blob"><i></i></div></div></div>
     <div class="qa-top">
       <button class="qa-menu" id="menuBtn" type="button" aria-label="대화 기록 열기">☰</button>
-      <div class="qa-title"><b>QueryBot AI</b><span class="qa-feats"><i data-ko="한국어 대화" data-en="Korean chat"></i><i data-ko="위키백과 검색" data-en="Wikipedia search"></i><i data-ko="앞 대화 기억" data-en="Remembers context"></i></span></div>
+      <div class="qa-title"><b>QueryBot AI</b><span class="qa-feats"><i data-ko="위키백과 검색" data-en="Wikipedia search"></i><i data-ko="앞 대화 기억" data-en="Remembers context"></i></span></div>
       <div class="qa-opts">
         <div class="qa-model">
           <select id="model" aria-label="모델" hidden><option value="latest">QueryBot the Best</option></select>
           <button class="qa-model-btn" id="modelBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="모델 고르기"><span id="modelName">QueryBot the Best</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="qa-model-menu" id="modelMenu" role="listbox" aria-label="모델" hidden></div>
         </div>
-        <label title="켜면 앞에서 나눈 대화를 기억하고 이어서 답합니다"><input id="mem" type="checkbox" checked><span class="mem-text" data-ko="앞 대화 기억" data-en="Memory"></span></label>
+        <label title="앞 대화 기억(항상 켜짐)" style="display:none"><input id="mem" type="checkbox" checked><span class="mem-text" data-ko="앞 대화 기억" data-en="Memory"></span></label>
         <div id="status" class="ai-status"><i></i><span data-ko="확인 중" data-en="Checking"></span></div>
         <div id="quota" class="ai-status quota" hidden><span></span></div>
         <button class="qa-newtop" id="newTop" type="button" aria-label="새 대화" title="새 대화"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M11.5 3.5h-6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-6M14.6 2.9a1.6 1.6 0 0 1 2.3 2.3L10 12l-3 .8.8-3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -511,7 +489,7 @@
   const WAKE_TIMEOUT = 90000;
   const T = {
     ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "QueryBot과 이야기해 보세요", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything in Korean. Questions about people or places are answered from Wikipedia." }
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "Chat with QueryBot", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -537,7 +515,7 @@
     get(k) { try { return localStorage.getItem("qbAi." + k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem("qbAi." + k, v); } catch (e) {} }
   };
-  if (store.get("mem") === "0") mem.checked = false;
+  mem.checked = true;  // 앞 대화 기억은 항상 켬 (2026-11-10 사용자: "기본이니까 선택 삭제")
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -651,7 +629,7 @@
     if (histOn) note.appendChild(el("div", "qa-where", "대화는 이 브라우저에만 저장됩니다"));
   }
   // 앞 대화 (서버에 보낼 것·가르치기 때 같이 저장할 것)
-  const hist = () => (cur ? cur.messages.map((m) => ({ role: m.role, content: m.content.slice(0, 400) })) : []);
+  const hist = (n) => (cur ? cur.messages.map((m) => ({ role: m.role, content: m.content.slice(0, n || 400) })) : []);
 
   function dayLabel(ts) {
     const d = new Date(ts), n = new Date();
@@ -1580,10 +1558,6 @@
   });
   // 끌어 놓기: 채팅 칸 어디에 놓아도 (파일을 놓았을 때 브라우저가 그 파일로 넘어가 버리지 않게 항상 막는다)
   const chatArea = document.querySelector(".qa-chat");
-  // 첫 화면(인사말)에서만 뒤쪽 하늘빛 — 대화가 시작되면 서서히 사라짐
-  const paintGlow = () => chatArea.classList.toggle("chatting", !log.querySelector(".qa-hello"));
-  new MutationObserver(paintGlow).observe(log, { childList: true });
-  paintGlow();
   const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
   chatArea.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); if (canAttach()) $("form").classList.add("drop"); });
   chatArea.addEventListener("dragleave", (e) => { if (!chatArea.contains(e.relatedTarget)) $("form").classList.remove("drop"); });
@@ -1786,7 +1760,8 @@
     const asked = opts.model;
     const ctx = mem.checked ? hist().slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
-    const before = mem.checked ? hist().slice(-4) : [];
+    // Gemma 4는 앞 대화 8개(4번 주고받기)·한 줄 1,000자까지 (2026-11-10 '기억 한도 늘려'), 기본 모델은 4개·400자
+    const before = asked === "gemma4" ? hist(1000).slice(-8) : hist().slice(-4);
     const meNode = addMe(text, attMeta(sent), sent);
     const thinking = asked === "gemma4" && (opts.think || (THINK_ASK.test(text) && !THINK_OPINION.test(text)));
     const wait = addWaiting(thinking ? t("thinkingN") + " · 0" + t("sec") : sent.some((a) => a.type === "image") ? t("looking") : sent.length ? t("reading") : null);
