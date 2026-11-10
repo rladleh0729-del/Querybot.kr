@@ -462,6 +462,42 @@
     .qa-glow .bg .blob{filter:blur(90px)}
     .qa-glow .fg .blob{filter:blur(70px)}
   }
+
+  /* ── 입력창 (2026-11-10, ChatGPT처럼): 위 줄 글쓰기, 아래 줄 [+][생각] … [모델 ⌄][보내기] ── */
+  .qa-form{position:relative;flex-wrap:wrap;align-items:center;gap:2px 6px;padding:8px 8px 8px 10px;border-radius:26px}
+  .qa-form.can-attach{padding-left:10px}
+  .qa-form textarea{order:-1;flex:1 1 100%;height:42px;padding:9px 8px 3px}
+  .qa-form .qa-attach,.qa-form .qa-think{margin-bottom:0}
+  .qa-form .qa-model{margin-left:auto;flex:0 1 auto;min-width:0}
+  .qa-form .qa-model-btn{height:36px;max-width:230px;border:0;background:transparent;color:var(--text2);border-radius:999px;padding:0 10px 0 12px;font-size:14px;font-weight:600}
+  .qa-form .qa-model-btn:hover,.qa-form .qa-model-btn[aria-expanded=true]{background:var(--panel2);color:var(--text);border-color:transparent}
+  .qa-form .qa-model-menu{top:auto;bottom:calc(100% + 12px);right:0;left:auto}
+  .qa-model-item small{display:none}  /* 모델 이름 아래 설명 없앰 */
+  .qa-model-item{align-items:center}
+  @media (max-width:860px){.qa-opts{justify-content:flex-end}.qa-form .qa-model-btn{max-width:215px;font-size:13.5px;padding:0 8px 0 10px}}
+  /* + 메뉴 */
+  .qa-plus-menu{position:absolute;left:6px;bottom:calc(100% + 12px);z-index:60;min-width:230px;padding:6px;border:1px solid var(--line2);border-radius:20px;background:var(--panel);box-shadow:var(--shadow-lg)}
+  .qa-plus-menu[hidden]{display:none}
+  .qa-plus-menu button{width:100%;display:flex;align-items:center;gap:11px;border:0;background:none;border-radius:14px;padding:10px 12px;font:inherit;font-size:14.5px;color:var(--text);cursor:pointer;text-align:left}
+  .qa-plus-menu button:hover,.qa-plus-menu button:focus-visible{background:var(--hover);outline:0}
+  .qa-plus-menu svg{flex:none;color:var(--text2)}
+  .qa-plus-menu .st{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--accent-ink)}
+  /* ■ 멈춤 */
+  .qa-send svg[hidden]{display:none}
+  .qa-send.stop{background:#1f2328;color:#fff}
+  .qa-send.stop:not(:disabled):hover{background:#000}
+  .halted{color:var(--muted);font-size:13px}
+  /* 사이드바 ⋯ 메뉴·이름 바꾸기 */
+  .qa-conv{position:relative}
+  .qa-conv-more{flex:none;border:0;background:none;color:var(--muted);font-size:17px;line-height:1;width:30px;height:30px;border-radius:999px;cursor:pointer;opacity:0}
+  .qa-conv:hover .qa-conv-more,.qa-conv.on .qa-conv-more,.qa-conv-more:focus-visible{opacity:1}
+  .qa-conv-more:hover{background:var(--panel2);color:var(--text)}
+  @media (hover:none){.qa-conv-more{opacity:1}}
+  .qa-conv-menu{position:absolute;right:4px;top:calc(100% + 2px);z-index:80;min-width:150px;padding:5px;border:1px solid var(--line2);border-radius:18px;background:var(--panel);box-shadow:var(--shadow-lg);display:flex;flex-direction:column}
+  .qa-conv-menu button{border:0;background:none;text-align:left;padding:9px 13px;border-radius:13px;font:inherit;font-size:14px;color:var(--text);cursor:pointer}
+  .qa-conv-menu button:hover,.qa-conv-menu button:focus-visible{background:var(--hover);outline:0}
+  .qa-conv-menu .danger{color:#c0262d}
+  .qa-conv-edit{flex:1;min-width:0;margin:3px 4px;padding:6px 12px;border:1px solid var(--accent);border-radius:999px;font:inherit;font-size:14.5px;background:var(--field);color:var(--text);outline:0}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -494,11 +530,6 @@
       <button class="qa-menu" id="menuBtn" type="button" aria-label="대화 기록 열기">☰</button>
       <div class="qa-title"><b>QueryBot AI</b><span class="qa-feats"><i data-ko="위키백과 검색" data-en="Wikipedia search"></i><i data-ko="앞 대화 기억" data-en="Remembers context"></i></span></div>
       <div class="qa-opts">
-        <div class="qa-model">
-          <select id="model" aria-label="모델" hidden><option value="latest">QueryBot the Best</option></select>
-          <button class="qa-model-btn" id="modelBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="모델 고르기"><span id="modelName">QueryBot the Best</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          <div class="qa-model-menu" id="modelMenu" role="listbox" aria-label="모델" hidden></div>
-        </div>
         <label title="앞 대화 기억(항상 켜짐)" style="display:none"><input id="mem" type="checkbox" checked><span class="mem-text" data-ko="앞 대화 기억" data-en="Memory"></span></label>
         <div id="status" class="ai-status"><i></i><span data-ko="확인 중" data-en="Checking"></span></div>
         <div id="quota" class="ai-status quota" hidden><span></span></div>
@@ -511,12 +542,21 @@
     <div class="qa-composer">
       <div class="qa-atts" id="atts" hidden></div>
       <form id="form" class="qa-form" autocomplete="off">
-        <button id="attachBtn" class="qa-attach" type="button" aria-label="그림·파일 첨부" title="그림·파일 첨부 (Gemma 4)" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="attachBtn" class="qa-attach" type="button" aria-label="사진·파일 올리기, 위치 공유" title="사진·파일 올리기 · 위치 공유" aria-haspopup="menu" aria-expanded="false" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="qa-plus-menu" id="plusMenu" role="menu" hidden>
+          <button type="button" role="menuitem" id="plusFile"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.4 11.1-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg><span data-ko="사진·파일 올리기" data-en="Upload photos &amp; files">사진·파일 올리기</span></button>
+          <button type="button" role="menuitemcheckbox" id="plusLoc" aria-checked="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span data-ko="위치 공유" data-en="Share location">위치 공유</span><span class="st"></span></button>
+        </div>
         <button id="thinkBtn" class="qa-think" type="button" aria-pressed="false" hidden><span class="spark" aria-hidden="true"></span><span class="lbl">생각</span></button>
         <button id="locBtn" class="qa-think qa-loc" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span class="lbl">위치</span></button>
         <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
         <textarea id="input" rows="1" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
-        <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg></button>
+        <div class="qa-model">
+          <select id="model" aria-label="모델" hidden><option value="latest">QueryBot the Best</option></select>
+          <button class="qa-model-btn" id="modelBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="모델 고르기"><span id="modelName">QueryBot the Best</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="qa-model-menu" id="modelMenu" role="listbox" aria-label="모델" hidden></div>
+        </div>
+        <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
       </form>
     </div>
   </main>
@@ -534,8 +574,8 @@
   // 무료 서버는 한동안 안 쓰면 잠들고, 깨어나는 데 50초 넘게 걸리기도 한다 → 넉넉히 기다린다.
   const WAKE_TIMEOUT = 90000;
   const T = {
-    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "무엇이 궁금하세요?", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What would you like to know?", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
+    ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", stopped: "답을 멈췄어요.", stopTip: "멈추기", sendTip: "보내기", rename: "이름 바꾸기", del: "삭제", more: "더 보기", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "무엇이 궁금하세요?", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", stopped: "Stopped.", stopTip: "Stop", sendTip: "Send", rename: "Rename", del: "Delete", more: "More", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What would you like to know?", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -695,18 +735,13 @@
       open.type = "button";
       open.title = c.title || "";
       open.addEventListener("click", () => openConv(c.id));
-      const del = el("button", "qa-conv-del", "×");
-      del.type = "button";
-      del.title = t("delAsk");
-      del.setAttribute("aria-label", t("delAsk"));
-      del.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (!confirm(t("delAsk"))) return;
-        convs = convs.filter((x) => x.id !== c.id);
-        saveConvs();
-        if (cur && cur.id === c.id) newChat(); else renderList();
-      });
-      item.append(open, del);
+      const more = el("button", "qa-conv-more", "⋯");  // 이름 바꾸기·삭제 (2026-11-10)
+      more.type = "button";
+      more.title = t("more");
+      more.setAttribute("aria-label", t("more"));
+      more.setAttribute("aria-haspopup", "menu");
+      more.addEventListener("click", (e) => { e.stopPropagation(); convMenu(item, c); });
+      item.append(open, more);
       convList.appendChild(item);
     }
   }
@@ -745,7 +780,9 @@
   // 한 번 주고받을 때마다 지금 대화에 저장 (첫 질문이 대화 제목)
   function record(text, reply, kind, source, more) {
     if (!cur) {
-      cur = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title: text.slice(0, 40), created: Date.now(), updated: Date.now(), model: modelSel.value, messages: [] };
+      // Gemma 4 대화는 제목을 비워 두고(목록엔 '새 대화') 답이 온 뒤 Gemma가 붙인다. 기본 모델은 예전처럼 첫 말
+      const g4 = modelSel.value === "gemma4";
+      cur = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title: g4 ? "" : text.slice(0, 40), titled: !g4, created: Date.now(), updated: Date.now(), model: modelSel.value, messages: [] };
     }
     const a = { role: "assistant", content: reply, kind };
     if (source) a.source = source;
@@ -761,6 +798,71 @@
     convs = [cur].concat(convs.filter((c) => c.id !== cur.id));
     saveConvs();
     renderList();
+  }
+
+  // 대화 제목: Gemma 4가 질문·답을 함께 보고 중심 내용을 짧게 (2026-11-10 사용자 요청)
+  //  - 인사만 오갔으면 서버가 빈 제목 → '새 대화'로 두고 다음 주고받기에서 다시 (사용자 말 3번까지)
+  //  - 한 번 정하면 그대로, ⋯ → 이름 바꾸기로 직접 바꾼 제목도 그대로. 예전 대화(titled 없음)는 건드리지 않는다
+  const naming = new Set();
+  async function nameConv(c) {
+    if (!c || c.titled !== false || c.userTitle || naming.has(c.id)) return;
+    const users = c.messages.filter((m) => m.role === "user");
+    if (users.length > 3) { c.titled = true; saveConvs(); return; }
+    const last = [...c.messages].reverse().find((m) => m.role === "assistant");
+    const said = users.slice(-3).map((m) => m.content.slice(0, 400) + (m.att && m.att.length ? " [첨부: " + m.att.map((a) => a.name).join(", ") + "]" : "")).join("\n---\n");
+    naming.add(c.id);
+    try {
+      const r = await fetch(API + "/title", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: said.slice(0, 1400), reply: last ? last.content.slice(0, 700) : "" }) });
+      const j = r.ok ? await r.json() : null;
+      const tt = j && typeof j.title === "string" ? j.title.replace(/\s+/g, " ").trim().slice(0, 40) : "";
+      if (tt && !c.userTitle) { c.title = tt; c.titled = true; saveConvs(); renderList(); }
+    } catch (e) {} finally { naming.delete(c.id); }
+  }
+  // 사이드바 ⋯ 메뉴: 이름 바꾸기 / 삭제
+  function convMenu(item, c) {
+    const old = document.querySelector(".qa-conv-menu");
+    if (old) { old.remove(); if (old.dataset.id === c.id) return; }
+    const m = el("div", "qa-conv-menu");
+    m.dataset.id = c.id;
+    m.setAttribute("role", "menu");
+    const ren = el("button", "", t("rename")), del = el("button", "danger", t("del"));
+    ren.type = del.type = "button";
+    ren.setAttribute("role", "menuitem"); del.setAttribute("role", "menuitem");
+    ren.addEventListener("click", (e) => { e.stopPropagation(); m.remove(); renameConv(item, c); });
+    del.addEventListener("click", (e) => {
+      e.stopPropagation(); m.remove();
+      if (!confirm(t("delAsk"))) return;
+      convs = convs.filter((x) => x.id !== c.id);
+      saveConvs();
+      if (cur && cur.id === c.id) newChat(); else renderList();
+    });
+    m.append(ren, del);
+    item.appendChild(m);
+    ren.focus();
+  }
+  document.addEventListener("click", (e) => { const m = document.querySelector(".qa-conv-menu"); if (m && !e.target.closest(".qa-conv-menu")) m.remove(); });
+  document.addEventListener("keydown", (e) => { const m = document.querySelector(".qa-conv-menu"); if (m && e.key === "Escape") m.remove(); });
+  function renameConv(item, c) {
+    const open = item.querySelector(".qa-conv-open");
+    if (!open) return;
+    const inp = el("input", "qa-conv-edit");
+    inp.value = c.title || "";
+    inp.maxLength = 60;
+    inp.setAttribute("aria-label", t("rename"));
+    open.replaceWith(inp);
+    inp.focus(); inp.select();
+    let done = false;
+    const save = (ok) => {
+      if (done) return;
+      done = true;
+      const v = inp.value.replace(/\s+/g, " ").trim().slice(0, 60);
+      if (ok && v && v !== c.title) { c.title = v; c.userTitle = true; c.titled = true; saveConvs(); }
+      renderList();
+    };
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(true); } else if (e.key === "Escape") { e.preventDefault(); save(false); } });
+    inp.addEventListener("blur", () => save(true));
+    inp.addEventListener("click", (e) => e.stopPropagation());
   }
 
   // 내보내기·가져오기: 기록을 파일로 백업하거나 다른 기기로 옮기기
@@ -920,13 +1022,35 @@
     const chars = [...text];
     const spans = mathSpans(text);  // 수식이 있는 곳(글자 위치): 한 글자씩 보여 주지 않고 통째로
     let i = 0;
+    let halted = false;
+    const halt = () => { halted = true; };
+    setStopper(halt);
     const step = () => {
-      i = Math.min(chars.length, i + 2);
-      for (const [s, e] of spans) if (i > s && i < e) { i = e; break; }  // 수식 안으로 들어가면 수식 끝까지 한 번에
-      renderRich(p, chars.slice(0, i).join(""));
-      if (spans.length) renderMath(p);  // 다 나오기 전에도 이미 나온 수식은 바로 그림으로
+      if (halted) {  // ■ 멈춤: 써진 데까지만 남기고, 저장된 대화도 거기까지
+        const shown = chars.slice(0, i).join("");
+        p.classList.remove("typing");
+        try { renderRich(p, shown); renderMath(p); } catch (e) { p.textContent = shown; }
+        p.appendChild(el("span", "halted", " · " + t("stopped")));
+        const last = cur && cur.messages.length ? cur.messages[cur.messages.length - 1] : null;
+        if (last && last.role === "assistant" && last.content === text) { last.content = shown + " …"; saveConvs(); }
+        if (stopper === halt) setStopper(null);
+        return;
+      }
+      try {
+        i = Math.min(chars.length, i + 2);
+        for (const [s, e] of spans) if (i > s && i < e) { i = e; break; }  // 수식 안으로 들어가면 수식 끝까지 한 번에
+        renderRich(p, chars.slice(0, i).join(""));
+        if (spans.length) renderMath(p);  // 다 나오기 전에도 이미 나온 수식은 바로 그림으로
+        toBottom();
+        if (i < chars.length) { setTimeout(step, 22); return; }
+      } catch (e) {  // 그리다 오류 → 남은 글을 한 번에 (2026-11-10 '답이 오류라 안 떴다')
+        console.error("답 그리기 오류", e);
+        p.textContent = text;
+      }
+      p.classList.remove("typing");
+      try { finish(); } catch (e) { console.error("답 마무리 오류", e); }
+      if (stopper === halt) setStopper(null);
       toBottom();
-      if (i < chars.length) setTimeout(step, 22); else { p.classList.remove("typing"); finish(); toBottom(); }
     };
     step();
   }
@@ -1446,7 +1570,7 @@
     const on = modelMenu.querySelector("[aria-selected=true]") || modelMenu.firstChild;
     if (on) on.focus();
   }
-  modelBtn.addEventListener("click", () => (modelMenu.hidden ? openModels() : closeModels()));
+  modelBtn.addEventListener("click", () => { if (typeof closePlus === "function" && $("plusMenu")) { $("plusMenu").hidden = true; $("attachBtn").setAttribute("aria-expanded", "false"); } modelMenu.hidden ? openModels() : closeModels(); });
   document.addEventListener("click", (e) => { if (!modelMenu.hidden && !e.target.closest(".qa-model")) closeModels(); });
   modelMenu.addEventListener("keydown", (e) => {
     const items = [...modelMenu.children], i = items.indexOf(document.activeElement);
@@ -1482,7 +1606,7 @@
     const ok = canAttach();
     $("attachBtn").hidden = !ok;
     $("thinkBtn").hidden = !ok;
-    $("locBtn").hidden = !ok;
+    $("locBtn").hidden = !ok || $("locBtn").getAttribute("aria-pressed") !== "true";  // 위치는 + 메뉴에서 켜고, 켜져 있을 때만 알약(누르면 끔)
     $("form").classList.toggle("can-attach", ok);
     if (!ok && atts && atts.length) atts = [];
     paintAtts();
@@ -1590,7 +1714,26 @@
       paintAtts();
     }
   }
-  $("attachBtn").addEventListener("click", () => $("attachFile").click());
+  // + 단추: 바로 파일 창을 열지 않고 작은 메뉴 (2026-11-10 사용자: "파일 업로드랑 위치를 저기다 넣자. 채팅창 간소화")
+  const plusMenu = $("plusMenu");
+  function closePlus() { plusMenu.hidden = true; $("attachBtn").setAttribute("aria-expanded", "false"); }
+  $("attachBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!plusMenu.hidden) { closePlus(); return; }
+    closeModels();
+    plusMenu.hidden = false;
+    $("attachBtn").setAttribute("aria-expanded", "true");
+    $("plusFile").focus();
+  });
+  $("plusFile").addEventListener("click", () => { closePlus(); $("attachFile").click(); });
+  $("plusLoc").addEventListener("click", () => { closePlus(); $("locBtn").click(); input.focus(); });
+  document.addEventListener("click", (e) => { if (!plusMenu.hidden && !e.target.closest("#plusMenu,#attachBtn")) closePlus(); });
+  plusMenu.addEventListener("keydown", (e) => {
+    const items = [...plusMenu.querySelectorAll("button")], i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+    else if (e.key === "Escape") { e.preventDefault(); closePlus(); $("attachBtn").focus(); }
+  });
   $("attachFile").addEventListener("change", (e) => { const fs = [...e.target.files]; e.target.value = ""; addFiles(fs); });
   input.addEventListener("paste", (e) => {
     const fs = [...((e.clipboardData && e.clipboardData.files) || [])];
@@ -1683,6 +1826,9 @@
     const b = $("locBtn");
     b.setAttribute("aria-pressed", locOn ? "true" : "false");
     b.classList.toggle("wait", !!wait);
+    b.hidden = !canAttach() || !(locOn || wait);
+    const pl = $("plusLoc");
+    if (pl) { pl.setAttribute("aria-checked", locOn ? "true" : "false"); pl.querySelector(".st").textContent = locOn ? (lang() === "en" ? "On" : "켜짐") : ""; }
     b.title = locOn ? "위치 공유: 켜짐 — 대략적인 위치(약 1km)를 날씨·근처 질문에만 씁니다. 서버에 저장하지 않습니다. 누르면 끕니다."
                     : "위치 공유: 꺼짐 — 누르면 지금 있는 곳의 날씨를 바로 물어볼 수 있습니다";
   }
@@ -1779,27 +1925,59 @@
     row.appendChild(ul);
   }
 
+  // ■ 멈추기 (2026-11-10 사용자: "ai가 답변 중 멈추기 기능"): 기다리는 동안·답이 써지는 동안 보내기 단추가 멈춤 단추로
+  var stopper = null;
+  function setStopper(fn) {
+    stopper = fn;
+    const on = !!fn;
+    send.classList.toggle("stop", on);
+    send.setAttribute("aria-label", t(on ? "stopTip" : "sendTip"));
+    send.title = on ? t("stopTip") : "";
+    send.querySelector(".ic-send").hidden = on;
+    send.querySelector(".ic-stop").hidden = !on;
+    if (on) send.disabled = false;
+  }
   // 서버가 다시 켜질 때까지 /state를 3초마다 확인 (배포·재시작 중 끊긴 질문을 자동으로 다시 보내려고)
-  async function waitServer(ms) {
+  async function waitServer(ms, sig) {
     const end = Date.now() + ms;
     while (Date.now() < end) {
+      if (sig && sig.aborted) return false;
       try { const r = await fetch(API + "/state", { cache: "no-store" }); if (r.ok) return true; } catch (e) {}
       await new Promise((z) => setTimeout(z, 3000));
     }
     return false;
   }
-  async function postChat(payload, ms) {
+  async function postChat(payload, ms, outer) {
     const c = new AbortController(), tm = setTimeout(() => c.abort(), ms);
+    const onStop = () => c.abort();
+    if (outer) { if (outer.aborted) c.abort(); else outer.addEventListener("abort", onStop, { once: true }); }
     try {
       return await fetch(API + "/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, signal: c.signal });
-    } finally { clearTimeout(tm); }
+    } finally { clearTimeout(tm); if (outer) outer.removeEventListener("abort", onStop); }
   }
+  // 보내기 — 안에서 무슨 오류가 나도 '기다리는 중'에 갇히지 않게 감싼다 (2026-11-10 사용자: "내 답변이 화면에 오류라 안 떴던 거야")
   async function ask(text, sent, opts) {
+    if (busy) return;
+    try {
+      await askInner(text, sent, opts);
+    } catch (e) {
+      console.error("보내기 오류", e);
+      log.querySelectorAll(".turn .avatar.thinking").forEach((a) => a.closest(".turn").remove());
+      const why = e && (e.name || "") + (e.message ? ": " + String(e.message).slice(0, 80) : "");
+      addAlert((lang() === "en" ? "Something went wrong on this page" : "화면에서 오류가 났어요") + (why ? " (" + why + ")" : ""), false,
+        () => ask(text, sent, opts));
+    } finally {
+      if (busy) { busy = false; send.disabled = false; $("form").classList.remove("busy"); setStopper(null); }
+    }
+  }
+  async function askInner(text, sent, opts) {
     text = (text || "").trim();
     sent = sent || [];
     if (busy || (!text && !sent.length)) return;
     if (!text) text = t("attOnly");  // 그림만 올리고 말없이 보내면
     busy = true; send.disabled = true;
+    const stopCtl = new AbortController(), reqStop = () => stopCtl.abort();
+    setStopper(reqStop);
     $("form").classList.add("busy");  // 답 만드는 동안 입력칸 테두리에 그라데이션이 흐른다
     // 이번 질문의 설정 — [다시 시도]는 처음 보낼 때의 설정 그대로
     opts = opts || { model: modelSel.value, think: modelSel.value === "gemma4" && thinkOn, loc: modelSel.value === "gemma4" && locOn && myLoc ? myLoc : null };
@@ -1828,13 +2006,14 @@
       location: asked === "gemma4" ? opts.loc || null : null });
     try {
       let r = null;
-      try { r = await postChat(payload, limit); } catch (e) { if (e && e.name === "AbortError") throw e; }
+      try { r = await postChat(payload, limit, stopCtl.signal); } catch (e) { if (e && e.name === "AbortError") throw e; }
       if (!r || [502, 503, 504].includes(r.status)) {
         // 연결이 끊김 = 서버가 다시 켜지는 중(배포·재시작)일 수 있다 → 알리고, 살아나면 같은 질문을 한 번 더 자동으로
         clearTimeout(slow);
         const body = wait.querySelector(".turn-body");
         if (body) { body.querySelectorAll(".wait-note").forEach((x) => x.remove()); body.appendChild(el("div", "wait-note", t("restarting"))); toBottom(); }
-        if (await waitServer(90000)) r = await postChat(payload, limit);
+        if (await waitServer(90000, stopCtl.signal)) r = await postChat(payload, limit, stopCtl.signal);
+        if (!r && stopCtl.signal.aborted) throw Object.assign(new Error("stopped"), { name: "AbortError" });
         if (!r) throw new Error("down");
       }
       if (r.status === 429) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} err = (asked === "gemma4" && d && lang() !== "en") ? d : t("busy"); warn = true; }
@@ -1848,21 +2027,34 @@
         wait.remove();
         const meta = { user: text, ctx };
         const kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
-        if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought);
+        try {
+          if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought);
+        } catch (e) {  // 그리기 오류여도 답은 보이게: 빈 말풍선이 있으면 거기에, 없으면 새로
+          console.error("답 그리기 오류", e);
+          const last = log.lastElementChild, tx = last && last.classList.contains("turn") ? last.querySelector(".text") : null;
+          if (tx && !tx.textContent) { tx.classList.remove("typing"); tx.textContent = reply; }
+          else { const sh = turnShell("ai"); sh.body.appendChild(el("div", "text", reply)); put(sh.turn); }
+        }
         if (Array.isArray(j.remember) && j.remember.length) {  // 쿼리봇이 기억하기로 한 것 → 이 브라우저에 저장하고 답 아래에 표시
           const added = memAdd(j.remember);
           const body = log.lastElementChild && log.lastElementChild.querySelector(".turn-body");
           if (body && added.length) body.appendChild(el("div", "mem-note", "💾 기억함 · " + added.join(" · ")));
         }
         setOnline(true);
-        if (modelSel.value === asked) record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought });  // 기다리는 사이 모델을 바꿨으면 대화에 섞지 않는다
+        if (modelSel.value === asked) {  // 기다리는 사이 모델을 바꿨으면 대화에 섞지 않는다
+          record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought });
+          if (asked === "gemma4") nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
+        }
       }
     } catch (e) {
-      if (e && e.name === "AbortError") err = t("fail");
+      if (stopCtl.signal.aborted) err = null;  // ■ 멈춤을 눌렀음
+      else if (e && e.name === "AbortError") err = t("fail");
       else { err = t("down"); setOnline(false); }
     }
     clearTimeout(slow);
     clearInterval(tick);
+    if (stopCtl.signal.aborted && wait.isConnected) { wait.remove(); addSys(t("stopped")); }
+    if (stopper === reqStop) setStopper(null);
     if (err) {
       wait.remove();
       // [다시 시도]: 실패한 내 말풍선을 지우고 처음과 같은 설정·첨부로 다시 보낸다
@@ -1885,6 +2077,7 @@
   });
   $("form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (stopper && e.submitter === send) { stopper(); return; }  // ■ 멈춤 단추 (Enter로는 멈추지 않음)
     const text = input.value.trim();
     if ((!text && !atts.length) || busy) return;
     const sent = atts;
