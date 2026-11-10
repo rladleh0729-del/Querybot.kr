@@ -664,6 +664,7 @@
   .set-switch.sm i{top:2px;left:2px;width:16px;height:16px}
   .set-switch.sm[aria-checked=true] i{transform:translateX(14px)}
   .set-note2{margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .set-link{display:inline-block;margin:2px 4px;font-size:13px;color:var(--accent-ink)}
   @media (max-width:640px){.qa-set-tabs{overflow-x:auto}.qa-set-tabs button{flex:none}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
@@ -2381,7 +2382,7 @@
   }
 
   // ---------- 데이터 관리: 파일 백업 + Google Drive 백업·복원 ----------
-  const GDRIVE_CLIENT_ID = "";  // Google Cloud > 사용자 인증 정보 > OAuth 클라이언트 ID(웹 앱). 비어 있으면 '준비 중'
+  const GDRIVE_CLIENT_ID = "546754663182-iss9ia4lnqgiqsg6jumb3gj71p1gsq4o.apps.googleusercontent.com";  // Google Cloud > 사용자 인증 정보 > OAuth 클라이언트 ID(웹 앱). 비어 있으면 '준비 중'
   const GD_FILE = "QueryBot 대화 백업.json";
   var gdTok = null, gdExp = 0, gdMsg = "", gdBusy = false;
   const gsiReady = () => !!(window.google && window.google.accounts && window.google.accounts.oauth2);
@@ -2527,6 +2528,11 @@
     const lastTx = last ? L("마지막 백업: ", "Last backup: ") + new Date(last).toLocaleString(lang() === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
                         : L("아직 백업하지 않았어요.", "Not backed up yet.");
     g.appendChild(el("div", "set-note2", ready ? (gdMsg ? gdMsg + " · " : "") + lastTx : L("Google Drive 연결은 준비 중이에요.", "Google Drive backup is coming soon.")));
+    const pv = el("a", "set-link", L("개인정보처리방침", "Privacy policy"));
+    pv.href = "/ai/privacy/";
+    pv.target = "_blank";
+    pv.rel = "noopener";
+    pane.appendChild(pv);
     gdLoad();
   }
   $("setBtn").addEventListener("click", () => openSettings("general"));
