@@ -726,6 +726,7 @@
   html[data-theme=dark] .qa-hero .tx{background-image:linear-gradient(100deg,#bfdbfe 0%,#93c5fd 45%,#c4b5fd 100%)}
   html[data-theme=dark] .qa-hero .caret{background:#a5b4fc}
   @media (max-width:640px){.qa-hello h2.qa-hero{font-size:clamp(22px,6.4vw,30px);white-space:normal}}
+  .qa-plus-menu button[hidden]{display:none}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -824,6 +825,8 @@
   // 모델 이름 (사용자 요청 2026-10-21): 사이트에 올라간 최고 모델은 QueryBot the Best, 예전 모델은 단계 번호로
   const MODEL_NAME = { latest: "QueryBot the Best", stage3: "QueryBot 3", v1: "QueryBot 1" };
   // 서버가 잠들어 있고 기억한 목록도 없을 때(처음 온 폰 등) 보여 줄 기본 목록. 서버 목록이 오면 그걸로 바뀐다 (2026-11-09)
+  // 똑똑한 모델(앞 대화·기억·지침·생각·도구를 쓰는 것): Gemma 4, GPT-OSS 120B(Groq, 2026-11-11)
+  function smart(m) { return m === "gemma4" || m === "gptoss"; }
   const DEFAULT_MODELS = [{ key: "latest", label: "QueryBot the Best" }, { key: "stage3", label: "QueryBot 3" }, { key: "v1", label: "QueryBot 1" }, { key: "gemma4", label: "Gemma 4 (구글 26B)" }];
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -1046,7 +1049,7 @@
   function record(text, reply, kind, source, more) {
     if (!cur) {
       // Gemma 4 대화는 제목을 비워 두고(목록엔 '새 대화') 답이 온 뒤 Gemma가 붙인다. 기본 모델은 예전처럼 첫 말
-      const g4 = modelSel.value === "gemma4";
+      const g4 = smart(modelSel.value);
       cur = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title: g4 ? "" : text.slice(0, 40), titled: !g4, created: Date.now(), updated: Date.now(), model: modelSel.value, messages: [] };
     }
     const a = { role: "assistant", content: reply, kind };
@@ -2049,13 +2052,14 @@
   const ATT_MAX_IMG = 4, ATT_MAX_FILE = 3, ATT_MAX_CHARS = 30000;
   const TEXT_EXT = /\.(txt|md|markdown|csv|tsv|json|xml|ya?ml|log|py|js|mjs|ts|jsx|tsx|html?|css|java|c|cc|cpp|h|hpp|cs|go|rs|kt|swift|rb|php|sh|bat|ps1|sql|ini|toml|srt|vtt|tex)$/i;
   var atts = [];  // {type:"image", name, url} | {type:"file", name, text, pdf}  (var: 모델 표시가 먼저 불러도 오류 없게)
-  const canAttach = () => modelSel.value === "gemma4";
+  const canAttach = () => smart(modelSel.value);  // + 메뉴·생각·위치 (그림·파일 올리기 칸은 Gemma 4만)
   function paintAttach() {
     const ok = canAttach();
     $("attachBtn").hidden = !ok;
     $("thinkBtn").hidden = !ok;
     $("locBtn").hidden = !ok || $("locBtn").getAttribute("aria-pressed") !== "true";  // 위치는 + 메뉴에서 켜고, 켜져 있을 때만 알약(누르면 끔)
     $("form").classList.toggle("can-attach", ok);
+    if ($("plusFile")) $("plusFile").hidden = modelSel.value !== "gemma4";
     if (!ok && atts && atts.length) atts = [];
     paintAtts();
   }
@@ -3002,7 +3006,7 @@
       const vi = typeof head.vi === "number" ? head.vi : 0;
       vers[vi] = [stripVer(head)].concat(cur.messages.slice(i + 1));  // 지금 버전(고치기 전)을 보관
       vers.push(null);  // 새 버전 자리 (답이 오면 record가 채움)
-      const mdl = modelSel.value, g = mdl === "gemma4";
+      const mdl = modelSel.value, g = smart(mdl);
       const opts = { model: mdl, think: g && thinkOn, loc: g && locOn && myLoc ? myLoc : null, branch: { i, vers, vi: vers.length - 1 } };
       openConv(cur.id, i);  // 고친 말 앞까지만 보이게 (저장은 답이 온 뒤에 — 실패하면 예전 대화 그대로)
       if (modelSel.value !== mdl) { modelSel.value = mdl; paintModel(); }
@@ -3082,17 +3086,17 @@
     setStopper(reqStop);
     $("form").classList.add("busy");  // 답 만드는 동안 입력칸 테두리에 그라데이션이 흐른다
     // 이번 질문의 설정 — [다시 시도]는 처음 보낼 때의 설정 그대로
-    opts = opts || { model: modelSel.value, think: modelSel.value === "gemma4" && thinkOn, loc: modelSel.value === "gemma4" && locOn && myLoc ? myLoc : null };
+    opts = opts || { model: modelSel.value, think: smart(modelSel.value) && thinkOn, loc: smart(modelSel.value) && locOn && myLoc ? myLoc : null };
     const asked = opts.model;
     const convAtAsk = cur;  // 기다리는 사이 다른 대화를 열면 답을 그 대화에 섞지 않으려고
     const ctx = mem.checked ? hist().slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
     // Gemma 4는 앞 대화 8개(4번 주고받기)·한 줄 1,000자까지 (2026-11-10 '기억 한도 늘려'), 기본 모델은 4개·400자
-    let before = asked === "gemma4" ? hist(1000) : hist();
+    let before = smart(asked) ? hist(1000) : hist();
     if (opts.branch) before = before.slice(0, opts.branch.i);  // 질문 고치기: 고친 말 앞까지만
-    before = asked === "gemma4" ? before.slice(-8) : before.slice(-4);
+    before = smart(asked) ? before.slice(-8) : before.slice(-4);
     const meNode = addMe(text, attMeta(sent), sent);
-    const thinking = asked === "gemma4" && (opts.think || (THINK_ASK.test(text) && !THINK_OPINION.test(text)));
+    const thinking = smart(asked) && (opts.think || (THINK_ASK.test(text) && !THINK_OPINION.test(text)));
     // 답을 받기 전에 페이지를 닫거나 새로 고쳐도 이어 받게: 질문 번호(rid)와 '받는 중'을 이 기기에 바로 저장 (2026-11-11)
     const rid = ((window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, "") : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 32);
     try { localStorage.setItem("qbAi.pending", JSON.stringify({ rid, conv: cur ? cur.id : null, text, att: attMeta(sent), model: asked, think: !!opts.think, branch: opts.branch || null, at: Date.now() })); } catch (e) {}
@@ -3110,9 +3114,9 @@
     const payload = JSON.stringify({ message: text, model: asked, history: before,
       images: sent.filter((a) => a.type === "image").map((a) => a.url),
       files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
-      think: asked === "gemma4" && !!opts.think, memory: asked === "gemma4" ? memList() : [],
-      style: asked === "gemma4" ? store.get("style") || "" : "", instructions: asked === "gemma4" ? (store.get("instr") || "").slice(0, 1500) : "",
-      location: asked === "gemma4" ? opts.loc || null : null, rid });
+      think: smart(asked) && !!opts.think, memory: smart(asked) ? memList() : [],
+      style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
+      location: smart(asked) ? opts.loc || null : null, rid });
     try {
       let r = null;
       try { r = await postChat(payload, limit, stopCtl.signal); } catch (e) { if (e && e.name === "AbortError") throw e; }
@@ -3125,7 +3129,7 @@
         if (!r && stopCtl.signal.aborted) throw Object.assign(new Error("stopped"), { name: "AbortError" });
         if (!r) throw new Error("down");
       }
-      if (r.status === 429) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} err = (asked === "gemma4" && d && lang() !== "en") ? d : t("busy"); warn = true; }
+      if (r.status === 429) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} err = (smart(asked) && d && lang() !== "en") ? d : t("busy"); warn = true; }
       else if ([404, 502, 503, 504].includes(r.status)) { err = t("down"); setOnline(false); }
       else if (r.status === 400) { let d = ""; try { d = (await r.json()).detail; } catch (e) {} err = typeof d === "string" && d && lang() !== "en" ? d : t("fail"); warn = true; }
       else if (!r.ok) { err = t("fail"); }
@@ -3153,7 +3157,7 @@
         if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
           record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch });
           meTools(meNode, cur.messages.length - 2);  // 이제 저장됐으니 말풍선 아래 복사·고치기
-          if (asked === "gemma4") nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
+          if (smart(asked)) nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
         }
       }
     } catch (e) {
@@ -3218,7 +3222,7 @@
     setOnline(true);
     record(p.text, reply, kind, j.source, { att: Array.isArray(p.att) ? p.att : [], sources: j.sources, thought: j.thought, branch: p.branch || undefined });
     meTools(meNode, cur.messages.length - 2);
-    if (p.model === "gemma4") nameConv(cur);
+    if (smart(p.model)) nameConv(cur);
   }
 
   // 입력창: Enter로 보내고 Shift+Enter는 줄 바꿈. 한글 조합 중 Enter는 무시(글자가 끊겨 보내지는 것 막기). 내용에 맞춰 높이가 늘어남.
