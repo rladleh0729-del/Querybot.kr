@@ -3094,6 +3094,9 @@
     // Gemma 4는 앞 대화 8개(4번 주고받기)·한 줄 1,000자까지 (2026-11-10 '기억 한도 늘려'), 기본 모델은 4개·400자
     let before = smart(asked) ? hist(1000) : hist();
     if (opts.branch) before = before.slice(0, opts.branch.i);  // 질문 고치기: 고친 말 앞까지만
+    // 최근 8개보다 오래된 사용자 말은 짧게 줄여 같이 보냄 (오래된 대화도 이어서 기억하게, 2026-11-11)
+    const older = smart(asked) ? before.slice(0, Math.max(0, before.length - 8)).filter((m) => m.role === "user").slice(-12)
+      .map((m) => m.content.replace(/\s+/g, " ").trim().slice(0, 120)).filter(Boolean) : [];
     before = smart(asked) ? before.slice(-8) : before.slice(-4);
     const meNode = addMe(text, attMeta(sent), sent);
     const thinking = smart(asked) && (opts.think || (THINK_ASK.test(text) && !THINK_OPINION.test(text)));
@@ -3116,7 +3119,7 @@
       files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
       think: smart(asked) && !!opts.think, memory: smart(asked) ? memList() : [],
       style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
-      location: smart(asked) ? opts.loc || null : null, rid });
+      location: smart(asked) ? opts.loc || null : null, older, rid });
     try {
       let r = null;
       try { r = await postChat(payload, limit, stopCtl.signal); } catch (e) { if (e && e.name === "AbortError") throw e; }
