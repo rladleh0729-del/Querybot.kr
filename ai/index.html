@@ -432,8 +432,9 @@
   .qa-glow .fg .blob i{animation-duration:70s;animation-direction:reverse}
   @keyframes qa-drift{from{transform:translateY(0)}to{transform:translateY(-50%)}}
   @media (max-width:760px){
-    .qa-glow .g-layer{top:48%;height:380px}
-    .qa-glow .g-layer.fg{width:80%;height:360px}
+    .qa-glow .g-layer{top:48%;height:400px}
+    .qa-glow .g-layer.bg{opacity:.30}
+    .qa-glow .g-layer.fg{width:84%;height:380px;opacity:.55}
     .qa-glow .bg .blob{filter:blur(90px)}
     .qa-glow .fg .blob{filter:blur(70px)}
   }
@@ -455,12 +456,12 @@
     .qa-chat:not(.chatting) .qa-log{min-height:0;padding-bottom:14px}
     .qa-chat:not(.chatting) .qa-hello{padding:0}
     /* 하늘빛: 제목+입력창 덩어리만 감싸게 (가운데 = 위쪽 띠 높이의 절반만큼 아래) */
-    .qa-glow{filter:saturate(.7)}
-    .qa-glow .g-layer{top:calc(50% + 6px);width:min(860px,88%);height:250px}
-    .qa-glow .g-layer.bg{opacity:.18}
-    .qa-glow .g-layer.fg{opacity:.34;width:min(580px,66%);height:210px}
-    .qa-glow .bg .blob{filter:blur(90px)}
-    .qa-glow .fg .blob{filter:blur(70px)}
+    /* 하늘빛을 다시 크고 진하게 (2026-11-11 사용자: "메인의 그라데이션이 약해졌어. 좀 키워") */
+    .qa-glow .g-layer{top:calc(50% + 6px);width:min(1080px,94%);height:420px}
+    .qa-glow .g-layer.bg{opacity:.30}
+    .qa-glow .g-layer.fg{opacity:.55;width:min(700px,74%);height:360px}
+    .qa-glow .bg .blob{filter:blur(120px)}
+    .qa-glow .fg .blob{filter:blur(92px)}
   }
 
   /* ── 입력창 (2026-11-10, ChatGPT처럼): 위 줄 글쓰기, 아래 줄 [+][생각] … [모델 ⌄][보내기] ── */
@@ -2826,8 +2827,8 @@
     btn.type = "button";
     btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
       + (on ? '<path d="M5 12.5l4.5 4.5L19 7.5"/>' : '<path d="M7 18a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 9.5"/><path d="M12 12v8M9 15l3-3 3 3"/>') + "</svg>";
-    btn.appendChild(el("span", "", gdBusy ? L("연결하는 중…", "Connecting…") : on ? L("Google Drive에 연결됨", "Connected to Google Drive") : L("Google Drive 저장소 연결", "Connect Google Drive storage")));
-    btn.disabled = gdBusy || !GDRIVE_CLIENT_ID;
+    btn.appendChild(el("span", "", on ? L("Google Drive에 연결됨", "Connected to Google Drive") : gdBusy ? L("연결하는 중…", "Connecting…") : on ? L("Google Drive에 연결됨", "Connected to Google Drive") : L("Google Drive 저장소 연결", "Connect Google Drive storage")));
+    btn.disabled = (gdBusy && !on) || !GDRIVE_CLIENT_ID;
     btn.title = on ? L("누르면 지금 저장해요", "Click to save now") : "";
     btn.addEventListener("click", gdConnect);
     pane.appendChild(btn);
