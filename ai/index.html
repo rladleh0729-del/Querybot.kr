@@ -1736,7 +1736,8 @@
   // 답 속 코드(```언어 … ```)는 따로 코드 상자로, `짧은 코드`는 알약 모양으로 (2026-11-09 사용자: "코드는 따로 뜨게")
   // 한 글자씩 써지는 중이라 아직 안 닫힌 ```도 상자로 보여 준다. 글은 전부 textContent로만 넣는다(HTML로 해석 안 함).
   // 글 안의 꾸밈: `코드` · **굵게** · ~~취소선~~ · [글](https://주소). 수식($...$, \(...\))은 KaTeX가 그리도록 그대로 둔다 (2026-11-10)
-  const MATH_RE = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$)/;
+  // $…$ 수식: 여는 $ 뒤·닫는 $ 앞은 빈칸이 아니고, 닫는 $ 뒤에 숫자가 오면 수식 아님 → '$10과 $50' 같은 금액은 글자로 (2026-11-11)
+  const MATH_RE = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$(?=\S)[^$\n]*?[^$\s\\]\$(?!\d)|\$[^$\s\d]\$(?!\d))/;
   const DECO_RE = /(~~[^~\n]+?~~|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))/;
   // 순서: `코드` → **굵게**(안에 $수식$이 있어도 됨: Gemma가 **$2^0 = 1$**처럼 씀) → 수식은 그대로 → ~~취소선~~·[링크]
   function addInline(node, s) {
@@ -1750,13 +1751,21 @@
       });
     });
   }
+  // 수식이 아닌 글: $는 따로 떼어 둬서(별도 글 조각) KaTeX가 다른 $와 짝지어 수식으로 그리지 못하게
+  function addPlain(node, x) {
+    if (x.indexOf("$") < 0) { node.appendChild(document.createTextNode(x)); return; }
+    x.split("$").forEach((seg, j) => {
+      if (j) node.appendChild(el("span", "usd", "$"));
+      if (seg) node.appendChild(document.createTextNode(seg));
+    });
+  }
   function addInlineMath(node, s) {
     s.split(MATH_RE).forEach((part, k) => {
       if (!part) return;
       if (k % 2) { node.appendChild(document.createTextNode(part)); return; }  // 수식
       part.split(DECO_RE).forEach((x, i) => {
         if (!x) return;
-        if (!(i % 2)) { node.appendChild(document.createTextNode(x)); return; }
+        if (!(i % 2)) { addPlain(node, x); return; }
         if (x.startsWith("~~")) node.appendChild(el("s", "", x.slice(2, -2)));
         else {
           const mm = x.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
@@ -1778,7 +1787,7 @@
       const ch = s[i];
       if (ch === "\\" && s[i + 1] === "|") { cur += "|"; i++; continue; }
       if (ch === "`" && !math) code = !code;
-      else if (ch === "$" && !code) math = !math;
+      else if (ch === "$" && !code && (math || !/\d/.test(s[i + 1] || ""))) math = !math;  // $10 같은 금액은 수식 시작 아님
       if (ch === "|" && !math && !code) { cells.push(cur.trim()); cur = ""; continue; }
       cur += ch;
     }
