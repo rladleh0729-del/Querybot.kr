@@ -433,8 +433,8 @@
   @keyframes qa-drift{from{transform:translateY(0)}to{transform:translateY(-50%)}}
   @media (max-width:760px){
     .qa-glow .g-layer{top:48%;height:400px}
-    .qa-glow .g-layer.bg{opacity:.30}
-    .qa-glow .g-layer.fg{width:84%;height:380px;opacity:.55}
+    .qa-glow .g-layer.bg{width:170%;height:115%;opacity:.32}
+    .qa-glow .g-layer.fg{width:90%;height:420px;opacity:.58}
     .qa-glow .bg .blob{filter:blur(90px)}
     .qa-glow .fg .blob{filter:blur(70px)}
   }
@@ -459,11 +459,12 @@
     /* 하늘빛을 다시 크고 진하게 (2026-11-11 사용자: "메인의 그라데이션이 약해졌어. 좀 키워") */
     /* 가운데 진하게, 밖으로 갈수록 연하게 (2026-11-11 사용자) */
     .qa-glow .g-layer{top:calc(50% + 6px)}
-    .qa-glow .g-layer.bg{width:min(1500px,100%);height:680px;opacity:.30}
-    .qa-glow .g-layer.fg{width:min(620px,64%);height:290px;opacity:.66}
-    .qa-glow .bg .blob{filter:blur(130px)}
-    .qa-glow .fg .blob{filter:blur(78px)}
-    .qa-glow::after{top:calc(50% + 6px);width:min(980px,92%);height:470px}
+    /* 거의 페이지 전체를 덮게 (2026-11-11 사용자), 가운데 진하고 밖으로 연하게는 그대로 */
+    .qa-glow .g-layer.bg{width:135%;height:130%;opacity:.34}
+    .qa-glow .g-layer.fg{width:min(900px,74%);height:min(460px,52%);opacity:.62}
+    .qa-glow .bg .blob{filter:blur(160px)}
+    .qa-glow .fg .blob{filter:blur(96px)}
+    .qa-glow::after{top:calc(50% + 6px);width:125%;height:115%}
   }
 
   /* ── 입력창 (2026-11-10, ChatGPT처럼): 위 줄 글쓰기, 아래 줄 [+][생각] … [모델 ⌄][보내기] ── */
@@ -711,7 +712,7 @@
 
   /* ── 27차 (2026-11-11): 하늘빛 — 가운데 진하게, 밖으로 갈수록 연하게 ── */
   .qa-glow .g-layer.bg{-webkit-mask-image:radial-gradient(closest-side,#000 0%,rgba(0,0,0,.7) 45%,rgba(0,0,0,.25) 75%,transparent 100%);mask-image:radial-gradient(closest-side,#000 0%,rgba(0,0,0,.7) 45%,rgba(0,0,0,.25) 75%,transparent 100%)}
-  .qa-glow::after{content:"";position:absolute;left:50%;top:48%;width:120%;height:440px;transform:translate(-50%,-50%);pointer-events:none;
+  .qa-glow::after{content:"";position:absolute;left:50%;top:48%;width:150%;height:100%;transform:translate(-50%,-50%);pointer-events:none;
     background:radial-gradient(closest-side,rgba(96,160,255,.34) 0%,rgba(130,185,255,.20) 35%,rgba(170,210,255,.08) 68%,rgba(200,228,255,0) 100%)}
   html[data-theme=dark] .qa-glow::after{background:radial-gradient(closest-side,rgba(79,140,255,.30) 0%,rgba(79,140,255,.12) 45%,rgba(79,140,255,0) 100%)}
 </style>
