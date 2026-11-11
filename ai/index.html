@@ -457,11 +457,13 @@
     .qa-chat:not(.chatting) .qa-hello{padding:0}
     /* 하늘빛: 제목+입력창 덩어리만 감싸게 (가운데 = 위쪽 띠 높이의 절반만큼 아래) */
     /* 하늘빛을 다시 크고 진하게 (2026-11-11 사용자: "메인의 그라데이션이 약해졌어. 좀 키워") */
-    .qa-glow .g-layer{top:calc(50% + 6px);width:min(1080px,94%);height:420px}
-    .qa-glow .g-layer.bg{opacity:.30}
-    .qa-glow .g-layer.fg{opacity:.55;width:min(700px,74%);height:360px}
-    .qa-glow .bg .blob{filter:blur(120px)}
-    .qa-glow .fg .blob{filter:blur(92px)}
+    /* 가운데 진하게, 밖으로 갈수록 연하게 (2026-11-11 사용자) */
+    .qa-glow .g-layer{top:calc(50% + 6px)}
+    .qa-glow .g-layer.bg{width:min(1500px,100%);height:680px;opacity:.30}
+    .qa-glow .g-layer.fg{width:min(620px,64%);height:290px;opacity:.66}
+    .qa-glow .bg .blob{filter:blur(130px)}
+    .qa-glow .fg .blob{filter:blur(78px)}
+    .qa-glow::after{top:calc(50% + 6px);width:min(980px,92%);height:470px}
   }
 
   /* ── 입력창 (2026-11-10, ChatGPT처럼): 위 줄 글쓰기, 아래 줄 [+][생각] … [모델 ⌄][보내기] ── */
@@ -706,6 +708,12 @@
   .gd-note.err{color:var(--danger)}
   .gd-off{border:0;background:none;padding:0;font:inherit;color:var(--muted);text-decoration:underline;cursor:pointer}
   .gd-off:hover{color:var(--text2)}
+
+  /* ── 27차 (2026-11-11): 하늘빛 — 가운데 진하게, 밖으로 갈수록 연하게 ── */
+  .qa-glow .g-layer.bg{-webkit-mask-image:radial-gradient(closest-side,#000 0%,rgba(0,0,0,.7) 45%,rgba(0,0,0,.25) 75%,transparent 100%);mask-image:radial-gradient(closest-side,#000 0%,rgba(0,0,0,.7) 45%,rgba(0,0,0,.25) 75%,transparent 100%)}
+  .qa-glow::after{content:"";position:absolute;left:50%;top:48%;width:120%;height:440px;transform:translate(-50%,-50%);pointer-events:none;
+    background:radial-gradient(closest-side,rgba(96,160,255,.34) 0%,rgba(130,185,255,.20) 35%,rgba(170,210,255,.08) 68%,rgba(200,228,255,0) 100%)}
+  html[data-theme=dark] .qa-glow::after{background:radial-gradient(closest-side,rgba(79,140,255,.30) 0%,rgba(79,140,255,.12) 45%,rgba(79,140,255,0) 100%)}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
