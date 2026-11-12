@@ -889,23 +889,21 @@
     const box = el("div", "qa-hello");
     const h = el("h2", "qa-hero");
     h.setAttribute("aria-label", t("helloTitle"));
-    const tx = el("span", "tx"), caret = el("span", "caret");
-    caret.setAttribute("aria-hidden", "true");
-    h.append(tx, caret);
+    const tx = el("span", "tx");  // 커서는 없음 (2026-11-12 사용자: "처음부터 끝까지 보이지 마")
+    h.append(tx);
     box.appendChild(h);
     log.appendChild(box);
     // 첫 화면이 뜰 때마다 문구 하나를 골라 한 번만 써지고 그대로 (2026-11-12 사용자: "계속 보고 있을 때는 한 가지만")
     const lines = HELLO_LINES[lang() === "en" ? "en" : "ko"];
     const line = [...lines[Math.floor(Math.random() * lines.length)]];
     h.setAttribute("aria-label", line.join(""));
-    if (reduceMotion) { tx.textContent = line.join(""); caret.remove(); return; }
+    if (reduceMotion) { tx.textContent = line.join(""); return; }
     let ci = 0;
     const tick = () => {
       if (!h.isConnected) return;  // 대화를 시작해서 첫 화면이 사라짐
       ci = Math.min(line.length, ci + 1);
       tx.textContent = line.slice(0, ci).join("");
-      if (ci < line.length) { helloTimer = setTimeout(tick, 55); return; }
-      helloTimer = setTimeout(() => caret.remove(), 500);  // 다 써지면 커서는 사라짐
+      if (ci < line.length) helloTimer = setTimeout(tick, 55);
     };
     helloTimer = setTimeout(tick, 150);
   }
