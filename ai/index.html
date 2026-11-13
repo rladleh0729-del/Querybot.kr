@@ -807,7 +807,7 @@
   const WAKE_TIMEOUT = 90000;
   const T = {
     ko: { on: "연결됨", off: "연결 안 됨", wake: "서버 깨우는 중", switched: "모델을 바꿨습니다. 새 대화를 시작합니다.", waking: "서버를 깨우는 중입니다. 첫 답은 1분 정도 걸릴 수 있습니다.", down: "지금은 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.", busy: "요청이 많습니다. 잠시 후 다시 시도해 주세요.", fail: "답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.", copy: "복사", copied: "복사됨", thinking: "답을 만드는 중", thinkingN: "생각하는 중", sec: "초", retry: "다시 시도", stopped: "답을 멈췄어요.", resuming: "앞서 보낸 질문의 답을 받아오는 중이에요…", editQ: "수정", cancel: "취소", prevVer: "이전 버전", nextVer: "다음 버전", stopTip: "멈추기", sendTip: "보내기", rename: "이름 바꾸기", del: "삭제", more: "더 보기", restarting: "서버가 잠깐 다시 켜지는 중이에요. 켜지면 자동으로 다시 보낼게요…", weatherTag: "날씨 예보", looking: "그림을 보는 중", reading: "파일을 읽는 중", working: "검색하거나 자료를 읽는 중입니다…", sources: "출처", webTag: "웹 검색", attOnly: "첨부한 내용을 살펴보고 설명해 줘", wikiTag: "위키백과 검색", wikiOpen: "위키백과에서 보기", aiTag: "AI 답변", taughtTag: "가르친 답", newChat: "새 대화", noChats: "아직 대화가 없습니다", today: "오늘", yesterday: "어제", week: "지난 7일", older: "이전", delAsk: "이 대화를 삭제하시겠습니까?", helloTitle: "무엇이 궁금하세요?", helloText: "편하게 말을 걸어 보세요. 사람·나라 같은 지식 질문은 위키백과에서 찾아 답합니다." },
-    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", stopped: "Stopped.", resuming: "Fetching the answer to your last question…", editQ: "Edit", cancel: "Cancel", prevVer: "Previous version", nextVer: "Next version", stopTip: "Stop", sendTip: "Send", rename: "Rename", del: "Delete", more: "More", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What would you like to know?", helloText: "Say anything — Gemma 4 replies in your language. Questions about people or places are answered from Wikipedia." }
+    en: { on: "Online", off: "Offline", wake: "Waking", switched: "Model changed. Starting a new chat.", waking: "Waking the server… the first answer can take about a minute.", down: "Can't reach the server right now. Please try again later.", busy: "Too many messages. Please wait a moment.", fail: "No answer received. Please try again.", copy: "Copy", copied: "Copied", thinking: "Thinking", thinkingN: "Thinking", sec: "s", retry: "Retry", stopped: "Stopped.", resuming: "Fetching the answer to your last question…", editQ: "Edit", cancel: "Cancel", prevVer: "Previous version", nextVer: "Next version", stopTip: "Stop", sendTip: "Send", rename: "Rename", del: "Delete", more: "More", restarting: "The server is restarting. I'll resend automatically when it's back…", weatherTag: "Weather forecast", looking: "Looking at the image", reading: "Reading the file", working: "Searching or reading…", sources: "Sources", webTag: "Web search", attOnly: "Please look at the attachment and explain it.", wikiTag: "Wikipedia search", wikiOpen: "Open on Wikipedia", aiTag: "AI answer", taughtTag: "Taught answer", newChat: "New chat", noChats: "No chats yet", today: "Today", yesterday: "Yesterday", week: "Previous 7 days", older: "Older", delAsk: "Delete this chat?", helloTitle: "What would you like to know?", helloText: "Say anything — Nova G replies in your language. Questions about people or places are answered from Wikipedia." }
   };
   const SUGGEST = [
     ["오늘 너무 피곤하다", "위로가 필요할 때"],
@@ -827,7 +827,7 @@
   // 서버가 잠들어 있고 기억한 목록도 없을 때(처음 온 폰 등) 보여 줄 기본 목록. 서버 목록이 오면 그걸로 바뀐다 (2026-11-09)
   // 똑똑한 모델(앞 대화·기억·지침·생각·도구를 쓰는 것): Gemma 4, GPT-OSS 120B(Groq, 2026-11-11)
   function smart(m) { return m === "gemma4" || m === "gptoss"; }
-  const DEFAULT_MODELS = [{ key: "latest", label: "QueryBot the Best" }, { key: "stage3", label: "QueryBot 3" }, { key: "v1", label: "QueryBot 1" }, { key: "gemma4", label: "Gemma 4 (구글 26B)" }];
+  const DEFAULT_MODELS = [{ key: "latest", label: "QueryBot the Best" }, { key: "stage3", label: "QueryBot 3" }, { key: "v1", label: "QueryBot 1" }, { key: "gemma4", label: "Nova G" }];
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // 고른 모델·기억 설정은 이 브라우저에만 기억해 둔다 (못 쓰는 환경이면 그냥 넘어감)
@@ -1721,8 +1721,8 @@
     span.textContent = lang() === "en" ? span.dataset.en : span.dataset.ko;
     const own = quota.source === "server";
     box.title = lang() === "en"
-      ? "Gemma 4 free quota: " + lim + " neurons a day, refilled at 09:00 KST. One question uses about 3-10." + (own ? " (counted by this site)" : "")
-      : "Gemma 4 무료 사용량: 하루 " + lim + "뉴런, 매일 오전 9시에 다시 채워져요. 질문 하나에 약 3~10뉴런을 써요." + (own ? " (사이트 서버가 센 값)" : "");
+      ? "Nova G free quota: " + lim + " neurons a day, refilled at 09:00 KST. One question uses about 3-10." + (own ? " (counted by this site)" : "")
+      : "Nova G 무료 사용량: 하루 " + lim + "뉴런, 매일 오전 9시에 다시 채워져요. 질문 하나에 약 3~10뉴런을 써요." + (own ? " (사이트 서버가 센 값)" : "");
     box.classList.toggle("off", quota.left <= 0);
   }
 
@@ -2142,7 +2142,7 @@
     return out;
   }
   async function addFiles(list) {
-    if (!canAttach()) { attNote("그림·파일 첨부는 Gemma 4 모델에서만 할 수 있습니다."); return; }
+    if (!canAttach()) { attNote("그림·파일 첨부는 Nova G에서만 할 수 있습니다."); return; }
     for (const f of list) {
       try {
         if (/^image\//.test(f.type)) {
@@ -2399,7 +2399,7 @@
     const R = 2 * Math.PI * 7.5;
     b.querySelector(".fg").setAttribute("stroke-dasharray", ((1 - left / lim) * R).toFixed(2) + " " + R.toFixed(2));
     b.classList.toggle("low", pct <= 10);
-    b.title = L("Gemma 4 오늘 사용량 — 누르면 자세히", "Gemma 4 usage today — click for details");
+    b.title = L("Nova G 오늘 사용량 — 누르면 자세히", "Nova G usage today — click for details");
   }
   // 연결 상태 알약은 이 줄로 (연결돼 있을 땐 CSS로 숨김)
   document.getElementById("usageLine").prepend(status);
@@ -2484,7 +2484,7 @@
       pane.appendChild(el("h3", "", L("사용량", "Usage")));
       const q = getQuota();
       const card = el("div", "us-card");
-      card.appendChild(el("div", "us-name", L("Gemma 4 · 하루 무료 사용량", "Gemma 4 · free daily quota")));
+      card.appendChild(el("div", "us-name", L("Nova G · 하루 무료 사용량", "Nova G · free daily quota")));
       if (!q) {
         card.appendChild(el("p", "us-note", L("서버에 연결되면 사용량이 보여요.", "Usage appears once the server is connected.")));
       } else {
@@ -2516,8 +2516,8 @@
       paintInstr(pane);
     } else {
       pane.appendChild(el("h3", "", L("메모리", "Memory")));
-      pane.appendChild(el("p", "us-foot", L("쿼리봇이 기억하는 것이에요. 직접 추가할 수도 있어요. 이 브라우저에만 저장되고, Gemma 4에 질문할 때 같이 보내요.",
-        "What QueryBot remembers about you. You can add your own. Stored only in this browser and sent with Gemma 4 questions.")));
+      pane.appendChild(el("p", "us-foot", L("쿼리봇이 기억하는 것이에요. 직접 추가할 수도 있어요. 이 브라우저에만 저장되고, Nova G·GPT-OSS에 질문할 때 같이 보내요.",
+        "What QueryBot remembers about you. You can add your own. Stored only in this browser and sent with Nova G and GPT-OSS questions.")));
       // 직접 추가 (2026-11-10 사용자 요청)
       const add = el("div", "set-mem-add");
       const mi = el("input");
@@ -2593,7 +2593,7 @@
     ta.addEventListener("input", () => { note.textContent = count(); clearTimeout(tm); tm = setTimeout(save, 500); });
     ta.addEventListener("blur", save);
     pane.append(ta, note);
-    pane.appendChild(el("p", "us-foot", L("Gemma 4로 대화할 때 적용돼요. 이 브라우저에만 저장돼요.", "Applies to Gemma 4 chats. Stored only in this browser.")));
+    pane.appendChild(el("p", "us-foot", L("Nova G·GPT-OSS로 대화할 때 적용돼요. 이 브라우저에만 저장돼요.", "Applies to Nova G and GPT-OSS chats. Stored only in this browser.")));
   }
   // ---------- 일반 탭 ----------
   function enterSends() { return store.get("enterSend") !== "0"; }  // 기본: Enter로 보내기
