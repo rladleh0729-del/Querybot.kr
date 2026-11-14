@@ -802,6 +802,11 @@
   html:not([data-theme=dark]) .qa-side-foot{color:#62676E}
   /* 52차: 첫 화면 제목 글꼴만 다시 세리프 (47차 산세리프보다 뒤에서 이기게 선택자를 한 단계 더) */
   .qa-chat .qa-hello h2.qa-hero{font-family:var(--qa-serif);letter-spacing:-.02em}
+  /* 53차: 답 아래 '위치 공유 켜기' 알약 단추 */
+  .loc-cta{display:inline-flex;align-items:center;gap:7px;margin:10px 0 2px;border:1px solid var(--line2);border-radius:999px;background:var(--panel);color:var(--text2);padding:7px 15px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s}
+  .loc-cta:hover{border-color:var(--muted)}
+  .loc-cta.on{background:#41454B;border-color:transparent;color:#ffffff;cursor:default}
+  html[data-theme=dark] .loc-cta.on{background:#c4c4c9;color:#17181b}
   /* 위치 정밀도 고르기 창 (51차) */
   .loc-pick{position:absolute;left:12px;bottom:calc(100% + 10px);z-index:60;width:min(340px,calc(100vw - 40px));padding:12px;border:1px solid var(--line2);border-radius:22px;background:var(--panel);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:8px}
   .loc-pick-t{font-size:13.5px;font-weight:700;color:var(--text);padding:2px 6px 4px}
@@ -2565,6 +2570,10 @@
     if (n) n.classList.toggle("ok", !!ok);
   }
   function paintLoc(wait) {
+    document.querySelectorAll(".loc-cta").forEach((c) => {  // 53차: 답 아래 알약 단추도 같이
+      c.classList.toggle("on", locOn);
+      c.querySelector("span").textContent = locOn ? (lang() === "en" ? "Location on" : "위치 공유 켜짐") : (lang() === "en" ? "Turn on location" : "위치 공유 켜기");
+    });
     const b = $("locBtn");
     b.setAttribute("aria-pressed", locOn ? "true" : "false");
     b.classList.toggle("wait", !!wait);
@@ -2629,6 +2638,19 @@
     if (locOn) { locOn = false; myLoc = null; store.set("loc", "0"); paintLoc(); locNote(lang() === "en" ? "Location sharing is off." : "위치 공유를 껐습니다.", true); return; }
     askLocPrec().then((pr) => { if (!pr) return; locPrec = pr; store.set("locPrec", pr); getLoc(false); });
   });
+  // 53차: AI가 위치를 몰라 지역을 물으면(서버 ask_location) 그 답 아래에 '위치 공유 켜기' 알약 단추 — 누르면 위치 버튼과 똑같이
+  function addLocCta() {
+    if (locOn || !canAttach()) return;
+    const body = log.lastElementChild && log.lastElementChild.querySelector(".turn-body");
+    if (!body) return;
+    const b = el("button", "loc-cta");
+    b.type = "button";
+    b.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span></span>';
+    b.querySelector("span").textContent = lang() === "en" ? "Turn on location" : "위치 공유 켜기";
+    b.addEventListener("click", () => { if (!locOn) $("locBtn").click(); });
+    const tools = body.querySelector(".tools");
+    if (tools) body.insertBefore(b, tools); else body.appendChild(b);
+  }
   paintLoc();
   // 전에 켜 두었고 이미 권한이 있으면 조용히 다시 받는다 (권한 창을 새로 띄우지 않음)
   if (store.get("loc") === "1" && navigator.permissions && navigator.permissions.query) {
@@ -3499,6 +3521,7 @@
           const body = log.lastElementChild && log.lastElementChild.querySelector(".turn-body");
           if (body && added.length) body.appendChild(el("div", "mem-note", "💾 기억함 · " + added.join(" · ")));
         }
+        if (j.ask_location) addLocCta();
         setOnline(true);
         if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
           record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch });
@@ -3565,6 +3588,7 @@
     try { if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought); }
     catch (e) { const sh = turnShell("ai"); sh.body.appendChild(el("div", "text", reply)); put(sh.turn); }
     if (Array.isArray(j.remember) && j.remember.length) memAdd(j.remember);
+    if (j.ask_location) addLocCta();
     setOnline(true);
     record(p.text, reply, kind, j.source, { att: Array.isArray(p.att) ? p.att : [], sources: j.sources, thought: j.thought, branch: p.branch || undefined });
     meTools(meNode, cur.messages.length - 2);
