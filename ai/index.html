@@ -809,6 +809,24 @@
   .loc-cta:hover{border-color:var(--muted)}
   .loc-cta.on{background:#41454B;border-color:transparent;color:#ffffff;cursor:default}
   html[data-theme=dark] .loc-cta.on{background:#c4c4c9;color:#17181b}
+  /* 56차: 대화 목록 스크롤 막대 숨김 */
+  .qa-list{scrollbar-width:none}
+  .qa-list::-webkit-scrollbar{display:none}
+  /* 56차: ⋯ 메뉴는 화면 위에 고정 */
+  .qa-conv-menu.fixed{position:fixed;right:auto;z-index:1000}
+  /* 56차: 설정 옆 계정 */
+  .qa-foot-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+  .qa-me{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:62%;border:0;background:none;border-radius:999px;padding:4px 12px 4px 4px;font:inherit;font-size:14px;color:var(--text2);cursor:pointer}
+  .qa-me:has(.qa-me-name[hidden]){padding:4px}
+  .qa-me:hover{background:var(--hover);color:var(--text)}
+  .qa-me-av{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--panel2);color:var(--muted)}
+  .qa-me-av img{width:100%;height:100%;object-fit:cover;display:block}
+  html:not([data-theme=dark]) .qa-me-av:not(.ini){background:#E5E6E8;color:#41454B}
+  html[data-theme=dark] .qa-me-av:not(.ini){background:#34363b;color:#c4c4c9}
+  .qa-me-av.ini{background:#41454B;color:#ffffff;font-size:13px;font-weight:700}
+  html[data-theme=dark] .qa-me-av.ini{background:#c4c4c9;color:#17181b}
+  .qa-me-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qa-me-name[hidden]{display:none}
   /* 위치 정밀도 고르기 창 (51차) */
   .loc-pick{position:absolute;left:12px;bottom:calc(100% + 10px);z-index:60;width:min(340px,calc(100vw - 40px));padding:12px;border:1px solid var(--line2);border-radius:22px;background:var(--panel);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:8px}
   .loc-pick-t{font-size:13.5px;font-weight:700;color:var(--text);padding:2px 6px 4px}
@@ -958,7 +976,7 @@
         <input id="importFile" type="file" accept="application/json,.json" multiple hidden>
       </div>
       <div id="memRow"></div>
-      <button class="qa-gear" id="setBtn" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-ko="설정" data-en="Settings">설정</span></button>
+      <div class="qa-foot-row"><button class="qa-gear" id="setBtn" type="button" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-ko="설정" data-en="Settings">설정</span></button><button class="qa-me" id="meBtn" type="button" aria-label="계정"><span class="qa-me-av"></span><span class="qa-me-name" hidden></span></button></div>
       <label class="qa-mem2"><span data-ko="앞 대화 기억" data-en="Remember context"></span><input id="mem2" type="checkbox" role="switch" checked></label>
       <div class="r"><button class="qa-admin" id="teachToggle" type="button">관리자</button><span id="teachState"></span></div>
     </div>
@@ -1377,11 +1395,20 @@
       if (cur && cur.id === c.id) newChat(); else renderList();
     });
     m.append(ren, del);
-    item.appendChild(m);
-    ren.focus();
+    m.classList.add("fixed");  // 56차: 목록 칸 밖에 띄움
+    document.body.appendChild(m);
+    const r = (item.querySelector(".qa-conv-more") || item).getBoundingClientRect();
+    const mh = m.offsetHeight, mw = m.offsetWidth;
+    let top = r.bottom + 2;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 2);
+    m.style.top = top + "px";
+    m.style.left = Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8)) + "px";
+    ren.focus({ preventScroll: true });
   }
   document.addEventListener("click", (e) => { const m = document.querySelector(".qa-conv-menu"); if (m && !e.target.closest(".qa-conv-menu")) m.remove(); });
   document.addEventListener("keydown", (e) => { const m = document.querySelector(".qa-conv-menu"); if (m && e.key === "Escape") m.remove(); });
+  { const shut = () => { const m = document.querySelector(".qa-conv-menu"); if (m) m.remove(); };  // 56차: 목록을 굴리거나 창 크기가 바뀌면 닫음
+    $("convList").addEventListener("scroll", shut, { passive: true }); window.addEventListener("resize", shut); }
   function renameConv(item, c) {
     const open = item.querySelector(".qa-conv-open");
     if (!open) return;
@@ -3211,6 +3238,7 @@
       await gdUpload();
       store.set("gdOn", "1");
       checkOwner();
+      loadMe();
     } catch (e) { gdMsg = gdErr(e); }
     gdBusy = false;
     paintSet();
@@ -3247,6 +3275,7 @@
     store.set("gdOn", "0");
     try { if (gdTok && gsiReady()) window.google.accounts.oauth2.revoke(gdTok, () => {}); } catch (e) {}
     gdTok = null; gdFileId = ""; gdMsg = "";
+    store.set("gdUser", ""); paintMe();
     if (ownerModels.length) { ownerModels = []; if (lastModelList) fillModels(lastModelList); }
     paintSet();
   }
@@ -3292,6 +3321,40 @@
   }
   setTimeout(gdOnOpen, 800);
   $("setBtn").addEventListener("click", () => openSettings("general"));
+  // 56차: 왼쪽 아래 계정 (Google 연결돼 있으면 사진·이름, 아니면 사람 모양) — 누르면 설정
+  function paintMe() {
+    const b = $("meBtn");
+    if (!b) return;
+    let u = null;
+    try { u = JSON.parse(store.get("gdUser") || "null"); } catch (e) {}
+    if (store.get("gdOn") !== "1") u = null;
+    const av = b.querySelector(".qa-me-av"), nm = b.querySelector(".qa-me-name");
+    const ini = () => { av.innerHTML = ""; av.textContent = ((u && u.name) || "?").trim().charAt(0).toUpperCase(); av.classList.add("ini"); };
+    av.classList.remove("ini");
+    av.innerHTML = "";
+    if (u && u.photo) {
+      const im = el("img");
+      im.alt = "";
+      im.referrerPolicy = "no-referrer";
+      im.onerror = ini;
+      im.src = u.photo;
+      av.appendChild(im);
+    } else if (u && u.name) ini();
+    else av.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
+    nm.textContent = (u && u.name) || "";
+    nm.hidden = !nm.textContent;
+    b.setAttribute("aria-label", (u && u.name) || (lang() === "en" ? "Account" : "계정"));
+  }
+  async function loadMe() {
+    try {
+      if (store.get("gdOn") === "1") {
+        const j = await (await gdApi("https://www.googleapis.com/drive/v3/about?fields=user(displayName,photoLink)")).json();
+        if (j && j.user) store.set("gdUser", JSON.stringify({ name: j.user.displayName || "", photo: j.user.photoLink || "" }));
+      }
+    } catch (e) {}
+    paintMe();
+  }
+  $("meBtn").addEventListener("click", () => openSettings("general"));
   $("usageBtn").addEventListener("click", () => openSettings("usage"));
   paintUsage();
 
@@ -3665,6 +3728,8 @@
     checkHealth();
     checkOwner();
     resumeOwner();
+    paintMe();
+    if (store.get("gdOn") === "1" && store.get("gdRt")) setTimeout(loadMe, 2500);
     const urlConv = new URLSearchParams(location.search).get("c");  // 새로고침: 주소의 대화를 다시 열기 (40차)
     if (urlConv) { if (convs.some((x) => x.id === urlConv)) openConv(urlConv); else setUrlConv(null); }
     setTimeout(resumePending, 200);  // 답을 받기 전에 닫혔던 질문 이어 받기
