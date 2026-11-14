@@ -802,6 +802,8 @@
   html:not([data-theme=dark]) .qa-side-foot{color:#62676E}
   /* 52차: 첫 화면 제목 글꼴만 다시 세리프 (47차 산세리프보다 뒤에서 이기게 선택자를 한 단계 더) */
   .qa-chat .qa-hello h2.qa-hero{font-family:var(--qa-serif);letter-spacing:-.02em}
+  /* 54차: 알약에서 연 고르기 창은 채팅 안(알약 바로 아래)에 */
+  .loc-pick.inline{position:static;width:min(320px,100%);margin:8px 0 4px;box-shadow:none;z-index:auto}
   /* 53차: 답 아래 '위치 공유 켜기' 알약 단추 */
   .loc-cta{display:inline-flex;align-items:center;gap:7px;margin:10px 0 2px;border:1px solid var(--line2);border-radius:999px;background:var(--panel);color:var(--text2);padding:7px 15px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s}
   .loc-cta:hover{border-color:var(--muted)}
@@ -941,7 +943,7 @@
 <script>try{var qbT=localStorage.getItem("qbAi.theme");if(qbT==="dark"||(qbT==="system"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.dataset.theme="dark";}catch(e){}</script>
 </head>
 <body class="qa-page">
-<header class="nav"><div class="wrap navin"><a class="brand qb-brand" href="/"><span class="qb-logo" aria-hidden="true">Q</span><span>Query<b>Bot</b></span><span class="qb-ai">AI</span></a><nav class="navlinks"><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button></div></header>
+<header class="nav"><div class="wrap navin"><a class="brand qb-brand" id="brandHome" href="/ai/"><span class="qb-logo" aria-hidden="true">Q</span><span>Query<b>Bot</b></span><span class="qb-ai">AI</span></a><nav class="navlinks"><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button></div></header>
 <div class="qa-app">
   <aside class="qa-side" id="side" aria-label="대화 기록">
     <div class="qa-drawer-top"><a class="brand" href="/">Query<b>Bot</b></a><nav><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a><a href="/download/" data-ko="다운로드" data-en="Download"></a></nav><button class="lang" type="button">EN</button></div>
@@ -2584,7 +2586,7 @@
                     : "위치 공유: 꺼짐 — 누르면 지금 있는 곳의 날씨를 바로 물어볼 수 있습니다";
   }
   function getLoc(quiet) {
-    if (!navigator.geolocation) { if (!quiet) locNote("이 브라우저는 위치 기능을 지원하지 않습니다. 지역 이름을 직접 말해 주세요(예: 서울 서초구 날씨)."); return; }
+    if (!navigator.geolocation) { if (!quiet) locNote("이 브라우저는 위치 기능을 지원하지 않습니다. 지역 이름을 직접 말해 주세요."); return; }
     paintLoc(true);
     const exact = locPrec === "exact", k = exact ? 10000 : 100;  // 정확: 소수 넷째 자리(약 10m), 대략: 둘째 자리(약 1km)
     navigator.geolocation.getCurrentPosition((pos) => {
@@ -2601,11 +2603,13 @@
       paintLoc();
       if (!quiet) locNote(err && err.code === 1
         ? "위치 권한이 거부되었습니다. 주소창 왼쪽 아이콘에서 위치를 '허용'으로 바꾸거나, 지역 이름을 직접 말해 주세요."
-        : "위치를 가져오지 못했습니다. 잠시 뒤 다시 누르거나, 지역 이름을 직접 말해 주세요(예: 서울 서초구 날씨).");
+        : "위치를 가져오지 못했습니다. 잠시 뒤 다시 누르거나, 지역 이름을 직접 말해 주세요.");
     }, { enableHighAccuracy: exact, timeout: exact ? 15000 : 12000, maximumAge: exact ? 60000 : 600000 });
   }
   // 위치를 켤 때: 정확한 위치 / 대략적인 위치를 사용자가 고름 (51차)
-  function askLocPrec() {
+  let locPickClose = null;  // 54차: 열려 있는 고르기 창 닫기
+  function askLocPrec(anchor) {  // anchor: 답 아래 알약 단추(있으면 그 바로 아래 채팅 안에 띄움)
+    if (locPickClose) locPickClose();
     return new Promise((done) => {
       document.querySelectorAll(".loc-pick").forEach((x) => x.remove());
       const en = lang() === "en";
@@ -2613,25 +2617,27 @@
       box.setAttribute("role", "dialog");
       box.setAttribute("aria-label", en ? "Location sharing" : "위치 공유 방식");
       box.appendChild(el("div", "loc-pick-t", en ? "Share which location?" : "어떤 위치를 공유할까요?"));
-      const opt = (val, title, sub) => {
+      const opt = (val, title) => {
         const b = el("button", "loc-pick-o" + (locPrec === val ? " on" : ""));
         b.type = "button";
-        b.append(el("b", "", title), el("span", "", sub));
+        b.append(el("b", "", title));
         b.addEventListener("click", () => { close(); done(val); });
         return b;
       };
-      box.append(opt("exact", en ? "Precise location" : "정확한 위치", en ? "GPS · about 10 m — best for nearby places" : "GPS · 약 10m — 근처 장소까지 정확하게"),
-                 opt("approx", en ? "Approximate location" : "대략적인 위치", en ? "About 1 km — enough for weather" : "약 1km — 날씨에는 이걸로 충분"));
+      box.append(opt("exact", en ? "Precise location" : "정확한 위치"),
+                 opt("approx", en ? "Approximate location" : "대략적인 위치"));
       const cancel = el("button", "loc-pick-x", en ? "Cancel" : "취소");
       cancel.type = "button";
       cancel.addEventListener("click", () => { close(); done(null); });
       box.appendChild(cancel);
       const onKey = (e) => { if (e.key === "Escape") { close(); done(null); } };
-      const onDoc = (e) => { if (!box.contains(e.target) && !e.target.closest("#locBtn,#plusLoc")) { close(); done(null); } };
-      function close() { box.remove(); document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onDoc); }
-      $("form").appendChild(box);
+      const onDoc = (e) => { if (!box.contains(e.target) && !e.target.closest("#locBtn,#plusLoc,.loc-cta")) { close(); done(null); } };
+      function close() { box.remove(); locPickClose = null; document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onDoc); }
+      locPickClose = () => { close(); done(null); };
+      if (anchor) { box.classList.add("inline"); anchor.after(box); } else $("form").appendChild(box);
       setTimeout(() => { document.addEventListener("keydown", onKey); document.addEventListener("mousedown", onDoc); }, 0);
-      box.querySelector(".loc-pick-o.on, .loc-pick-o").focus();
+      box.querySelector(".loc-pick-o.on, .loc-pick-o").focus({ preventScroll: !!anchor });
+      if (anchor) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });
   }
   $("locBtn").addEventListener("click", () => {
@@ -2647,7 +2653,12 @@
     b.type = "button";
     b.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span></span>';
     b.querySelector("span").textContent = lang() === "en" ? "Turn on location" : "위치 공유 켜기";
-    b.addEventListener("click", () => { if (!locOn) $("locBtn").click(); });
+    b.addEventListener("click", () => {
+      if (locOn) return;
+      const nx = b.nextElementSibling;
+      if (nx && nx.classList.contains("loc-pick") && locPickClose) { locPickClose(); return; }
+      askLocPrec(b).then((pr) => { if (!pr) return; locPrec = pr; store.set("locPrec", pr); getLoc(false); });
+    });
     const tools = body.querySelector(".tools");
     if (tools) body.insertBefore(b, tools); else body.appendChild(b);
   }
@@ -2866,7 +2877,7 @@
       const mi = el("input");
       mi.type = "text";
       mi.maxLength = 150;
-      mi.placeholder = L("기억할 것 (예: 내 이름은 민준이야)", "Something to remember (e.g. My name is Minjun)");
+      mi.placeholder = L("기억할 것", "Something to remember");
       mi.setAttribute("aria-label", L("기억할 것", "Something to remember"));
       const mb = el("button", "go", L("추가", "Add"));
       mb.type = "button";
@@ -2925,7 +2936,7 @@
     const ta = el("textarea", "set-instr");
     ta.maxLength = 1500;
     ta.rows = 6;
-    ta.placeholder = L("예: 나는 고등학생이야. 수학은 풀이 과정을 단계별로 보여 줘.", "e.g. I'm a high-school student. Show math step by step.");
+    ta.placeholder = "";
     ta.setAttribute("aria-label", L("쿼리봇에게 바라는 점", "Instructions"));
     ta.value = store.get("instr") || "";
     const note = el("div", "set-note");
@@ -3631,6 +3642,11 @@
   $("mem2").checked = mem.checked;
   $("mem2").addEventListener("change", () => { mem.checked = $("mem2").checked; mem.dispatchEvent(new Event("change")); });
   $("newTop").addEventListener("click", newChat);
+  $("brandHome").addEventListener("click", (e) => {  // 54차: 로고 = 첫 채팅 화면 (새 탭 열기 등은 그대로)
+    if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    newChat();
+  });
 
   function applyPlaceholder() { input.placeholder = input.dataset["ph" + (lang() === "en" ? "En" : "Ko")]; }
   // 언어를 바꾸면 안내 문구·대화 목록도 그 언어로
