@@ -841,6 +841,8 @@
   .turn .avatar.thinking .qfl{animation:qb-flk 1.6s ease-in-out infinite}
   .turn .avatar.thinking .qfl1{animation-delay:-.55s}.turn .avatar.thinking .qfl2{animation-delay:-1.1s}
   .turn .avatar.thinking .qtw{animation:qb-tw 1.2s ease-in-out infinite}
+  .turn .avatar.thinking:not(.wiki) svg{transform-origin:50% 50%;animation:qb-breathe 1.9s ease-in-out infinite}  /* 67차: 숨 쉬듯 */
+  @keyframes qb-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
   .qa-hello h2.qa-hero{position:relative}
   .qa-hero-logo{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);width:64px;height:64px;margin-bottom:18px;pointer-events:none}
   .qa-hero-logo svg{display:block;overflow:visible}
@@ -858,7 +860,7 @@
   .qbe .qtw{animation:qb-tw 1.2s ease-in-out infinite}
   @keyframes qe-slide{0%{transform:translateX(-46px)}45%,80%{transform:translateX(0)}100%{transform:translateX(46px)}}
   @keyframes qe-show{0%,38%{opacity:0}48%,78%{opacity:1}90%,100%{opacity:0}}
-  @media (prefers-reduced-motion:reduce){.qbm .qfl,.qbm .qtw,.qbe .qe-moon,.qbe .qe-show{animation:none}.qbe .qe-show{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.qbm .qfl,.qbm .qtw,.qbe .qe-moon,.qbe .qe-show,.turn .avatar.thinking svg{animation:none}.qbe .qe-show{opacity:1}}
   .qbm .lg1{fill:#9a9ca1}.qbm .lg2{fill:#55565c}.qbm .lg3{fill:#1f2023}
   .qbm .lgf1{fill:#55565c;stroke:#55565c}.qbm .lgf2{fill:#1f2023;stroke:#1f2023}
   .qbm .lg-moon{fill:#0b0b0c}.qbm .lg-rim{stroke:none}
