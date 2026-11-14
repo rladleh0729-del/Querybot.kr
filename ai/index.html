@@ -745,6 +745,32 @@
   html[data-theme=dark] .qa-hero .tx{background:none;color:#dbe4ff;-webkit-text-fill-color:#dbe4ff}
   html[data-theme=dark] .qa-hero .caret{background:#dbe4ff}
   .qa-glow{filter:saturate(.82)}
+  /* ── 42차 (2026-11-14): 디자인 제안 반영 ── */
+  /* 대화: 답 칸을 넓게, 글자 16px·줄 간격 1.7·문단 간격 18px, 입력창 폭 = 답 칸 폭 */
+  .turn{max-width:100%}
+  .turn .text{font-size:16px;line-height:1.7}
+  .text .md-p+.md-p{margin-top:18px}
+  @media (min-width:1400px){
+    .qa-log{max-width:900px}
+    .qa-form,.qa-fine,.qa-usage,.qa-atts,.att-note{max-width:860px}
+    .me,.src-text{font-size:16px}
+  }
+  /* 첫 화면: 제목 크게·위로, 입력창 자리는 그대로(제목이 커진 만큼 아래 여백을 늘려 상쇄) */
+  .qa-hello h2.qa-hero{font-weight:680}
+  @media (min-width:761px){
+    .qa-hello h2.qa-hero{font-size:clamp(30px,2.4vw,36px)}
+    .qa-chat:not(.chatting) .qa-log{padding-bottom:0}
+    .qa-chat:not(.chatting) .qa-hello{padding:0 0 24px}
+    .qa-chat:not(.chatting) .qa-composer{padding-bottom:calc(108px + env(safe-area-inset-bottom))}
+    /* 하늘빛의 가장 진한 곳 = 입력창 한가운데 (실측: 입력창 가운데 = 채팅 칸 가운데 - 18px) */
+    .qa-glow .g-layer{top:calc(50% - 18px)}
+    .qa-glow::after{top:calc(50% - 18px)}
+  }
+  /* 전환: 대화 화면 위쪽에만 아주 옅은 파랑을 남김(가운데 빛은 0.6초 동안 사라짐) */
+  .qa-chat::before{content:"";position:absolute;left:0;right:0;top:0;height:260px;z-index:0;pointer-events:none;opacity:0;transition:opacity .6s ease;
+    background:linear-gradient(180deg,rgba(191,219,254,.42) 0%,rgba(219,234,254,.22) 45%,rgba(255,255,255,0) 100%);filter:saturate(.82)}
+  .qa-chat.chatting::before{opacity:1}
+  html[data-theme=dark] .qa-chat::before{background:linear-gradient(180deg,rgba(59,130,246,.13) 0%,rgba(59,130,246,0) 100%)}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -872,7 +898,7 @@
   jumpBtn.hidden = true;
   jumpBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
   function paintJump() {
-    const hide = follow || nearBottom();
+    const hide = follow || nearBottom() || !!log.querySelector(".qa-hello");
     if (jumpBtn.hidden !== hide) jumpBtn.hidden = hide;
     if (!hide) jumpBtn.setAttribute("aria-label", lang() === "en" ? "Jump to latest" : "맨 아래로");
   }
@@ -1874,13 +1900,16 @@
   // 글 덩어리 → 표·제목·목록·인용·구분선은 따로 그리고, 나머지는 줄바꿈 그대로
   function addBlocks(node, s) {
     if (!s) return;
-    if (!/[|#>*~\[-]|^\s*\d{1,3}[.)]\s/m.test(s)) { node.appendChild(document.createTextNode(s)); return; }  // 꾸밈이 없으면 그대로
+    if (!/[|#>*~\[-]|^\s*\d{1,3}[.)]\s/m.test(s)) {  // 꾸밈이 없으면 그대로 — 빈 줄로 나뉜 문단만 문단 칸으로 (42차, 문단 간격 18px)
+      s.split(/\n[ \t]*\n+/).forEach((para) => { para = para.replace(/^\n+|\n+$/g, ""); if (para) node.appendChild(el("div", "md-p", para)); });
+      return;
+    }
     const lines = s.split("\n");
     let plain = [];
     const flush = () => {
       while (plain.length && !plain[0].trim()) plain.shift();
       while (plain.length && !plain[plain.length - 1].trim()) plain.pop();
-      if (plain.length) { const d = el("div", "md-p"); addInline(d, plain.join("\n")); node.appendChild(d); }
+      if (plain.length) plain.join("\n").split(/\n[ \t]*\n+/).forEach((para) => { if (para.trim()) { const d = el("div", "md-p"); addInline(d, para.replace(/^\n+|\n+$/g, "")); node.appendChild(d); } });
       plain = [];
     };
     for (let i = 0; i < lines.length; i++) {
@@ -2283,7 +2312,21 @@
   // 끌어 놓기: 채팅 칸 어디에 놓아도 (파일을 놓았을 때 브라우저가 그 파일로 넘어가 버리지 않게 항상 막는다)
   const chatArea = document.querySelector(".qa-chat");
   // 첫 화면(인사말)에서만 뒤쪽 하늘빛 — 대화가 시작되면 서서히 사라짐
-  const paintGlow = () => chatArea.classList.toggle("chatting", !log.querySelector(".qa-hello"));
+  // 첫 화면일 때 입력창 위치를 기억 → 대화가 시작되면 거기서 아래로 내려가는 효과 (바뀌는 순간엔 이미 밀려 있어서 미리 잼)
+  let helloCompTop = null;
+  const paintGlow = () => {
+    const chatting = !log.querySelector(".qa-hello"), comp = document.querySelector(".qa-composer");
+    if (!chatting) follow = true;  // 첫 화면으로 돌아오면 따라가기 다시 켬 → ↓ 버튼이 남지 않게 (42차, 사용자 신고)
+    paintJump();
+    if (chatting !== chatArea.classList.contains("chatting")) chatArea.classList.toggle("chatting", chatting);
+    else if (chatting) return;
+    if (!chatting) { helloCompTop = comp.getBoundingClientRect().top; return; }
+    if (reduceMotion || !comp.animate || helloCompTop == null) return;  // 대화 시작: 입력창이 가운데에서 아래로 0.5초 (42차)
+    const dy = helloCompTop - comp.getBoundingClientRect().top;
+    helloCompTop = null;
+    if (Math.abs(dy) > 4) comp.animate([{ transform: "translateY(" + dy + "px)" }, { transform: "translateY(0)" }], { duration: 500, easing: "cubic-bezier(.2,.8,.2,1)" });
+  };
+  addEventListener("resize", () => { if (!chatArea.classList.contains("chatting")) helloCompTop = document.querySelector(".qa-composer").getBoundingClientRect().top; });
   new MutationObserver(paintGlow).observe(log, { childList: true });
   paintGlow();
   const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
