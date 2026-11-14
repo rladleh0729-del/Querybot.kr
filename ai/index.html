@@ -975,6 +975,14 @@
     try { convs = JSON.parse(localStorage.getItem(CONV_KEY) || "[]"); if (!Array.isArray(convs)) convs = []; } catch (e) { convs = []; }
   }
   let cur = null;  // 지금 대화 {id, title, created, updated, model, messages: [{role, content, kind?, source?}]}
+  // 주소에 지금 대화 표시(?c=대화ID) — 새로고침해도 그 대화 그대로 (40차, 다른 AI 사이트처럼)
+  function setUrlConv(id) {
+    try {
+      const u = new URL(location.href);
+      if (id) u.searchParams.set("c", id); else u.searchParams.delete("c");
+      if (u.href !== location.href) history.replaceState(history.state, "", u.href);
+    } catch (e) {}
+  }
   function saveConvs() {
     if (!histOn) return;
     convs = convs.slice(0, MAX_CONVS);
@@ -1063,6 +1071,7 @@
 
   function newChat() {
     cur = null;
+    setUrlConv(null);
     const dm = store.get("defModel");  // 설정 > 일반 > 새 대화 기본 모델
     if (dm && dm !== modelSel.value && [...modelSel.options].some((o) => o.value === dm)) { modelSel.value = dm; store.set("model", dm); paintModel(); setQuota(); }
     showHello();
@@ -1076,6 +1085,7 @@
     const c = cur && cur.id === id ? cur : convs.find((x) => x.id === id);
     if (!c) return;
     cur = c;
+    setUrlConv(c.id);
     log.innerHTML = "";
     const msgs = upto != null ? c.messages.slice(0, upto) : c.messages;  // upto: 질문 고치기 때 고친 말 앞까지만
     for (let i = 0; i < msgs.length; i++) {
@@ -1100,6 +1110,7 @@
       // Gemma 4 대화는 제목을 비워 두고(목록엔 '새 대화') 답이 온 뒤 Gemma가 붙인다. 기본 모델은 예전처럼 첫 말
       const g4 = smart(modelSel.value);
       cur = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title: g4 ? "" : text.slice(0, 40), titled: !g4, created: Date.now(), updated: Date.now(), model: modelSel.value, messages: [] };
+      setUrlConv(cur.id);
     }
     const a = { role: "assistant", content: reply, kind };
     if (source) a.source = source;
@@ -1345,6 +1356,9 @@
     if (reduceMotion || animate === false) { renderRich(p, text); finish(); return; }
     p.classList.add("typing");
     const chars = [...text];
+    // 길이에 따라 빨라지기 (40차): 짧은 답은 예전처럼 초당 약 90자, 긴 답은 전체 시간이 log로만 늘어남
+    const TYPE_MS = Math.max(300, Math.min(chars.length * 11, 1500 + 2000 * Math.log2(1 + chars.length / 500)));
+    const typeStart = performance.now();
     const spans = mathSpans(text);  // 수식이 있는 곳(글자 위치): 한 글자씩 보여 주지 않고 통째로
     let i = 0;
     let halted = false;
@@ -1362,7 +1376,7 @@
         return;
       }
       try {
-        i = Math.min(chars.length, i + 2);
+        i = Math.min(chars.length, Math.max(i + 2, Math.ceil(chars.length * (performance.now() - typeStart) / TYPE_MS)));
         for (const [s, e] of spans) if (i > s && i < e) { i = e; break; }  // 수식 안으로 들어가면 수식 끝까지 한 번에
         renderRich(p, chars.slice(0, i).join(""));
         if (spans.length) renderMath(p);  // 다 나오기 전에도 이미 나온 수식은 바로 그림으로
@@ -3362,6 +3376,8 @@
     checkHealth();
     checkOwner();
     resumeOwner();
+    const urlConv = new URLSearchParams(location.search).get("c");  // 새로고침: 주소의 대화를 다시 열기 (40차)
+    if (urlConv) { if (convs.some((x) => x.id === urlConv)) openConv(urlConv); else setUrlConv(null); }
     setTimeout(resumePending, 200);  // 답을 받기 전에 닫혔던 질문 이어 받기
   });
   // 주기적으로 확인하지 않는다 (확인 요청이 서버를 계속 깨워 무료 사용 시간을 쓰지 않게).
