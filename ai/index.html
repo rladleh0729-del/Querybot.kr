@@ -84,6 +84,10 @@
   .ai-status.on i{background:var(--ok);box-shadow:0 0 0 3px rgba(30,138,82,.18)}
   .ai-status.off i{background:var(--danger)}
   .qa-scroll{flex:1;min-height:0;overflow-y:auto}
+  .qa-jump-slot{position:absolute;left:50%;top:-50px;transform:translateX(-50%);z-index:3}
+  .qa-jump{width:38px;height:38px;border-radius:50%;border:1px solid var(--line2);background:var(--panel);color:var(--text);display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+  .qa-jump:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .qa-jump[hidden]{display:none}
   .qa-log{max-width:800px;min-height:100%;margin:0 auto;padding:26px 20px 14px;display:flex;flex-direction:column;gap:18px}
 
   /* 빈 채팅: 가운데 아이콘·소개·추천 질문 */
@@ -771,6 +775,7 @@
       <div class="qa-log" id="log" aria-live="polite"></div>
     </div>
     <div class="qa-composer">
+      <div class="qa-jump-slot" id="jumpSlot"></div>
       <div class="qa-atts" id="atts" hidden></div>
       <form id="form" class="qa-form" autocomplete="off">
         <button id="attachBtn" class="qa-attach" type="button" aria-label="사진·파일 올리기, 위치 공유" title="사진·파일 올리기 · 위치 공유" aria-haspopup="menu" aria-expanded="false" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -844,12 +849,52 @@
     if (text != null) e.textContent = text;
     return e;
   }
-  const toBottom = () => { scroller.scrollTop = scroller.scrollHeight; };
+  // 따라 내려가기 (2026-11-14 사용자: "위로 올리면 강제로 아래로 스크롤하지 말고 내버려 둬") — 다른 AI 앱처럼
+  // 맨 아래에 있을 때만 새 글을 따라 내려가고, 위로 올리면 멈춤. 맨 아래로 돌아오면 다시 따라감.
+  let follow = true, autoTop = 0, touchY = null;
+  const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48;
+  const jumpBtn = el("button", "qa-jump");
+  jumpBtn.type = "button";
+  jumpBtn.hidden = true;
+  jumpBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
+  function paintJump() {
+    const hide = follow || nearBottom();
+    if (jumpBtn.hidden !== hide) jumpBtn.hidden = hide;
+    if (!hide) jumpBtn.setAttribute("aria-label", lang() === "en" ? "Jump to latest" : "맨 아래로");
+  }
+  const stopFollow = () => { if (scroller.scrollTop > 0) { follow = false; paintJump(); } };  // 올릴 곳이 있을 때만(짧은 대화에서 휠을 굴려도 따라가기 유지)
+  const toBottom = (force) => {
+    if (force === true) follow = true;
+    if (follow) { scroller.scrollTop = scroller.scrollHeight; autoTop = scroller.scrollTop; }
+    paintJump();
+  };
+  scroller.addEventListener("scroll", () => {
+    if (nearBottom()) follow = true;
+    else if (scroller.scrollTop < autoTop - 4) follow = false;  // 사용자가 위로 올림(스크롤 막대 끌기 포함)
+    paintJump();
+  }, { passive: true });
+  scroller.addEventListener("wheel", (e) => { if (e.deltaY < 0) stopFollow(); }, { passive: true });  // 휠은 스크롤보다 먼저 와서 끌려 내려가기 전에 멈춤
+  scroller.addEventListener("touchstart", (e) => { touchY = e.touches[0] ? e.touches[0].clientY : null; }, { passive: true });
+  scroller.addEventListener("touchmove", (e) => {
+    if (touchY != null && e.touches[0] && e.touches[0].clientY > touchY + 6) stopFollow();  // 손가락을 아래로 = 화면을 위로
+  }, { passive: true });
+  document.addEventListener("keydown", (e) => {
+    const tg = e.target && e.target.tagName;
+    if (tg === "TEXTAREA" || tg === "INPUT" || tg === "SELECT") return;
+    if (e.key === "PageUp" || e.key === "ArrowUp" || e.key === "Home") stopFollow();
+  });
+  jumpBtn.addEventListener("click", () => {
+    follow = true;
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: reduceMotion ? "auto" : "smooth" });
+    autoTop = scroller.scrollHeight - scroller.clientHeight;
+    paintJump();
+  });
+  $("jumpSlot").appendChild(jumpBtn);
   function put(node) {
     const hello = log.querySelector(".qa-hello");
     if (hello) hello.remove();
     log.appendChild(node);
-    toBottom();
+    toBottom(node.classList.contains("me") || node.classList.contains("me-wrap"));  // 내가 보낸 말은 항상 맨 아래로
     return node;
   }
   // 내 말: 첨부가 있으면 말풍선 위에 그림 썸네일·파일 이름 (저장된 대화는 이름만 남아 있음)
@@ -1036,7 +1081,7 @@
     paintModel();
     renderList();
     closeSide();
-    toBottom();
+    toBottom(true);
   }
 
   // 한 번 주고받을 때마다 지금 대화에 저장 (첫 질문이 대화 제목)
