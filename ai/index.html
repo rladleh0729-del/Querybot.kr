@@ -771,6 +771,16 @@
   .qa-chat::before{content:"";position:absolute;left:0;right:0;top:0;height:260px;z-index:0;pointer-events:none;opacity:0;transition:opacity .6s ease;
     background:linear-gradient(180deg,rgba(191,219,254,.42) 0%,rgba(219,234,254,.22) 45%,rgba(255,255,255,0) 100%);filter:saturate(.82)}
   .qa-chat.chatting::before{opacity:1}
+  /* ── 48차: 보내기 단추 조금 작게, 기다리는 동안 점 3개 ── */
+  .qa-send{width:40px;height:40px}
+  @media (min-width:1800px){.qa-send{width:42px;height:42px}}
+  .think-dots{display:inline-flex;align-items:center;gap:4px;height:16px;margin-left:4px}
+  .think-dots i{width:6px;height:6px;border-radius:50%;background:#71717a;animation:qa-dot 1.2s ease-in-out infinite}
+  .think-dots i:nth-child(2){animation-delay:.16s}
+  .think-dots i:nth-child(3){animation-delay:.32s}
+  @keyframes qa-dot{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:1}}
+  html[data-theme=dark] .think-dots i{background:#a1a1aa}
+  @media (prefers-reduced-motion:reduce){.think-dots i{animation:none;opacity:.6}}
   /* ── 44차 (2026-11-14): 생성 중 오로라 — 회색 줄과 입력창 테두리만 천천히, Q 아이콘은 그대로 ── */
   .skel i{background:linear-gradient(90deg,#eef0f3 0%,#eef0f3 30%,#ebe3fb 43%,#f6e1ee 50%,#ebe3fb 57%,#eef0f3 70%,#eef0f3 100%);background-size:260% 100%;animation:qa-aurora 4.8s ease-in-out infinite}
   .skel i:nth-child(2){animation-delay:.35s}
@@ -934,7 +944,7 @@
           <button class="qa-model-btn" id="modelBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="모델 고르기"><span id="modelName">QueryBot the Best</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="qa-model-menu" id="modelMenu" role="listbox" aria-label="모델" hidden></div>
         </div>
-        <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5.5 11.5 12 5l6.5 6.5"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
+        <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
       </form>
       <div class="qa-usage" id="usageLine"><button class="u-btn" id="usageBtn" type="button" hidden><svg class="ring" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="7.5"/><circle class="fg" cx="10" cy="10" r="7.5"/></svg><span class="u-txt"></span></button></div>
     </div>
@@ -1440,8 +1450,9 @@
     const { turn, body } = turnShell("ai");
     turn.querySelector(".avatar").classList.add("thinking");
     body.querySelector(".who-tag").remove();
-    const th = el("span", "think");
-    th.append(spark(), el("span", "", label || t("thinking")));
+    const th = el("span", label ? "think" : "think-dots");
+    if (label) th.append(spark(), el("span", "", label));
+    else { th.setAttribute("role", "status"); th.setAttribute("aria-label", t("thinking")); th.append(el("i"), el("i"), el("i")); }  // 48차: 글자 대신 점 3개
     body.querySelector(".who").appendChild(th);
     const sk = el("div", "skel");
     sk.setAttribute("aria-label", t("thinking"));
