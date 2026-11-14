@@ -3645,6 +3645,7 @@
   $("brandHome").addEventListener("click", (e) => {  // 54차: 로고 = 첫 채팅 화면 (새 탭 열기 등은 그대로)
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
+    if (!cur && log.querySelector(".qa-hello")) { closeSide(); input.focus(); return; }  // 55차: 이미 첫 화면이면 제목을 다시 쓰지 않음
     newChat();
   });
 
