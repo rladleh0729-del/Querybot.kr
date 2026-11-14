@@ -826,7 +826,8 @@
   const MODEL_NAME = { latest: "QueryBot the Best", stage3: "QueryBot 3", v1: "QueryBot 1" };
   // 서버가 잠들어 있고 기억한 목록도 없을 때(처음 온 폰 등) 보여 줄 기본 목록. 서버 목록이 오면 그걸로 바뀐다 (2026-11-09)
   // 똑똑한 모델(앞 대화·기억·지침·생각·도구를 쓰는 것): Gemma 4, GPT-OSS 120B(Groq, 2026-11-11)
-  function smart(m) { return m === "gemma4" || m === "gptoss"; }
+  function smart(m) { return m === "gemma4" || m === "gptoss" || m === "runpod"; }
+  var ownerModels = [], lastModelList = null;  // 주인 전용 모델(내 RunPod 서버, 2026-11-14) — 서버가 주인 계정을 확인한 뒤에만
   const DEFAULT_MODELS = [{ key: "latest", label: "QueryBot the Best" }, { key: "stage3", label: "QueryBot 3" }, { key: "v1", label: "QueryBot 1" }, { key: "gemma4", label: "Nova G" }];
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -2035,7 +2036,10 @@
   function fillModels(list) {
     if (!Array.isArray(list) || !list.length) return;
     // 서버가 잠들어 있을 때도 목록이 바로 보이게 이 브라우저에 기억 (2026-11-09: 폰에서 기본 모델 하나만 보이던 문제)
+    list = list.filter((m) => m.key !== "runpod");
+    lastModelList = list;
     store.set("models", JSON.stringify(list.map((m) => ({ key: m.key, label: m.label }))));
+    list = list.concat(ownerModels);
     const want = (cur && cur.model) || store.get("defModel") || store.get("model") || modelSel.value;
     modelSel.innerHTML = "";
     for (const m of list) {
@@ -2856,6 +2860,7 @@
       }
       await gdUpload();
       store.set("gdOn", "1");
+      checkOwner();
     } catch (e) { gdMsg = gdErr(e); }
     gdBusy = false;
     paintSet();
@@ -2868,6 +2873,23 @@
       gdT = setTimeout(() => { gdUpload().then(() => { if (setOpen && setTab === "data") paintSet(); }).catch(() => {}); }, 4000);
     } catch (e) {}
   }
+  async function checkOwner() {  // 주인 계정으로 로그인돼 있으면 '내 서버' 모델을 목록에 (확인은 서버가 Google 계정으로)
+    try {
+      if (!store.get("gdRt")) { if (ownerModels.length) { ownerModels = []; if (lastModelList) fillModels(lastModelList); } return; }
+      const tok = await gdToken();
+      const r = await fetch(API + "/owner", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gd: tok }) });
+      if (!r.ok) return;
+      const j = await r.json();
+      ownerModels = j.owner && Array.isArray(j.models) ? j.models : [];
+      if (lastModelList) fillModels(lastModelList);
+    } catch (e) {}
+  }
+  async function warmOwner() {  // '내 서버' 모델을 고르면 미리 깨움 (쉬고 있으면 깨어나는 데 1분 안팎)
+    try {
+      const tok = await gdToken();
+      fetch(API + "/owner/warm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gd: tok }) }).catch(() => {});
+    } catch (e) {}
+  }
   function gdOff() {
     const rt = store.get("gdRt");
     if (rt) fetch(API + "/gd/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rt }) }).catch(() => {});
@@ -2875,6 +2897,7 @@
     store.set("gdOn", "0");
     try { if (gdTok && gsiReady()) window.google.accounts.oauth2.revoke(gdTok, () => {}); } catch (e) {}
     gdTok = null; gdFileId = ""; gdMsg = "";
+    if (ownerModels.length) { ownerModels = []; if (lastModelList) fillModels(lastModelList); }
     paintSet();
   }
   function paintData(pane) {
@@ -3112,16 +3135,17 @@
       tick = setInterval(() => { lab.textContent = t("thinkingN") + " · " + Math.floor((Date.now() - t0) / 1000) + t("sec"); }, 1000);
     }
     // 생각하기는 1분 넘게 걸릴 수 있음. 아주 긴 글은 읽는 시간만큼 더 기다림(2천 자에 1초, 최대 +2분)
-    const limit = (thinking ? 200000 : WAKE_TIMEOUT) + Math.min(120000, Math.round(text.length / 2));
+    const limit = (asked === "runpod" ? 340000 : thinking ? 200000 : WAKE_TIMEOUT) + Math.min(120000, Math.round(text.length / 2));
     // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
-    const slow = thinking ? 0 : setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", t(online === true ? "working" : "waking"))); toBottom(); }, 5000);
+    const slow = thinking ? 0 : setTimeout(() => { wait.querySelector(".turn-body").appendChild(el("div", "wait-note", (asked === "runpod" ? (lang() === "en" ? "Waking your server… about a minute if it was idle." : "내 서버를 깨우는 중이에요. 쉬고 있었으면 1분 안팎 걸려요…") : t(online === true ? "working" : "waking")))); toBottom(); }, 5000);
     let err = null, warn = false;
+    const gdRun = asked === "runpod" ? await gdToken().catch(() => "") : "";
     const payload = JSON.stringify({ message: text, model: asked, history: before,
       images: sent.filter((a) => a.type === "image").map((a) => a.url),
       files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
       think: smart(asked) && !!opts.think, memory: smart(asked) ? memList() : [],
       style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
-      location: smart(asked) ? opts.loc || null : null, older, rid });
+      location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun });
     try {
       let r = null;
       try { r = await postChat(payload, limit, stopCtl.signal); } catch (e) { if (e && e.name === "AbortError") throw e; }
@@ -3257,6 +3281,7 @@
   // 모델을 바꾸면 다른 모델이 앞 대화를 이어받지 않게 새 대화로 시작한다.
   modelSel.addEventListener("change", () => {
     store.set("model", modelSel.value);
+    if (modelSel.value === "runpod") warmOwner();
     setQuota();
     // 모델을 바꿔도 같은 대화에서 이어서 (예전: 새 대화 + '모델을 바꿨습니다' 안내 — 2026-11-10 사용자: "자동으로 새 대화 넘어가지 않게")
   });
@@ -3280,6 +3305,7 @@
     try { saved = JSON.parse(store.get("models") || "null"); } catch (e) {}
     fillModels(Array.isArray(saved) && saved.length ? saved : DEFAULT_MODELS);
     checkHealth();
+    checkOwner();
     resumeOwner();
     setTimeout(resumePending, 200);  // 답을 받기 전에 닫혔던 질문 이어 받기
   });
