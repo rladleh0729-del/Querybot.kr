@@ -88,6 +88,8 @@
   .qa-jump{width:38px;height:38px;border-radius:50%;border:1px solid var(--line2);background:var(--panel);color:var(--text);display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.14)}
   .qa-jump:hover{border-color:var(--accent);color:var(--accent-ink)}
   .qa-jump[hidden]{display:none}
+  .qa-send .ic-stop,.qa-send.stop .ic-send{display:none}
+  .qa-send.stop .ic-stop{display:block}
   .qa-log{max-width:800px;min-height:100%;margin:0 auto;padding:26px 20px 14px;display:flex;flex-direction:column;gap:18px}
 
   /* 빈 채팅: 가운데 아이콘·소개·추천 질문 */
@@ -851,7 +853,7 @@
   }
   // 따라 내려가기 (2026-11-14 사용자: "위로 올리면 강제로 아래로 스크롤하지 말고 내버려 둬") — 다른 AI 앱처럼
   // 맨 아래에 있을 때만 새 글을 따라 내려가고, 위로 올리면 멈춤. 맨 아래로 돌아오면 다시 따라감.
-  let follow = true, autoTop = 0, touchY = null;
+  let follow = true, lastTop = 0, holdUntil = 0, touchY = null;
   const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 48;
   const jumpBtn = el("button", "qa-jump");
   jumpBtn.type = "button";
@@ -862,15 +864,23 @@
     if (jumpBtn.hidden !== hide) jumpBtn.hidden = hide;
     if (!hide) jumpBtn.setAttribute("aria-label", lang() === "en" ? "Jump to latest" : "맨 아래로");
   }
-  const stopFollow = () => { if (scroller.scrollTop > 0) { follow = false; paintJump(); } };  // 올릴 곳이 있을 때만(짧은 대화에서 휠을 굴려도 따라가기 유지)
+  // 사용자가 위로 올리려 함(휠·손가락·키): 올릴 곳이 있으면 따라가기를 멈추고 0.4초 동안은 다시 켜지 않음
+  const stopFollow = () => {
+    if (scroller.scrollHeight <= scroller.clientHeight + 4) return;  // 화면보다 짧은 대화는 그대로 따라감
+    follow = false;
+    holdUntil = Date.now() + 400;
+    paintJump();
+  };
   const toBottom = (force) => {
-    if (force === true) follow = true;
-    if (follow) { scroller.scrollTop = scroller.scrollHeight; autoTop = scroller.scrollTop; }
+    if (force === true) { follow = true; holdUntil = 0; }
+    if (follow) { scroller.scrollTop = scroller.scrollHeight; lastTop = scroller.scrollTop; }
     paintJump();
   };
   scroller.addEventListener("scroll", () => {
-    if (nearBottom()) follow = true;
-    else if (scroller.scrollTop < autoTop - 4) follow = false;  // 사용자가 위로 올림(스크롤 막대 끌기 포함)
+    const top = scroller.scrollTop, gap = scroller.scrollHeight - top - scroller.clientHeight;
+    if (top < lastTop - 1 && gap > 1.5) follow = false;  // 위로 움직임 = 사용자(글이 줄어 맨 아래로 당겨진 것만 빼고)
+    else if (top > lastTop + 1 && nearBottom() && Date.now() > holdUntil) follow = true;  // 아래로 내려 맨 아래에 닿음
+    lastTop = top;
     paintJump();
   }, { passive: true });
   scroller.addEventListener("wheel", (e) => { if (e.deltaY < 0) stopFollow(); }, { passive: true });  // 휠은 스크롤보다 먼저 와서 끌려 내려가기 전에 멈춤
@@ -885,8 +895,8 @@
   });
   jumpBtn.addEventListener("click", () => {
     follow = true;
+    holdUntil = 0;
     scroller.scrollTo({ top: scroller.scrollHeight, behavior: reduceMotion ? "auto" : "smooth" });
-    autoTop = scroller.scrollHeight - scroller.clientHeight;
     paintJump();
   });
   $("jumpSlot").appendChild(jumpBtn);
@@ -3109,8 +3119,8 @@
     send.classList.toggle("stop", on);
     send.setAttribute("aria-label", t(on ? "stopTip" : "sendTip"));
     send.title = on ? t("stopTip") : "";
-    send.querySelector(".ic-send").hidden = on;
-    send.querySelector(".ic-stop").hidden = !on;
+    send.querySelector(".ic-send").toggleAttribute("hidden", on);  // SVG에는 .hidden 속성이 없어 예전엔 그림이 안 바뀜(39차)
+    send.querySelector(".ic-stop").toggleAttribute("hidden", !on);
     if (on) send.disabled = false;
   }
   // 서버가 다시 켜질 때까지 /state를 3초마다 확인 (배포·재시작 중 끊긴 질문을 자동으로 다시 보내려고)
