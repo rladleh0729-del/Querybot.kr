@@ -779,6 +779,37 @@
   html[data-theme=dark] .qa-think[aria-pressed=true],html[data-theme=dark] .qa-think[aria-pressed=true]:hover{background:#c4c4c9!important;color:#17181b!important}
   html[data-theme=dark] .wpick button[aria-pressed=true]{background:#c4c4c9!important;color:#17181b}
   html[data-theme=dark] .set-switch[aria-checked=true]{background:#8a8a92}
+  /* ── 51차: 흐린 회색 대신 불투명한 차콜 (밝은 테마만, 크기·간격·아이콘은 그대로) ── */
+  html:not([data-theme=dark]){--text2:#41454B;--muted:#62676E;--line:#E5E6E8;--line2:#E5E6E8;--field-line:#E5E6E8}
+  html:not([data-theme=dark]) .qa-form{border-color:#E5E6E8}
+  html:not([data-theme=dark]) .qa-form .qa-attach{border-color:#E5E6E8;color:#41454B}
+  html:not([data-theme=dark]) .qa-new{border-color:#E5E6E8}
+  html:not([data-theme=dark]) .qa-think{color:#41454B}
+  html:not([data-theme=dark]) .qa-think[aria-pressed=true],html:not([data-theme=dark]) .qa-think[aria-pressed=true]:hover{background:#41454B!important;color:#ffffff!important}
+  html:not([data-theme=dark]) .wpick button[aria-pressed=true]{background:#41454B!important}
+  html:not([data-theme=dark]) .set-switch[aria-checked=true]{background:#41454B}
+  html:not([data-theme=dark]) .qa-send:not(:disabled){background:#292C30!important}
+  html:not([data-theme=dark]) .qa-send:not(:disabled):hover{background:#1f2226!important}
+  html:not([data-theme=dark]) .qa-conv-open{color:#41454B}
+  html:not([data-theme=dark]) .qa-conv-open::before{opacity:1;background:#62676E}
+  html:not([data-theme=dark]) .qa-group{color:#62676E}
+  html:not([data-theme=dark]) .qa-hello p.qa-sub{color:#62676E}
+  html:not([data-theme=dark]) .qb-ai{color:#62676E}
+  html:not([data-theme=dark]) .qa-form .qa-model-btn{color:#41454B}
+  html:not([data-theme=dark]) .qa-form textarea::placeholder{color:#62676E;opacity:1}
+  html:not([data-theme=dark]) body.qa-page .navlinks a{color:#41454B}
+  html:not([data-theme=dark]) body.qa-page .nav .lang{border-color:#E5E6E8;color:#41454B}
+  html:not([data-theme=dark]) .qa-side-foot{color:#62676E}
+  /* 위치 정밀도 고르기 창 (51차) */
+  .loc-pick{position:absolute;left:12px;bottom:calc(100% + 10px);z-index:60;width:min(340px,calc(100vw - 40px));padding:12px;border:1px solid var(--line2);border-radius:22px;background:var(--panel);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:8px}
+  .loc-pick-t{font-size:13.5px;font-weight:700;color:var(--text);padding:2px 6px 4px}
+  .loc-pick-o{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line2);border-radius:16px;background:var(--field);color:var(--text);padding:10px 14px;font:inherit;cursor:pointer}
+  .loc-pick-o b{font-size:14.5px}
+  .loc-pick-o span{font-size:12.5px;color:var(--muted)}
+  .loc-pick-o:hover,.loc-pick-o:focus-visible{border-color:var(--text2);outline:0}
+  .loc-pick-o.on{border-color:var(--text2)}
+  .loc-pick-x{align-self:flex-end;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;padding:4px 10px;border-radius:999px;cursor:pointer}
+  .loc-pick-x:hover{background:var(--panel2)}
   /* 50차: 보내기(·멈춤) 단추도 같은 회색빛 검정 */
   .qa-send:not(:disabled){background:#55565c!important;color:#ffffff}
   .qa-send:not(:disabled):hover{background:#47484d!important}
@@ -948,8 +979,8 @@
           <button type="button" role="menuitem" id="plusFile"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.4 11.1-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg><span data-ko="사진·파일 올리기" data-en="Upload photos &amp; files">사진·파일 올리기</span></button>
           <button type="button" role="menuitemcheckbox" id="plusLoc" aria-checked="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span data-ko="위치 공유" data-en="Share location">위치 공유</span><span class="st"></span></button>
         </div>
-        <button id="thinkBtn" class="qa-think" type="button" aria-pressed="false" hidden><span class="spark" aria-hidden="true"></span><span class="lbl">생각</span></button>
-        <button id="locBtn" class="qa-think qa-loc" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span class="lbl">위치</span></button>
+        <button id="thinkBtn" class="qa-think" type="button" aria-pressed="false" hidden><span class="spark" aria-hidden="true"></span><span class="lbl" data-ko="생각" data-en="Think">생각</span></button>
+        <button id="locBtn" class="qa-think qa-loc" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span class="lbl" data-ko="위치" data-en="Location">위치</span></button>
         <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
         <textarea id="input" rows="1" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <div class="qa-model">
@@ -2525,7 +2556,7 @@
   paintThink();
   // 위치 공유 (2026-11-09 사용자 요청): 누르면 브라우저가 위치 권한을 묻고, 허락하면 대략 좌표(소수 둘째 자리 ≈ 1km)를
   // Gemma 4 질문에 같이 보낸다. 날씨·근처 질문에만 쓰고 서버에는 저장하지 않는다. 켜 둔 상태는 이 브라우저에 기억
-  let locOn = false, myLoc = null;
+  let locOn = false, myLoc = null, locPrec = store.get("locPrec") === "exact" ? "exact" : "approx";  // 51차: 사용자가 고른 정밀도
   function locNote(msg, ok) {
     attNote(msg);
     const n = document.querySelector(".att-note");
@@ -2544,12 +2575,15 @@
   function getLoc(quiet) {
     if (!navigator.geolocation) { if (!quiet) locNote("이 브라우저는 위치 기능을 지원하지 않습니다. 지역 이름을 직접 말해 주세요(예: 서울 서초구 날씨)."); return; }
     paintLoc(true);
+    const exact = locPrec === "exact", k = exact ? 10000 : 100;  // 정확: 소수 넷째 자리(약 10m), 대략: 둘째 자리(약 1km)
     navigator.geolocation.getCurrentPosition((pos) => {
-      myLoc = { lat: Math.round(pos.coords.latitude * 100) / 100, lon: Math.round(pos.coords.longitude * 100) / 100 };
+      myLoc = { lat: Math.round(pos.coords.latitude * k) / k, lon: Math.round(pos.coords.longitude * k) / k, prec: exact ? "exact" : "approx" };
       locOn = true;
       store.set("loc", "1");
       paintLoc();
-      if (!quiet) locNote("위치 공유를 켰습니다. 이제 '내일 날씨 어때?'처럼 물어보세요.", true);
+      if (!quiet) locNote(lang() === "en"
+        ? (exact ? "Precise location is on." : "Approximate location (about 1 km) is on.") + " Try asking \"What's the weather tomorrow?\""
+        : (exact ? "정확한 위치 공유를 켰습니다." : "대략적인 위치(약 1km) 공유를 켰습니다.") + " 이제 '내일 날씨 어때?'처럼 물어보세요.", true);
     }, (err) => {
       locOn = false; myLoc = null;
       store.set("loc", "0");
@@ -2557,11 +2591,41 @@
       if (!quiet) locNote(err && err.code === 1
         ? "위치 권한이 거부되었습니다. 주소창 왼쪽 아이콘에서 위치를 '허용'으로 바꾸거나, 지역 이름을 직접 말해 주세요."
         : "위치를 가져오지 못했습니다. 잠시 뒤 다시 누르거나, 지역 이름을 직접 말해 주세요(예: 서울 서초구 날씨).");
-    }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
+    }, { enableHighAccuracy: exact, timeout: exact ? 15000 : 12000, maximumAge: exact ? 60000 : 600000 });
+  }
+  // 위치를 켤 때: 정확한 위치 / 대략적인 위치를 사용자가 고름 (51차)
+  function askLocPrec() {
+    return new Promise((done) => {
+      document.querySelectorAll(".loc-pick").forEach((x) => x.remove());
+      const en = lang() === "en";
+      const box = el("div", "loc-pick");
+      box.setAttribute("role", "dialog");
+      box.setAttribute("aria-label", en ? "Location sharing" : "위치 공유 방식");
+      box.appendChild(el("div", "loc-pick-t", en ? "Share which location?" : "어떤 위치를 공유할까요?"));
+      const opt = (val, title, sub) => {
+        const b = el("button", "loc-pick-o" + (locPrec === val ? " on" : ""));
+        b.type = "button";
+        b.append(el("b", "", title), el("span", "", sub));
+        b.addEventListener("click", () => { close(); done(val); });
+        return b;
+      };
+      box.append(opt("exact", en ? "Precise location" : "정확한 위치", en ? "GPS · about 10 m — best for nearby places" : "GPS · 약 10m — 근처 장소까지 정확하게"),
+                 opt("approx", en ? "Approximate location" : "대략적인 위치", en ? "About 1 km — enough for weather" : "약 1km — 날씨에는 이걸로 충분"));
+      const cancel = el("button", "loc-pick-x", en ? "Cancel" : "취소");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => { close(); done(null); });
+      box.appendChild(cancel);
+      const onKey = (e) => { if (e.key === "Escape") { close(); done(null); } };
+      const onDoc = (e) => { if (!box.contains(e.target) && !e.target.closest("#locBtn,#plusLoc")) { close(); done(null); } };
+      function close() { box.remove(); document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onDoc); }
+      $("form").appendChild(box);
+      setTimeout(() => { document.addEventListener("keydown", onKey); document.addEventListener("mousedown", onDoc); }, 0);
+      box.querySelector(".loc-pick-o.on, .loc-pick-o").focus();
+    });
   }
   $("locBtn").addEventListener("click", () => {
-    if (locOn) { locOn = false; myLoc = null; store.set("loc", "0"); paintLoc(); locNote("위치 공유를 껐습니다.", true); return; }
-    getLoc(false);
+    if (locOn) { locOn = false; myLoc = null; store.set("loc", "0"); paintLoc(); locNote(lang() === "en" ? "Location sharing is off." : "위치 공유를 껐습니다.", true); return; }
+    askLocPrec().then((pr) => { if (!pr) return; locPrec = pr; store.set("locPrec", pr); getLoc(false); });
   });
   paintLoc();
   // 전에 켜 두었고 이미 권한이 있으면 조용히 다시 받는다 (권한 창을 새로 띄우지 않음)
