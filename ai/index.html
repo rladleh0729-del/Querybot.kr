@@ -11,6 +11,7 @@
 <link rel="apple-touch-icon" href="/ai/apple-touch-icon.png">
 <link rel="stylesheet" href="/assets/style.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-serif-kr@5.3.1/index.css">
 <style>
   /* ===== 채팅 중심 화면 (2026-10-21): 화면 높이를 꽉 채우고, 입력창은 항상 맨 아래, 왼쪽은 이 기기에 저장된 대화 기록 ===== */
   html,body{height:100%}
@@ -733,6 +734,17 @@
   html[data-theme=dark] .qa-hero .caret{background:#a5b4fc}
   @media (max-width:640px){.qa-hello h2.qa-hero{font-size:clamp(21px,5.8vw,26px);white-space:normal}}
   .qa-plus-menu button[hidden]{display:none}
+  /* ── 41차 (2026-11-14): 글꼴·첫 화면 — 답·본문은 감성 세리프, 메뉴·버튼·입력·내 말은 산세리프(사이트 공통 그대로) ── */
+  :root{--qa-serif:"Noto Serif KR Variable","Noto Serif KR","Nanum Myeongjo",AppleMyungjo,Batang,serif}
+  .turn .text,.thought-body{font-family:var(--qa-serif);font-weight:400;letter-spacing:0}
+  .turn .text{line-height:1.8}
+  .turn .text b,.turn .text strong,.turn .text h1,.turn .text h2,.turn .text h3,.turn .text h4{font-weight:650}
+  .qa-hello h2.qa-hero{font-family:var(--qa-serif);font-weight:630;letter-spacing:-.02em}
+  .qa-hero .tx{background:none;color:#172554;-webkit-text-fill-color:#172554}
+  .qa-hero .caret{background:#172554}
+  html[data-theme=dark] .qa-hero .tx{background:none;color:#dbe4ff;-webkit-text-fill-color:#dbe4ff}
+  html[data-theme=dark] .qa-hero .caret{background:#dbe4ff}
+  .qa-glow{filter:saturate(.82)}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
