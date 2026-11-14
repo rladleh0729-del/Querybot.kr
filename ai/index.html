@@ -779,6 +779,11 @@
   html[data-theme=dark] .qa-think[aria-pressed=true],html[data-theme=dark] .qa-think[aria-pressed=true]:hover{background:#c4c4c9!important;color:#17181b!important}
   html[data-theme=dark] .wpick button[aria-pressed=true]{background:#c4c4c9!important;color:#17181b}
   html[data-theme=dark] .set-switch[aria-checked=true]{background:#8a8a92}
+  /* 50차: 보내기(·멈춤) 단추도 같은 회색빛 검정 */
+  .qa-send:not(:disabled){background:#55565c!important;color:#ffffff}
+  .qa-send:not(:disabled):hover{background:#47484d!important}
+  html[data-theme=dark] .qa-send:not(:disabled){background:#c4c4c9!important;color:#17181b}
+  html[data-theme=dark] .qa-send:not(:disabled):hover{background:#d4d4d8!important}
   /* ── 48차: 보내기 단추 조금 작게, 기다리는 동안 점 3개 ── */
   .qa-send{width:40px;height:40px}
   @media (min-width:1800px){.qa-send{width:42px;height:42px}}
