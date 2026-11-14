@@ -758,11 +758,11 @@
   /* 첫 화면: 제목 크게·위로, 입력창 자리는 그대로(제목이 커진 만큼 아래 여백을 늘려 상쇄) */
   .qa-hello h2.qa-hero{font-weight:680}
   @media (min-width:761px){
-    .qa-chat{--hero-gap:clamp(48px,18vh,250px)}  /* 45차: 제목-입력창 간격(창 높이에 맞춰) */
-    .qa-hello h2.qa-hero{font-size:clamp(32px,2.8vw,52px)}
+    .qa-chat{--hero-gap:clamp(40px,15vh,210px)}  /* 46차: 조금 아래로 */  /* 45차: 제목-입력창 간격(창 높이에 맞춰) */
+    .qa-hello h2.qa-hero{font-size:clamp(27px,2.38vw,44px)}  /* 46차: 15% 작게 */
     .qa-chat:not(.chatting) .qa-log{padding-bottom:0}
     .qa-chat:not(.chatting) .qa-hello{padding:0 0 calc(var(--hero-gap) - 8px)}  /* 45차: 제목을 훨씬 위로 */
-    .qa-chat:not(.chatting) .qa-composer{padding-bottom:calc(var(--hero-gap) + 98px + env(safe-area-inset-bottom))}  /* 45차: 위가 늘어난 만큼 → 입력창 자리 그대로 */
+    .qa-chat:not(.chatting) .qa-composer{padding-bottom:calc(var(--hero-gap) + 87px + env(safe-area-inset-bottom))}  /* 45차: 위가 늘어난 만큼 → 입력창 자리 그대로 */
     /* 하늘빛의 가장 진한 곳 = 입력창 한가운데 (실측: 입력창 가운데 = 채팅 칸 가운데 - 18px) */
     .qa-glow .g-layer{top:calc(50% - 18px)}
     .qa-glow::after{top:calc(50% - 18px)}
