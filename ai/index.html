@@ -786,6 +786,93 @@
   @keyframes qa-aurora-border{0%{background-position:0% 0}100%{background-position:200% 0}}
   @media (prefers-reduced-motion:reduce){.skel i,.qa-form.busy::after{animation:none}}
   html[data-theme=dark] .qa-chat::before{background:linear-gradient(180deg,rgba(59,130,246,.13) 0%,rgba(59,130,246,0) 100%)}
+  /* ── 47차 (2026-11-14): 그라파이트 테마 — 무채색 + 숯색 포인트 하나 (사용자 시안) ── */
+  :root{--accent:#1f2023;--accent2:#1f2023;--accent-ink:#141517;--accent-soft:#ececee;--on-accent:#ffffff;--focus:#52525b;
+    --text:#1d1e21;--text2:#3f4046;--muted:#77777f;--line:#e7e7ea;--line2:#dcdce0;--field-line:#dcdce0;--panel2:#f3f3f5}
+  html[data-theme=dark]{--accent:#ececee;--accent2:#ececee;--accent-ink:#ffffff;--accent-soft:#2b2c30;--on-accent:#17181b;--focus:#a1a1aa;
+    --bg:#161719;--panel:#1d1e21;--panel2:#26272b;--line:#2e2f33;--line2:#3a3b40;--field:#1d1e21;--field-line:#3a3b40}
+  .qa-side{background:#f6f6f7}
+  html[data-theme=dark] .qa-side{background:#1a1b1e}
+  .qa-conv.on{background:#e9e9ec}
+  html[data-theme=dark] .qa-conv.on{background:#2a2b2f}
+  .qa-form:focus-within{box-shadow:0 10px 32px rgba(0,0,0,.06),0 0 0 3px rgba(24,24,27,.07)}
+  .qa-form.drop{box-shadow:0 0 0 4px rgba(24,24,27,.08)}
+  .qa-logo{box-shadow:0 8px 22px rgba(0,0,0,.15)}
+  .cursor-glow{background:none}
+  /* 생성 중 효과: 숯색↔은색 */
+  .spark{background:linear-gradient(135deg,#3f3f46,#a1a1aa)}
+  .think{background:linear-gradient(90deg,#27272a,#8e8e96,#27272a);background-size:200% 100%;-webkit-background-clip:text;background-clip:text}
+  .avatar.thinking{background:linear-gradient(120deg,#18181b,#52525b,#a1a1aa,#52525b,#18181b);background-size:200% 200%}
+  @keyframes qa-glow{0%{box-shadow:0 0 0 0 rgba(39,39,42,.22)}100%{box-shadow:0 0 0 8px rgba(39,39,42,0)}}
+  .skel i{background:linear-gradient(90deg,#efeff1 0%,#efeff1 30%,#e1e1e5 43%,#f8f8f9 50%,#e1e1e5 57%,#efeff1 70%,#efeff1 100%);background-size:260% 100%}
+  .qa-form::after{background:linear-gradient(90deg,#18181b,#71717a,#d4d4d8,#71717a,#18181b);background-size:200% 100%}
+  html[data-theme=dark] .qa-form::after{background:linear-gradient(90deg,#d4d4d8,#71717a,#3f3f46,#71717a,#d4d4d8);background-size:200% 100%}
+  html[data-theme=dark] .spark{background:linear-gradient(135deg,#d4d4d8,#71717a)}
+  html[data-theme=dark] .think{background-image:linear-gradient(90deg,#e4e4e7,#8e8e96,#e4e4e7)}
+  html[data-theme=dark] .skel i{background:linear-gradient(90deg,#26272b 0%,#26272b 30%,#323338 43%,#3d3e43 50%,#323338 57%,#26272b 70%,#26272b 100%);background-size:260% 100%}
+  /* 첫 화면 바탕: 연회색 + 은은한 흰 물결 */
+  .qa-glow .g-layer{display:none}
+  .qa-glow{filter:none;background:linear-gradient(180deg,#f1f1f2 0%,#f4f4f5 100%)}
+  .qa-glow::before{content:"";position:absolute;left:-20%;top:-36%;width:82%;height:74%;border-radius:50%;transform:rotate(-14deg);pointer-events:none;
+    background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,255,255,.55) 55%,rgba(255,255,255,0));box-shadow:0 70px 90px -50px rgba(0,0,0,.05);filter:blur(18px)}
+  .qa-glow::after{left:auto;right:-24%;top:auto;bottom:-42%;width:86%;height:76%;transform:rotate(-10deg);border-radius:50%;
+    background:radial-gradient(closest-side,rgba(255,255,255,.92),rgba(255,255,255,.45) 55%,rgba(255,255,255,0));box-shadow:0 -60px 90px -50px rgba(0,0,0,.045);filter:blur(18px)}
+  html[data-theme=dark] .qa-glow{background:linear-gradient(180deg,#18191c,#1a1b1e)}
+  html[data-theme=dark] .qa-glow::before,html[data-theme=dark] .qa-glow::after{background:radial-gradient(closest-side,rgba(255,255,255,.05),rgba(255,255,255,0));box-shadow:none}
+  .qa-chat::before{background:linear-gradient(180deg,rgba(24,24,27,.025),rgba(24,24,27,0));filter:none}
+  html[data-theme=dark] .qa-chat::before{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0))}
+  /* 첫 화면 글자: 굵은 산세리프 숯색 + 회색 부제목 */
+  .qa-hello h2.qa-hero{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-weight:700;letter-spacing:-.025em}
+  .qa-hero .tx{color:#1d1e21;-webkit-text-fill-color:#1d1e21}
+  html[data-theme=dark] .qa-hero .tx{color:#f1f1f3;-webkit-text-fill-color:#f1f1f3}
+  .qa-hello p.qa-sub{margin:14px auto 0;max-width:none;font-size:clamp(15px,1.25vw,19px);line-height:1.5;color:#6e6e76;letter-spacing:-.01em}
+  html[data-theme=dark] .qa-hello p.qa-sub{color:#a1a1aa}
+  /* 입력창 */
+  .qa-form{background:#ffffff;border-color:#e2e2e6;border-radius:24px;box-shadow:0 10px 32px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04)}
+  html[data-theme=dark] .qa-form{background:var(--field);border-color:var(--field-line);box-shadow:0 10px 32px rgba(0,0,0,.3)}
+  .qa-form .qa-attach{width:36px;height:36px;border:1px solid #dcdce0;color:#2c2d31}
+  html[data-theme=dark] .qa-form .qa-attach{border-color:#3a3b40;color:#e4e4e7}
+  .qa-think{border-color:transparent;background:#f1f1f3;color:#2c2d31}
+  .qa-think:hover{border-color:transparent;background:#e7e7ea;color:#1d1e21}
+  .qa-think .spark{width:14px;height:14px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2.5 4.5 13.5h6.5l-1 8 8.5-11h-6.5z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2.5 4.5 13.5h6.5l-1 8 8.5-11h-6.5z'/%3E%3C/svg%3E") center/contain no-repeat}
+  .qa-think[aria-pressed=true]{background:#1f2023;color:#ffffff}
+  html[data-theme=dark] .qa-think{background:#2b2c30;color:#e4e4e7}
+  html[data-theme=dark] .qa-think[aria-pressed=true]{background:#ececee;color:#17181b}
+  .qa-form .qa-model-btn{color:#1d1e21;font-weight:700}
+  html[data-theme=dark] .qa-form .qa-model-btn{color:#ececee}
+  .qa-send:not(:disabled):hover{background:#000000}
+  html[data-theme=dark] .qa-send:not(:disabled):hover{background:#ffffff}
+  /* 사이드바: 알약 새 대화, 대화마다 말풍선 */
+  .qa-new{border-radius:999px;height:42px;background:#ffffff;border-color:#dcdce0;color:#1d1e21;font-weight:700}
+  html[data-theme=dark] .qa-new{background:#1d1e21;border-color:#3a3b40;color:#ececee}
+  .qa-conv-open::before{content:"";display:inline-block;width:17px;height:17px;margin-right:10px;vertical-align:-3px;background:currentColor;opacity:.72;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z'/%3E%3C/svg%3E") center/contain no-repeat}
+  /* 상표: 검은 Q 로고 + QueryBot + 연한 AI */
+  .nav .qb-brand{display:inline-flex;align-items:center;gap:10px;font-size:21px;font-weight:700;color:#1d1e21;letter-spacing:-.02em;text-decoration:none}
+  .nav .qb-brand b{color:inherit;font-weight:700}
+  .qb-logo{flex:none;width:30px;height:30px;border-radius:9px;background:#1f2023;color:#ffffff;display:grid;place-items:center;font-size:17px;font-weight:800;letter-spacing:0}
+  .qb-ai{font-weight:400;color:#8a8a92}
+  html[data-theme=dark] .nav .qb-brand{color:#f1f1f3}
+  html[data-theme=dark] .qb-logo{background:#ececee;color:#17181b}
+  /* PC: 가로 머리띠 없이 — 상표는 사이드바 위, 홈·게임·EN은 오른쪽 위 */
+  @media (min-width:861px){
+    body.qa-page .nav{position:absolute;top:0;left:0;right:0;z-index:40;background:transparent!important;border:0!important;box-shadow:none!important;
+      -webkit-backdrop-filter:none!important;backdrop-filter:none!important;pointer-events:none}
+    body.qa-page .nav .navin{max-width:none;width:auto;height:68px;margin:0;padding:0 26px}
+    body.qa-page .nav a,body.qa-page .nav button{pointer-events:auto}
+    body.qa-page .navlinks{gap:24px}
+    body.qa-page .navlinks a{display:inline-flex;align-items:center;gap:7px;font-size:15px;font-weight:500;color:#2c2d31}
+    body.qa-page .navlinks a::before{content:"";flex:none;width:19px;height:19px;background:currentColor;-webkit-mask:var(--qb-ic) center/contain no-repeat;mask:var(--qb-ic) center/contain no-repeat}
+    body.qa-page .navlinks a[href="/"]{--qb-ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4.2v-5.8H9.2v5.8H5A1.5 1.5 0 0 1 3.5 19z'/%3E%3C/svg%3E")}
+    body.qa-page .navlinks a[href="/games/"]{--qb-ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='3.5' width='7' height='7' rx='1.6'/%3E%3Crect x='13.5' y='3.5' width='7' height='7' rx='1.6'/%3E%3Crect x='3.5' y='13.5' width='7' height='7' rx='1.6'/%3E%3Crect x='13.5' y='13.5' width='7' height='7' rx='1.6'/%3E%3C/svg%3E")}
+    body.qa-page .nav .lang{height:36px;padding:0 15px;border:1px solid #dcdce0;border-radius:999px;background:#ffffff;color:#1d1e21;font-weight:700;margin-left:16px}
+    html[data-theme=dark] body.qa-page .navlinks a{color:#d4d4d8}
+    html[data-theme=dark] body.qa-page .nav .lang{background:#1d1e21;border-color:#3a3b40;color:#ececee}
+    .qa-side{padding-top:68px}
+    .qa-chat:not(.chatting){padding-top:68px}  /* 예전 머리띠 높이만큼 → 첫 화면 제목·입력창 자리 그대로 */
+    .qa-chat.chatting .qa-log{padding-top:64px}  /* 대화 화면 첫 줄이 오른쪽 위 메뉴에 가리지 않게 */
+    .qa-chat:not(.chatting) .qa-hello{padding-bottom:calc(var(--hero-gap) - 8px - 44px)}  /* 부제목 높이만큼 → 입력창 자리 그대로 */
+  }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -793,7 +880,7 @@
 <script>try{var qbT=localStorage.getItem("qbAi.theme");if(qbT==="dark"||(qbT==="system"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.dataset.theme="dark";}catch(e){}</script>
 </head>
 <body class="qa-page">
-<header class="nav"><div class="wrap navin"><a class="brand" href="/">Query<b>Bot</b> AI</a><nav class="navlinks"><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button></div></header>
+<header class="nav"><div class="wrap navin"><a class="brand qb-brand" href="/"><span class="qb-logo" aria-hidden="true">Q</span><span>Query<b>Bot</b></span><span class="qb-ai">AI</span></a><nav class="navlinks"><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button></div></header>
 <div class="qa-app">
   <aside class="qa-side" id="side" aria-label="대화 기록">
     <div class="qa-drawer-top"><a class="brand" href="/">Query<b>Bot</b></a><nav><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a><a href="/download/" data-ko="다운로드" data-en="Download"></a></nav><button class="lang" type="button">EN</button></div>
@@ -847,7 +934,7 @@
           <button class="qa-model-btn" id="modelBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="모델 고르기"><span id="modelName">QueryBot the Best</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="qa-model-menu" id="modelMenu" role="listbox" aria-label="모델" hidden></div>
         </div>
-        <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
+        <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5.5 11.5 12 5l6.5 6.5"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
       </form>
       <div class="qa-usage" id="usageLine"><button class="u-btn" id="usageBtn" type="button" hidden><svg class="ring" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="7.5"/><circle class="fg" cx="10" cy="10" r="7.5"/></svg><span class="u-txt"></span></button></div>
     </div>
@@ -1001,6 +1088,7 @@
     const tx = el("span", "tx");  // 커서는 없음 (2026-11-12 사용자: "처음부터 끝까지 보이지 마")
     h.append(tx);
     box.appendChild(h);
+    box.appendChild(el("p", "qa-sub", lang() === "en" ? "QueryBot helps you think, organize, and write." : "QueryBot이 생각하고, 정리하고, 작성까지 도와드릴게요."));  // 47차
     log.appendChild(box);
     // 첫 화면이 뜰 때마다 문구 하나를 골라 한 번만 써지고 그대로 (2026-11-12 사용자: "계속 보고 있을 때는 한 가지만")
     const lines = HELLO_LINES[lang() === "en" ? "en" : "ko"];
