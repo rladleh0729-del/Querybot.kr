@@ -771,6 +771,14 @@
   .qa-chat::before{content:"";position:absolute;left:0;right:0;top:0;height:260px;z-index:0;pointer-events:none;opacity:0;transition:opacity .6s ease;
     background:linear-gradient(180deg,rgba(191,219,254,.42) 0%,rgba(219,234,254,.22) 45%,rgba(255,255,255,0) 100%);filter:saturate(.82)}
   .qa-chat.chatting::before{opacity:1}
+  /* ── 49차: 선택·켜짐 상태는 회색빛 검정 (진한 숯색이 너무 튐) ── */
+  .qa-think[aria-pressed=true],.qa-think[aria-pressed=true]:hover{background:#55565c!important;color:#ffffff!important}
+  .wpick button[aria-pressed=true]{background:#55565c!important;color:#ffffff}
+  .set-switch[aria-checked=true]{background:#55565c}
+  .set-chip[aria-checked=true]{border-color:#8a8a92;color:var(--text)}
+  html[data-theme=dark] .qa-think[aria-pressed=true],html[data-theme=dark] .qa-think[aria-pressed=true]:hover{background:#c4c4c9!important;color:#17181b!important}
+  html[data-theme=dark] .wpick button[aria-pressed=true]{background:#c4c4c9!important;color:#17181b}
+  html[data-theme=dark] .set-switch[aria-checked=true]{background:#8a8a92}
   /* ── 48차: 보내기 단추 조금 작게, 기다리는 동안 점 3개 ── */
   .qa-send{width:40px;height:40px}
   @media (min-width:1800px){.qa-send{width:42px;height:42px}}
@@ -3555,6 +3563,30 @@
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && Date.now() - lastCheck > 120000) { lastCheck = Date.now(); checkHealth(); }
   });
+})();
+</script>
+<script>
+/* 49차 (2026-11-14 사용자: "마우스 올려두면 필요없는 설명 나타내지 마"): 마우스를 올리면 뜨는 설명(title)을 모두 없앰.
+   지금 있는 것과 나중에 코드가 붙이는 것 모두. 화면 읽기 프로그램용으로는 aria-label 로 옮김 */
+(() => {
+  const strip = (e, fresh) => {
+    const v = e.getAttribute("title");
+    if (v == null) return;
+    if (v && (fresh || !e.hasAttribute("aria-label"))) e.setAttribute("aria-label", v);
+    e.removeAttribute("title");
+  };
+  const scan = (n) => {
+    if (n.nodeType !== 1) return;
+    if (n.hasAttribute("title")) strip(n, false);
+    n.querySelectorAll("[title]").forEach((e) => strip(e, false));
+  };
+  scan(document.body);
+  new MutationObserver((ms) => {
+    for (const m of ms) {
+      if (m.type === "attributes") strip(m.target, true);
+      else m.addedNodes.forEach(scan);
+    }
+  }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["title"] });
 })();
 </script>
 </body>
