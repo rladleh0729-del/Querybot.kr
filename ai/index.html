@@ -1053,6 +1053,10 @@
   html[data-theme=dark] .text .md-table th{background:#292c32}
   .qa-log:has(.typing) .tools .tool-regen{opacity:.35;pointer-events:none}
   .qa-log[aria-busy=true] .tools .tool-regen{opacity:.35;pointer-events:none}
+/* 75차: 평가 선택 상태를 호버와 명확히 구분 */
+  .turn .tools button.tool-rating[aria-pressed=true],.turn .tools button.tool-rating[aria-pressed=true]:hover{background:#41454b;color:#fff}
+  .turn .tools button.tool-rating[aria-pressed=true] svg{fill:currentColor;stroke-width:1.4}
+  html[data-theme=dark] .turn .tools button.tool-rating[aria-pressed=true]{background:#e5e6e8;color:#202226}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1709,12 +1713,17 @@
     const key = ratingKey(getText(), meta);
     const up = action(svg('<path d="M7 10v11H3V10zM7 10l5-8c2 0 3 2 2 5l-1 3h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 2H7"/>'), "좋아요", "Good response");
     const down = action(svg('<path d="M7 14V3H3v11zM7 14l5 8c2 0 3-2 2-5l-1-3h6a2 2 0 0 0 2-2l-2-7a2 2 0 0 0-2-2H7"/>'), "싫어요", "Bad response");
+    up.classList.add("tool-rating"); down.classList.add("tool-rating");
+    let ratingNoticeTimer = 0;
     const paintRating = () => { up.setAttribute("aria-pressed", ratings[key] === 1 ? "true" : "false"); down.setAttribute("aria-pressed", ratings[key] === -1 ? "true" : "false"); };
     const rate = (value) => {
       try { ratings = JSON.parse(store.get("answerRatings") || "{}"); if (!ratings || typeof ratings !== "object" || Array.isArray(ratings)) ratings = {}; } catch (e) { ratings = {}; }
       if (ratings[key] === value) delete ratings[key]; else { delete ratings[key]; ratings[key] = value; }
       const entries = Object.entries(ratings).slice(-500); ratings = Object.fromEntries(entries);
       store.set("answerRatings", JSON.stringify(ratings)); paintRating();
+      clearTimeout(ratingNoticeTimer);
+      status.textContent = ratings[key] === 1 ? L("좋아요를 남겼어요", "Liked") : ratings[key] === -1 ? L("싫어요를 남겼어요", "Disliked") : L("평가를 취소했어요", "Rating removed");
+      ratingNoticeTimer = setTimeout(() => { status.textContent = ""; }, 1800);
     };
     up.addEventListener("click", () => rate(1)); down.addEventListener("click", () => rate(-1)); paintRating();
     tools.append(up, down);
