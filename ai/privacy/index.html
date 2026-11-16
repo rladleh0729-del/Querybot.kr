@@ -23,7 +23,7 @@
 <li data-ko="보낸 글, 최근 앞 대화 일부, 첨부한 그림·파일 내용, 메모리, 사용자 지침·말투" data-en="Your message, part of the recent conversation, attached images or files, memory, custom instructions and tone"></li>
 <li data-ko="'위치 공유'를 켠 경우에만 좌표 — 켤 때 직접 고른 정밀도(정확한 위치: 약 10m 단위, 대략적인 위치: 약 1km 단위)로, 날씨·근처 질문에만 씁니다" data-en="Coordinates, only if you turn on location sharing — at the precision you choose when turning it on (precise: about 10 m, approximate: about 1 km); used only for weather or nearby questions"></li>
 </ul>
-<p data-ko="Nova G(구글 Gemma 4 기반) 모델을 고르면 이 내용이 답을 만들기 위해 Cloudflare Workers AI로 전달됩니다. 웹 검색·날씨가 필요할 때는 검색어나 지역 이름이 검색 서비스(카카오, Bing 등)와 날씨·지도 서비스(OpenStreetMap, 노르웨이 기상청 등)로 전달됩니다. 서버 기록(로그)에는 글자 수·처리 시간 같은 숫자만 남기고 대화 내용은 남기지 않습니다. 답을 받는 중에 페이지를 닫거나 새로 고쳐도 이어 받을 수 있게, 만든 답은 서버 메모리에 최대 15분 동안만 두었다가 지웁니다(디스크에는 쓰지 않습니다)." data-en="If you choose Nova G (based on Google Gemma 4), this content is passed to Cloudflare Workers AI to generate the answer. For web search or weather, the search terms or place names are passed to search services (Kakao, Bing, etc.) and weather/map services (OpenStreetMap, MET Norway, etc.). Server logs keep only numbers such as length and time, not chat content. So that you can still get an answer after closing or reloading the page mid-reply, a finished answer is kept in server memory for at most 15 minutes and then deleted (never written to disk)."></p>
+<p data-ko="Nova G(구글 Gemma 4 기반) 모델을 고르면 이 내용이 답을 만들기 위해 Cloudflare Workers AI로 전달됩니다. 웹 검색·날씨가 필요할 때는 검색어나 지역 이름이 검색 서비스(카카오, Bing 등)와 날씨·지도 서비스(OpenStreetMap, 노르웨이 기상청 등)로 전달됩니다. 서버 기록(로그)에는 글자 수·처리 시간 같은 숫자만 남기고 대화 내용은 남기지 않습니다. 답을 받는 중에 페이지를 닫거나 새로 고쳐도 이어 받을 수 있게, 만든 답은 서버 메모리에 최대 15분 동안만 두었다가 지웁니다(디스크에는 쓰지 않습니다)." data-en="If you choose Nova G (based on Google Gemma 4), this content is passed to Cloudflare Workers AI to generate the answer. For web search or weather, the search terms or place names are passed to search services (Kakao, Bing, etc.) and weather/map services (OpenStreetMap, MET Norway, etc.). Server logs keep only numbers such as length and time, not chat content. So that you can still get an answer after closing or reloading the page mid-reply, a finished answer is kept in server memory for at most 15 minutes and then deleted (never written to disk). Separately, rated answers are stored as described under Answer feedback."></p>
 
 <h2 data-ko="3. Google 로그인과 서버 저장 (선택)" data-en="3. Google sign-in and server storage (optional)"></h2>
 <ul>
@@ -34,6 +34,13 @@
 <li data-ko="로그인 상태는 서버가 서명한 로그인 정보(180일)를 이 브라우저에 저장해 기억합니다. '로그아웃'을 누르면 이 브라우저에서 지워집니다." data-en="Your sign-in is remembered by a server-signed token (valid 180 days) stored in this browser. 'Sign out' removes it from this browser."></li>
 <li data-ko="설정 > 데이터 관리의 '서버 대화 지우기'를 누르면 서버에 저장된 대화 묶음이 바로 삭제됩니다." data-en="'Delete server copy' in Settings > Data immediately deletes the chat bundle stored on the server."></li>
 <li data-ko="로그인 정보와 저장된 대화는 기록 동기화에만 쓰며, 광고·판매·모델 학습 등 다른 목적으로 쓰거나 다른 곳에 넘기지 않습니다." data-en="Sign-in data and stored chats are used only to sync your history and are never used for ads, sold, used for model training, or shared."></li>
+</ul>
+
+<h2 data-ko="답변 평가 (좋아요·싫어요)" data-en="Answer feedback (likes and dislikes)"></h2>
+<ul>
+<li data-ko="답변의 좋아요·싫어요를 누르면 해당 질문과 답변, 선택한 평가, 모델, 평가 시각이 Cloudflare D1에 저장됩니다. 첨부 원본 파일은 포함하지 않습니다." data-en="When you rate an answer, that question and answer, rating, model and timestamp are stored in Cloudflare D1. Original attachments are not included."></li>
+<li data-ko="평가 변경·취소를 구분하기 위해 이 브라우저에 무작위 기기 식별자를 만들고, 서버에는 해시 값만 저장합니다. 평가 목록은 운영자 계정에서만 볼 수 있고, 서비스 품질 확인에 사용합니다. 모델 학습에는 사용하지 않습니다." data-en="A random browser identifier is created to handle rating changes and cancellations; the server stores only its hash. Only the operator can review feedback, for service quality checks. It is not used for model training."></li>
+<li data-ko="같은 버튼을 다시 눌러 평가를 취소하면 해당 평가가 서버에서도 삭제됩니다. 연결이 끊기면 이 기기에 전송을 대기했다가 다시 연결될 때 반영합니다. 기존에 이 기기에만 저장된 평가는 '기존 평가 올리기'를 직접 누를 때만 전송됩니다." data-en="Clicking the selected rating again removes that feedback from the server. Offline changes are queued on this device and applied when connected. Previously local-only ratings are sent only when you explicitly choose to upload them."></li>
 </ul>
 
 <h2 data-ko="4. Google Drive 백업 (선택)" data-en="4. Google Drive backup (optional)"></h2>
@@ -55,3 +62,4 @@
 <p data-ko="개인정보 관련 문의는 Google 권한 창에 표시되는 개발자 이메일로 보내 주세요." data-en="For privacy questions, please email the developer address shown on the Google consent screen."></p>
 </div></section></main>
 <footer class="footer"><div class="wrap">© 2026 QueryBot</div></footer><script src="/assets/app.js"></script></body></html>
+

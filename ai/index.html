@@ -1057,6 +1057,16 @@
   .turn .tools button.tool-rating[aria-pressed=true],.turn .tools button.tool-rating[aria-pressed=true]:hover{background:#41454b;color:#fff}
   .turn .tools button.tool-rating[aria-pressed=true] svg{fill:currentColor;stroke-width:1.4}
   html[data-theme=dark] .turn .tools button.tool-rating[aria-pressed=true]{background:#e5e6e8;color:#202226}
+/* 76차: 운영자 평가 목록 */
+  .qa-feedback-modal{box-sizing:border-box;width:min(850px,calc(100vw - 32px));max-height:85dvh;overflow:auto;margin:auto;border:1px solid var(--line2);border-radius:26px;padding:28px;background:var(--panel);color:var(--text)}
+  .qa-feedback-modal::backdrop{background:rgba(0,0,0,.48)}
+  .qa-feedback-modal h2{margin:0 0 18px;font-size:22px}
+  .qa-feedback-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+  .qa-feedback-actions select{border:1px solid var(--line2);border-radius:999px;background:var(--field);color:var(--text);font:inherit;padding:7px 14px}
+  .qa-feedback-card{padding:18px;border:1px solid var(--line2);border-radius:22px;margin:14px 0}
+  .qa-feedback-card b{font-size:13px;color:var(--text2)}
+  .qa-feedback-card h3{font-size:14px;margin:16px 0 6px}
+  .qa-feedback-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1434,7 +1444,7 @@
       const m = msgs[i];
       if (m.role === "user") { meTools(addMe(m.content, m.att), i); continue; }
       const prevUser = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content : "";
-      const meta = prevUser ? { user: prevUser, conv: c, index: i, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
+      const meta = prevUser ? { user: prevUser, conv: c, index: i, model: m.model || c.model, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
       if (m.kind === "wiki" && m.source) addWikiReply(m.content, m.source, meta);
       else addAiReply(m.content, meta, m.kind === "taught" ? "taught" : "ai", false, m.sources, m.thought);
     }
@@ -1454,7 +1464,7 @@
       cur = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title: g4 ? "" : text.slice(0, 40), titled: !g4, created: Date.now(), updated: Date.now(), model: modelSel.value, messages: [] };
       setUrlConv(cur.id);
     }
-    const a = { role: "assistant", content: reply, kind };
+    const a = { role: "assistant", content: reply, kind, model: (more && more.model) || modelSel.value };
     if (source) a.source = source;
     const u = { role: "user", content: text };
     if (more && more.att && more.att.length) u.att = more.att;  // 그림·파일 자체는 저장하지 않고 이름만
@@ -1573,6 +1583,7 @@
       if (typeof m.ts === "number") x.ts = m.ts;
       if (m.role === "assistant") {
         x.kind = ["ai", "wiki", "taught"].includes(m.kind) ? m.kind : "ai";
+        if (typeof m.model === "string") x.model = m.model.slice(0, 32);
         if (typeof m.source === "string" && /^https:\/\/([a-z]+\.)?wikipedia\.org\//.test(m.source)) x.source = m.source;
         if (Array.isArray(m.sources)) {
           const ss = m.sources.filter((s) => s && typeof s.url === "string" && /^https:\/\//.test(s.url)).slice(0, 10).map((s) => ({ title: String(s.title || "").slice(0, 120), url: s.url.slice(0, 500) }));
@@ -1667,6 +1678,101 @@
   }
 
   // 답 아래 도구: 복사 + (가르치기 모드일 때만 보이는) 고치기. meta = {user, ctx}: 이 답을 부른 질문과 그 앞 대화
+  var feedbackSending = false, feedbackJobs = null, feedbackTimer = 0;
+  var feedbackNotices = new Map();
+  function feedbackOutbox() {
+    if (feedbackJobs) return feedbackJobs;
+    try { feedbackJobs = JSON.parse(store.get("feedbackOutbox") || "{}"); if (!feedbackJobs || typeof feedbackJobs !== "object" || Array.isArray(feedbackJobs)) feedbackJobs = {}; } catch (e) { feedbackJobs = {}; }
+    return feedbackJobs;
+  }
+  function keepFeedback() { store.set("feedbackOutbox", JSON.stringify(feedbackOutbox())); }
+  function queueFeedback(text, meta, rating, notify) {
+    if (!meta || !meta.user || !text) return;
+    let anonymous = store.get("feedbackAnon");
+    if (!anonymous) { anonymous = crypto.randomUUID().replace(/-/g, ""); store.set("feedbackAnon", anonymous); }
+    const model = meta.model || (meta.conv && meta.conv.model) || modelSel.value;
+    const key = model + ":" + ratingKey(text, meta), jobs = feedbackOutbox();
+    jobs[key] = { anonymous, rating, question: meta.user.slice(0, 40000), answer: text.slice(0, 200000), model: model.slice(0, 32) };
+    if (notify) feedbackNotices.set(key, notify);
+    keepFeedback(); drainFeedback();
+  }
+  async function drainFeedback() {
+    if (feedbackSending) return;
+    clearTimeout(feedbackTimer);
+    feedbackSending = true;
+    try {
+      while (Object.keys(feedbackOutbox()).length) {
+        const key = Object.keys(feedbackJobs)[0], job = feedbackJobs[key];
+        const ctl = new AbortController(), timeout = setTimeout(() => ctl.abort(), 20000);
+        let retry = 10000;
+        try {
+          const r = await fetch(API + "/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(job), signal: ctl.signal });
+          if (!r.ok) { if (r.status === 429) retry = 60000; throw new Error("feedback"); }
+          const result = await r.json(); if (!result.ok) throw new Error("feedback");
+          if (feedbackJobs[key] === job) {
+            delete feedbackJobs[key]; keepFeedback();
+            const notice = feedbackNotices.get(key); if (notice) notice(true, job.rating);
+            feedbackNotices.delete(key);
+          }
+        } catch (e) {
+          const notice = feedbackNotices.get(key); if (notice && feedbackJobs[key] === job) notice(false, job.rating);
+          feedbackTimer = setTimeout(drainFeedback, retry); break;
+        } finally { clearTimeout(timeout); }
+      }
+    } finally { feedbackSending = false; }
+  }
+  window.addEventListener("online", drainFeedback);
+  async function uploadOldRatings(button) {
+    button.disabled = true;
+    let ratings = {}; try { ratings = JSON.parse(store.get("answerRatings") || "{}"); } catch (e) {}
+    let count = 0;
+    for (const c of convs) for (let i = 1; i < c.messages.length; i++) {
+      const a = c.messages[i], q = c.messages[i - 1];
+      if (a.role !== "assistant" || q.role !== "user") continue;
+      const meta = { user: q.content, conv: c, model: a.model || c.model }, value = ratings[ratingKey(a.content, meta)];
+      if (value === 1 || value === -1) { queueFeedback(a.content, meta, value); count++; }
+    }
+    await drainFeedback();
+    button.textContent = count ? L("기존 평가 " + count + "건 전송 중", "Sending " + count + " saved ratings") : L("기존 평가가 없어요", "No saved ratings");
+    if (count && !Object.keys(feedbackOutbox()).length) button.textContent = L("기존 평가를 저장했어요", "Saved previous ratings");
+    button.disabled = false;
+  }
+  async function showFeedback() {
+    let modal = $("feedbackModal");
+    if (!modal) {
+      modal = el("dialog", "qa-feedback-modal"); modal.id = "feedbackModal";
+      modal.setAttribute("aria-label", L("답변 평가", "Answer feedback"));
+      const close = el("button", "qa-login-close"); close.innerHTML = "×"; close.type = "button"; close.setAttribute("aria-label", L("닫기", "Close")); close.addEventListener("click", () => modal.close());
+      modal.append(close, el("h2", "", L("답변 평가", "Answer feedback")));
+      const filter = el("select"); filter.id = "feedbackFilter"; filter.setAttribute("aria-label", L("평가 필터", "Rating filter"));
+      [["0",L("전체", "All")],["1",L("좋아요", "Likes")],["-1",L("싫어요", "Dislikes")]].forEach(([v,t]) => { const o=el("option","",t); o.value=v; filter.appendChild(o); });
+      filter.addEventListener("change", loadFeedback);
+      const refresh = el("button", "sub", L("새로고침", "Refresh")); refresh.type="button"; refresh.addEventListener("click",loadFeedback);
+      const actions=el("div","qa-feedback-actions");actions.append(filter,refresh);
+      const counts=el("p");counts.id="feedbackCounts";
+      const list=el("div");list.id="feedbackList";
+      modal.append(actions,counts,list);document.body.appendChild(modal);
+    }
+    if (!modal.open) modal.showModal();
+    await loadFeedback();
+  }
+  async function loadFeedback() {
+    const list = $("feedbackList"), counts = $("feedbackCounts");
+    list.textContent = L("불러오는 중…", "Loading…");
+    try {
+      const r=await fetch(API+"/feedback/list",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({s:store.get("acctS")||"",rating:Number($("feedbackFilter").value)})});
+      if (!r.ok) throw new Error("feedback");
+      const j=await r.json();
+      counts.textContent=L("좋아요 "+j.counts.likes+" · 싫어요 "+j.counts.dislikes+" · 최근 100건", "Likes "+j.counts.likes+" · Dislikes "+j.counts.dislikes+" · Latest 100");
+      list.textContent="";
+      for (const item of j.items) {
+        const card=el("article","qa-feedback-card");
+        card.append(el("b","",(item.rating===1?L("좋아요","Like"):L("싫어요","Dislike"))+" · "+item.model+" · "+new Date(item.updated).toLocaleString(lang()==="en"?"en-US":"ko-KR")));
+        card.append(el("h3","",L("질문","Question")),el("div","qa-feedback-text",item.question),el("h3","",L("답변","Answer")),el("div","qa-feedback-text",item.answer));list.appendChild(card);
+      }
+      if (!j.items.length) list.textContent=L("저장된 평가가 없어요.","No saved feedback.");
+    } catch(e) { list.textContent=L("평가를 불러오지 못했어요. 운영자 계정으로 로그인했는지 확인해 주세요.","Couldn't load feedback. Please sign in as the operator."); }
+  }
   var speakingButton = null;
   function stopReading() {
     if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -1723,7 +1829,12 @@
       store.set("answerRatings", JSON.stringify(ratings)); paintRating();
       clearTimeout(ratingNoticeTimer);
       status.textContent = ratings[key] === 1 ? L("좋아요를 남겼어요", "Liked") : ratings[key] === -1 ? L("싫어요를 남겼어요", "Disliked") : L("평가를 취소했어요", "Rating removed");
-      ratingNoticeTimer = setTimeout(() => { status.textContent = ""; }, 1800);
+      status.textContent = L("평가를 저장하는 중…", "Saving rating…");
+      queueFeedback(getText(), meta, ratings[key] || 0, (ok, value) => {
+        clearTimeout(ratingNoticeTimer);
+        status.textContent = !ok ? L("연결되면 평가를 저장할게요", "Will save when connected") : value === 1 ? L("좋아요를 저장했어요", "Like saved") : value === -1 ? L("싫어요를 저장했어요", "Dislike saved") : L("평가를 취소했어요", "Rating removed");
+        if (ok) ratingNoticeTimer = setTimeout(() => { status.textContent = ""; }, 1800);
+      });
     };
     up.addEventListener("click", () => rate(1)); down.addEventListener("click", () => rate(-1)); paintRating();
     tools.append(up, down);
@@ -3646,6 +3757,11 @@
   }
   function paintData(pane) {
     pane.appendChild(el("h3", "", L("데이터 관리", "Data")));
+    if (store.get("acctOwner") === "1" && acctOn()) {
+      const review=el("button","sub",L("답변 평가 보기","View answer feedback")); review.type="button";review.addEventListener("click",showFeedback);
+      const migrate=el("button","sub",L("이 기기의 기존 평가 올리기","Upload saved ratings from this device"));migrate.type="button";migrate.addEventListener("click",()=>uploadOldRatings(migrate));
+      const row=el("div","qa-feedback-actions");row.append(review,migrate);pane.appendChild(row);
+    }
     const acctReady = !!(window.qbAcct && window.qbAcct.login && window.qbAcct.store);
     if (acctReady || acctOn()) {
       paintAcct(pane);
@@ -3958,7 +4074,7 @@
         const reply = j.reply || "";
         if (j.quota) setQuota(j.quota);
         wait.remove();
-        const meta = { user: text, ctx };
+        const meta = { user: text, ctx, model: asked };
         const kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
         try {
           if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought);
@@ -3976,7 +4092,7 @@
         if (j.ask_location) addLocCta();
         setOnline(true);
         if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
-          record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch });
+          record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch, model: asked });
           meta.conv = cur; meta.index = cur.messages.length - 1;
           meTools(meNode, cur.messages.length - 2);  // 이제 저장됐으니 말풍선 아래 복사·고치기
           if (smart(asked)) nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
@@ -4037,13 +4153,13 @@
     if (!j || j.error) { addAlert(j && typeof j.detail === "string" && j.detail && lang() !== "en" ? j.detail : t("fail"), !!j, retry); return; }
     const reply = j.reply || "", kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
     if (j.quota) setQuota(j.quota);
-    const meta = { user: p.text, ctx: [] };
+    const meta = { user: p.text, ctx: [], model: p.model };
     try { if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought); }
     catch (e) { const sh = turnShell("ai"); sh.body.appendChild(el("div", "text", reply)); put(sh.turn); }
     if (Array.isArray(j.remember) && j.remember.length) memAdd(j.remember);
     if (j.ask_location) addLocCta();
     setOnline(true);
-    record(p.text, reply, kind, j.source, { att: Array.isArray(p.att) ? p.att : [], sources: j.sources, thought: j.thought, branch: p.branch || undefined });
+    record(p.text, reply, kind, j.source, { att: Array.isArray(p.att) ? p.att : [], sources: j.sources, thought: j.thought, branch: p.branch || undefined, model: p.model });
     meta.conv = cur; meta.index = cur.messages.length - 1;
     meTools(meNode, cur.messages.length - 2);
     if (smart(p.model)) nameConv(cur);
@@ -4098,6 +4214,7 @@
     .observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
   document.addEventListener("DOMContentLoaded", () => {
     gdLoad();
+    setTimeout(drainFeedback, 1500);
     applyPlaceholder();
     showHello();
     renderList();
