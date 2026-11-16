@@ -1101,8 +1101,8 @@
         <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
         <textarea id="input" rows="1" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <div class="qa-model">
-          <select id="model" aria-label="모델" hidden><option value="latest">QueryBot the Best</option></select>
-          <button class="qa-model-btn" id="modelBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="모델 고르기"><span id="modelName">QueryBot the Best</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <select id="model" aria-label="모델" hidden><option value="gemma4">Nova G</option></select>
+          <button class="qa-model-btn" id="modelBtn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="모델 고르기"><span id="modelName">Nova G</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="qa-model-menu" id="modelMenu" role="listbox" aria-label="모델" hidden></div>
         </div>
         <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
@@ -1141,12 +1141,13 @@
   let online = null, busy = false;
   // 서버가 알려 주는 모델 이름(한국어)의 영어 이름
   // 모델 이름 (사용자 요청 2026-10-21): 사이트에 올라간 최고 모델은 QueryBot the Best, 예전 모델은 단계 번호로
-  const MODEL_NAME = { latest: "QueryBot the Best", stage3: "QueryBot 3", v1: "QueryBot 1" };
+  const MODEL_NAME = {};
+  const REMOVED_MODELS = new Set(["latest", "stage3", "v1"]);
   // 서버가 잠들어 있고 기억한 목록도 없을 때(처음 온 폰 등) 보여 줄 기본 목록. 서버 목록이 오면 그걸로 바뀐다 (2026-11-09)
   // 똑똑한 모델(앞 대화·기억·지침·생각·도구를 쓰는 것): Gemma 4, GPT-OSS 120B(Groq, 2026-11-11)
   function smart(m) { return m === "gemma4" || m === "gptoss" || m === "runpod"; }
   var ownerModels = [], lastModelList = null;  // 주인 전용 모델(내 RunPod 서버, 2026-11-14) — 서버가 주인 계정을 확인한 뒤에만
-  const DEFAULT_MODELS = [{ key: "latest", label: "QueryBot the Best" }, { key: "stage3", label: "QueryBot 3" }, { key: "v1", label: "QueryBot 1" }, { key: "gemma4", label: "Nova G" }];
+  const DEFAULT_MODELS = [{ key: "gemma4", label: "Nova G" }, { key: "gptoss", label: "GPT-OSS 120B (빠름)" }];
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // 고른 모델·기억 설정은 이 브라우저에만 기억해 둔다 (못 쓰는 환경이면 그냥 넘어감)
@@ -2387,9 +2388,6 @@
 
   // 모델 고르기: 기본 select는 숨겨 두고(값·change 이벤트는 그대로 씀) 이름 + 설명이 보이는 목록을 띄운다
   const MODEL_DESC = {
-    latest: ["가장 잘 대답하는 최신 모델", "The newest and best model"],
-    stage3: ["이전 세대 모델", "An earlier model"],
-    v1: ["처음 만든 초기 모델", "The very first model"],
     gemma4: ["구글이 만든 큰 모델(260억). 하루 무료 사용량 안에서 답해요", "Google's large model (26B), within a free daily quota"]
   };
   const modelBtn = $("modelBtn"), modelMenu = $("modelMenu");
@@ -2439,7 +2437,10 @@
   function fillModels(list) {
     if (!Array.isArray(list) || !list.length) return;
     // 서버가 잠들어 있을 때도 목록이 바로 보이게 이 브라우저에 기억 (2026-11-09: 폰에서 기본 모델 하나만 보이던 문제)
-    list = list.filter((m) => m.key !== "runpod");
+    list = list.filter((m) => m.key !== "runpod" && !REMOVED_MODELS.has(m.key));
+    if (!list.length) list = DEFAULT_MODELS;
+    if (REMOVED_MODELS.has(store.get("model"))) store.set("model", "gemma4");
+    if (REMOVED_MODELS.has(store.get("defModel"))) store.set("defModel", "gemma4");
     lastModelList = list;
     store.set("models", JSON.stringify(list.map((m) => ({ key: m.key, label: m.label }))));
     list = list.concat(ownerModels);
