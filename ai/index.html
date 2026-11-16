@@ -1034,6 +1034,25 @@
   .qa-login-error[hidden]{display:none}
   .qa-login-retry{display:block;margin:12px auto 0;padding:7px 16px;border:1px solid var(--line2);border-radius:999px;background:var(--field);color:var(--text);font:inherit;font-size:13px;cursor:pointer}
   .qa-login-retry[hidden]{display:none}
+/* 74차: 답변 도구와 본문 가독성 */
+  .turn .tools{opacity:1;display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:14px;min-height:32px}
+  .turn .tools button:not(.fix){display:inline-grid;place-items:center;width:34px;height:34px;padding:7px;border:0;border-radius:50%;color:var(--muted);background:transparent}
+  .turn .tools button:hover:not(:disabled),.turn .tools button[aria-pressed=true]{background:var(--hover);color:var(--text)}
+  .turn .tools button:focus-visible{outline:2px solid var(--muted);outline-offset:2px}
+  .turn .tools button:disabled{opacity:.35;cursor:default}
+  .turn .tools svg{width:17px;height:17px;display:block;pointer-events:none}
+  .tool-status{font-size:12px;color:var(--muted);margin-left:6px}
+  .text .md-h{font-weight:700;line-height:1.5;margin:26px 0 10px;letter-spacing:-.02em}
+  .text .md-h.h1{font-size:1.4em}.text .md-h.h2{font-size:1.25em}.text .md-h.h3{font-size:1.15em}.text .md-h.h4{font-size:1.08em}
+  .text>.md-h:first-child{margin-top:4px}
+  .text .md-table{margin:16px 0;border-color:#e9ebee}
+  .text .md-table th,.text .md-table td{padding:11px 14px;border-color:#f1f3f5}
+  .text .md-table th{background:#f5f6f7;font-weight:700}
+  html[data-theme=dark] .text .md-table{border-color:#3a3d43}
+  html[data-theme=dark] .text .md-table th,html[data-theme=dark] .text .md-table td{border-color:#34373d}
+  html[data-theme=dark] .text .md-table th{background:#292c32}
+  .qa-log:has(.typing) .tools .tool-regen{opacity:.35;pointer-events:none}
+  .qa-log[aria-busy=true] .tools .tool-regen{opacity:.35;pointer-events:none}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1387,6 +1406,7 @@
   }
 
   function newChat() {
+    stopReading();
     cur = null;
     setUrlConv(null);
     const dm = store.get("defModel");  // 설정 > 일반 > 새 대화 기본 모델
@@ -1399,6 +1419,7 @@
 
   // 저장된 대화 다시 보기 (한 글자씩 써지는 효과 없이)
   function openConv(id, upto) {
+    stopReading();
     const c = cur && cur.id === id ? cur : convs.find((x) => x.id === id);
     if (!c) return;
     cur = c;
@@ -1409,7 +1430,7 @@
       const m = msgs[i];
       if (m.role === "user") { meTools(addMe(m.content, m.att), i); continue; }
       const prevUser = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content : "";
-      const meta = prevUser ? { user: prevUser, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
+      const meta = prevUser ? { user: prevUser, conv: c, index: i, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
       if (m.kind === "wiki" && m.source) addWikiReply(m.content, m.source, meta);
       else addAiReply(m.content, meta, m.kind === "taught" ? "taught" : "ai", false, m.sources, m.thought);
     }
@@ -1642,14 +1663,87 @@
   }
 
   // 답 아래 도구: 복사 + (가르치기 모드일 때만 보이는) 고치기. meta = {user, ctx}: 이 답을 부른 질문과 그 앞 대화
+  var speakingButton = null;
+  function stopReading() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (speakingButton) { speakingButton.setAttribute("aria-pressed", "false"); speakingButton.setAttribute("aria-label", L("음성 듣기", "Read aloud")); speakingButton = null; }
+  }
+  window.addEventListener("pagehide", stopReading);
+  function ratingKey(text, meta) {
+    let h = 2166136261;
+    for (const c of ((meta && meta.user || "") + "\n" + text)) h = Math.imul(h ^ c.codePointAt(0), 16777619);
+    return (h >>> 0).toString(36);
+  }
+  async function regenerateReply(meta) {
+    if (busy || stopper || !meta || !meta.conv || cur !== meta.conv) return;
+    const c = meta.conv, i = meta.index - 1, head = c.messages[i];
+    if (!head || head.role !== "user") return;
+    if (head.att && head.att.length) { addSys(L("첨부파일이 있는 질문은 파일을 다시 첨부해 주세요.", "Please attach the files again to regenerate this answer.")); return; }
+    const vers = Array.isArray(head.vers) ? head.vers.slice() : [null];
+    const vi = typeof head.vi === "number" ? head.vi : 0;
+    vers[vi] = [stripVer(head)].concat(c.messages.slice(i + 1));
+    vers.push(null);
+    const mdl = modelSel.value, g = smart(mdl);
+    const opts = { model: mdl, think: g && thinkOn, loc: g && locOn && myLoc ? myLoc : null, branch: { i, vers, vi: vers.length - 1 } };
+    stopReading(); openConv(c.id, i);
+    modelSel.value = mdl; paintModel();
+    await ask(head.content, [], opts);
+    if (cur === c && c.messages[i] === head) openConv(c.id);
+  }
   function copyTool(getText, meta, body) {
     const tools = el("div", "tools");
-    const b = el("button", "", t("copy"));
-    b.type = "button";
+    tools.setAttribute("role", "group");
+    tools.setAttribute("aria-label", L("답변 도구", "Answer actions"));
+    const svg = (paths) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+    const copyIcon = svg('<rect x="9" y="9" width="11" height="12" rx="3"/><path d="M5 15V6a3 3 0 0 1 3-3h7"/>');
+    const checkIcon = svg('<path d="m5 12 4 4L19 6"/>');
+    const action = (icon, ko, en) => { const x = el("button"); x.type = "button"; x.innerHTML = icon; x.setAttribute("aria-label", L(ko, en)); return x; };
+    const status = el("span", "tool-status"); status.setAttribute("role", "status");
+    const b = action(copyIcon, "답변 복사", "Copy answer");
     b.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(getText()); b.textContent = t("copied"); setTimeout(() => (b.textContent = t("copy")), 1500); } catch (e) {}
+      try { await navigator.clipboard.writeText(getText()); b.innerHTML = checkIcon; status.textContent = t("copied"); setTimeout(() => { b.innerHTML = copyIcon; status.textContent = ""; }, 1500); }
+      catch (e) { status.textContent = L("복사하지 못했어요.", "Couldn't copy."); }
     });
     tools.appendChild(b);
+    let ratings = {}; try { ratings = JSON.parse(store.get("answerRatings") || "{}"); if (!ratings || typeof ratings !== "object" || Array.isArray(ratings)) ratings = {}; } catch (e) {}
+    const key = ratingKey(getText(), meta);
+    const up = action(svg('<path d="M7 10v11H3V10zM7 10l5-8c2 0 3 2 2 5l-1 3h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 2H7"/>'), "좋아요", "Good response");
+    const down = action(svg('<path d="M7 14V3H3v11zM7 14l5 8c2 0 3-2 2-5l-1-3h6a2 2 0 0 0 2-2l-2-7a2 2 0 0 0-2-2H7"/>'), "싫어요", "Bad response");
+    const paintRating = () => { up.setAttribute("aria-pressed", ratings[key] === 1 ? "true" : "false"); down.setAttribute("aria-pressed", ratings[key] === -1 ? "true" : "false"); };
+    const rate = (value) => {
+      try { ratings = JSON.parse(store.get("answerRatings") || "{}"); if (!ratings || typeof ratings !== "object" || Array.isArray(ratings)) ratings = {}; } catch (e) { ratings = {}; }
+      if (ratings[key] === value) delete ratings[key]; else { delete ratings[key]; ratings[key] = value; }
+      const entries = Object.entries(ratings).slice(-500); ratings = Object.fromEntries(entries);
+      store.set("answerRatings", JSON.stringify(ratings)); paintRating();
+    };
+    up.addEventListener("click", () => rate(1)); down.addEventListener("click", () => rate(-1)); paintRating();
+    tools.append(up, down);
+    if (meta && meta.user) {
+      const regen = action(svg('<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-2l2 3M4 16l2 3a7 7 0 0 0 12-2"/>'), "다시 생성", "Regenerate answer");
+      regen.classList.add("tool-regen");
+      regen.addEventListener("click", () => regenerateReply(meta)); tools.appendChild(regen);
+    }
+    if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
+      const speak = action(svg('<path d="M11 4 5 9H2v6h3l6 5zM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>'), "음성 듣기", "Read aloud");
+      speak.setAttribute("aria-pressed", "false");
+      speak.addEventListener("click", () => {
+        if (speakingButton === speak) { stopReading(); return; }
+        stopReading();
+        const textNode = body && body.querySelector(".text");
+        const text = (textNode ? textNode.innerText : getText()).trim();
+        if (!text) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang() === "en" ? "en-US" : "ko-KR";
+        const voice = speechSynthesis.getVoices().find((v) => v.localService && v.lang.startsWith(utterance.lang.slice(0, 2)));
+        if (voice) utterance.voice = voice;
+        speakingButton = speak; speak.setAttribute("aria-pressed", "true"); speak.setAttribute("aria-label", L("읽기 중지", "Stop reading"));
+        const done = () => { if (speakingButton === speak) { speakingButton = null; speak.setAttribute("aria-pressed", "false"); speak.setAttribute("aria-label", L("음성 듣기", "Read aloud")); } };
+        utterance.onend = done; utterance.onerror = () => { done(); status.textContent = L("음성을 재생하지 못했어요.", "Couldn't read aloud."); };
+        speechSynthesis.speak(utterance);
+      });
+      tools.appendChild(speak);
+    }
+    tools.appendChild(status);
     if (meta && body) {
       const f = el("button", "fix", "고치기");
       f.type = "button";
@@ -3747,6 +3841,7 @@
   function setStopper(fn) {
     stopper = fn;
     const on = !!fn;
+    log.setAttribute("aria-busy", on ? "true" : "false");
     send.classList.toggle("stop", on);
     send.setAttribute("aria-label", t(on ? "stopTip" : "sendTip"));
     send.title = on ? t("stopTip") : "";
@@ -3873,6 +3968,7 @@
         setOnline(true);
         if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
           record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch });
+          meta.conv = cur; meta.index = cur.messages.length - 1;
           meTools(meNode, cur.messages.length - 2);  // 이제 저장됐으니 말풍선 아래 복사·고치기
           if (smart(asked)) nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
         }
@@ -3939,6 +4035,7 @@
     if (j.ask_location) addLocCta();
     setOnline(true);
     record(p.text, reply, kind, j.source, { att: Array.isArray(p.att) ? p.att : [], sources: j.sources, thought: j.thought, branch: p.branch || undefined });
+    meta.conv = cur; meta.index = cur.messages.length - 1;
     meTools(meNode, cur.messages.length - 2);
     if (smart(p.model)) nameConv(cur);
   }
