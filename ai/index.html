@@ -1032,6 +1032,8 @@
   .qa-login-google:focus-visible,.qa-login-close:focus-visible{outline:2px solid var(--muted);outline-offset:3px}
   .qa-login-error{margin-top:16px;text-align:center;color:var(--text2);font-size:13px;line-height:1.5}
   .qa-login-error[hidden]{display:none}
+  .qa-login-retry{display:block;margin:12px auto 0;padding:7px 16px;border:1px solid var(--line2);border-radius:999px;background:var(--field);color:var(--text);font:inherit;font-size:13px;cursor:pointer}
+  .qa-login-retry[hidden]{display:none}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1048,6 +1050,7 @@
     <span data-ko="Google 계정으로 계속하기" data-en="Continue with Google"></span>
   </button>
   <div id="loginModalError" class="qa-login-error" role="alert" hidden></div>
+  <button id="loginModalRetry" class="qa-login-retry" type="button" data-ko="다시 시도" data-en="Try again" hidden></button>
 </dialog>
 <div class="qa-app">
   <aside class="qa-side" id="side" aria-label="대화 기록">
@@ -3137,13 +3140,26 @@
   const GD_FILE = "QueryBot 대화 백업.json";
   var gdTok = null, gdExp = 0, gdMsg = "", gdBusy = false;
   const gsiReady = () => !!(window.google && window.google.accounts && window.google.accounts.oauth2);
+  var gsiLoading = false, gsiFailed = false, gsiTimer = 0;
   function gdLoad() {  // 탭을 열 때 미리 불러 둔다 (단추를 누른 그 순간에 권한 창을 띄워야 팝업이 안 막힘)
     if (!GDRIVE_CLIENT_ID || gsiReady() || document.getElementById("gsiJs")) return;
     const s = document.createElement("script");
     s.id = "gsiJs";
     s.src = "https://accounts.google.com/gsi/client";
     s.async = true;
+    gsiLoading = true; gsiFailed = false;
+    const finish = (ok) => {
+      clearTimeout(gsiTimer);
+      s.onload = s.onerror = null;
+      gsiLoading = false; gsiFailed = !ok;
+      if (!ok) s.remove();
+      paintHeaderLogin();
+    };
+    s.onload = () => finish(gsiReady());
+    s.onerror = () => finish(false);
+    gsiTimer = setTimeout(() => finish(false), 15000);
     document.head.appendChild(s);
+    paintHeaderLogin();
   }
   async function gdToken() {
     if (gdTok && Date.now() < gdExp - 60000) return gdTok;
@@ -3389,19 +3405,25 @@
     b.disabled = !!acctBusy;
     b.setAttribute("aria-busy", acctBusy ? "true" : "false");
     const go = $("loginModalGoogle");
-    if (go) { go.disabled = !!acctBusy; go.setAttribute("aria-busy", acctBusy ? "true" : "false"); }
+    if (go) { go.disabled = !!acctBusy || !gsiReady(); go.setAttribute("aria-busy", acctBusy || gsiLoading ? "true" : "false"); }
+    const retry = $("loginModalRetry");
+    if (retry) retry.hidden = !gsiFailed || acctOn();
     if (acctOn() && modal && modal.open) modal.close();
-    if (err) { err.textContent = acctMsg || ""; err.hidden = !acctMsg; }
+    if (err) {
+      const msg = acctMsg || (gsiFailed ? L("Google 로그인을 불러오지 못했어요. 다시 시도해 주세요.", "Couldn't load Google sign-in. Please try again.") : "");
+      err.textContent = msg; err.hidden = !msg;
+    }
   }
   function openLoginModal() {
     if (acctOn()) return;
-    acctMsg = ""; paintHeaderLogin();
+    acctMsg = ""; gdLoad(); paintHeaderLogin();
     const modal = $("loginModal");
     if (!modal.open) modal.showModal();
     $("loginModalGoogle").focus();
   }
   $("headerLogin").addEventListener("click", openLoginModal);
   $("loginModalGoogle").addEventListener("click", acctLogin);
+  $("loginModalRetry").addEventListener("click", () => { acctMsg = ""; gdLoad(); });
   $("loginModalClose").addEventListener("click", () => $("loginModal").close());
   $("loginModal").addEventListener("click", (e) => {
     const modal = $("loginModal"), r = modal.getBoundingClientRect();
@@ -3968,6 +3990,7 @@
   new MutationObserver(() => { applyPlaceholder(); renderList(); if (log.querySelector(".qa-hello")) showHello(); })
     .observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
   document.addEventListener("DOMContentLoaded", () => {
+    gdLoad();
     applyPlaceholder();
     showHello();
     renderList();
