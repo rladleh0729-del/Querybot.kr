@@ -12,10 +12,10 @@
 <main><section class="pagehead"><div class="wrap prose">
 <div class="eyebrow">PRIVACY</div>
 <h1 data-ko="QueryBot AI 개인정보처리방침" data-en="QueryBot AI Privacy Policy"></h1>
-<p data-ko="최종 업데이트: 2026년 11월 14일 · 대상: querybot.kr/ai (QueryBot AI 채팅)" data-en="Last updated: November 14, 2026 · Applies to querybot.kr/ai (QueryBot AI chat)"></p>
+<p data-ko="최종 업데이트: 2026년 11월 15일 · 대상: querybot.kr/ai (QueryBot AI 채팅)" data-en="Last updated: November 15, 2026 · Applies to querybot.kr/ai (QueryBot AI chat)"></p>
 
 <h2 data-ko="1. 대화 기록은 내 브라우저에" data-en="1. Chats stay in your browser"></h2>
-<p data-ko="대화 기록, 메모리(쿼리봇이 기억하는 것), 사용자 지침과 말투, 설정은 사용하는 브라우저의 저장 공간(localStorage)에만 저장됩니다. QueryBot 서버에는 대화 기록을 저장하지 않습니다." data-en="Chat history, memory, custom instructions, tone and settings are stored only in your browser's local storage. The QueryBot server does not store chat history."></p>
+<p data-ko="로그인하지 않으면 대화 기록, 메모리(쿼리봇이 기억하는 것), 사용자 지침과 말투, 설정은 사용하는 브라우저의 저장 공간(localStorage)에만 저장되고, QueryBot 서버에는 저장하지 않습니다. 로그인한 경우는 3번을 보세요." data-en="If you are not signed in, chat history, memory, custom instructions, tone and settings are stored only in your browser's local storage, not on the QueryBot server. If you sign in, see section 3."></p>
 
 <h2 data-ko="2. 답을 만들 때 보내는 것" data-en="2. What is sent to make an answer"></h2>
 <p data-ko="질문을 보내면 답을 만들기 위해 다음이 QueryBot 서버로 전송되고, 처리가 끝나면 저장하지 않습니다." data-en="When you send a message, the following is sent to the QueryBot server to produce an answer and is not stored afterwards."></p>
@@ -25,7 +25,18 @@
 </ul>
 <p data-ko="Nova G(구글 Gemma 4 기반) 모델을 고르면 이 내용이 답을 만들기 위해 Cloudflare Workers AI로 전달됩니다. 웹 검색·날씨가 필요할 때는 검색어나 지역 이름이 검색 서비스(카카오, Bing 등)와 날씨·지도 서비스(OpenStreetMap, 노르웨이 기상청 등)로 전달됩니다. 서버 기록(로그)에는 글자 수·처리 시간 같은 숫자만 남기고 대화 내용은 남기지 않습니다. 답을 받는 중에 페이지를 닫거나 새로 고쳐도 이어 받을 수 있게, 만든 답은 서버 메모리에 최대 15분 동안만 두었다가 지웁니다(디스크에는 쓰지 않습니다)." data-en="If you choose Nova G (based on Google Gemma 4), this content is passed to Cloudflare Workers AI to generate the answer. For web search or weather, the search terms or place names are passed to search services (Kakao, Bing, etc.) and weather/map services (OpenStreetMap, MET Norway, etc.). Server logs keep only numbers such as length and time, not chat content. So that you can still get an answer after closing or reloading the page mid-reply, a finished answer is kept in server memory for at most 15 minutes and then deleted (never written to disk)."></p>
 
-<h2 data-ko="3. Google Drive 백업 (선택)" data-en="3. Google Drive backup (optional)"></h2>
+<h2 data-ko="3. Google 로그인과 서버 저장 (선택)" data-en="3. Google sign-in and server storage (optional)"></h2>
+<ul>
+<li data-ko="설정 > 데이터 관리에서 'Google로 로그인'을 누를 때만 동작합니다. 이름, 이메일 주소, 프로필 사진(openid·email·profile)만 요청하며 Google Drive 등 다른 권한은 요청하지 않습니다." data-en="It runs only when you press 'Sign in with Google' in Settings > Data. Only your name, email address and profile photo (openid, email, profile) are requested — no Google Drive or other permissions."></li>
+<li data-ko="로그인하면 대화 제목·내용, 메모리, 사용자 지침·말투가 압축되어 QueryBot 서버의 저장소(Cloudflare D1)에 저장되고, 같은 계정으로 로그인한 다른 기기의 기록과 합쳐집니다. 첨부한 그림·파일은 이름만 들어갑니다." data-en="When signed in, chat titles and messages, memory, and custom instructions and tone are compressed and stored in the QueryBot server's storage (Cloudflare D1), and merged with your other signed-in devices. Attachments are stored by name only."></li>
+<li data-ko="서버에는 Google 계정 번호를 되돌릴 수 없게 바꾼 값(해시)과 위 대화 묶음만 저장합니다. 이메일·이름·사진 주소는 서버에 저장하지 않으며, 이름과 사진은 이 브라우저에 보관하는 로그인 정보 안에만 있습니다." data-en="The server stores only an irreversible hash of your Google account ID and the chat bundle above. Your email, name and photo URL are not stored on the server; the name and photo live only in the sign-in token kept in this browser."></li>
+<li data-ko="이메일 주소는 사이트 운영자 전용 모델을 쓸 수 있는 운영자 계정인지 확인할 때만 쓰고, 저장하거나 기록에 남기지 않습니다." data-en="Your email address is used only to check whether the account is the site operator's (for the operator-only model) and is never stored or logged."></li>
+<li data-ko="로그인 상태는 서버가 서명한 로그인 정보(180일)를 이 브라우저에 저장해 기억합니다. '로그아웃'을 누르면 이 브라우저에서 지워집니다." data-en="Your sign-in is remembered by a server-signed token (valid 180 days) stored in this browser. 'Sign out' removes it from this browser."></li>
+<li data-ko="설정 > 데이터 관리의 '서버 대화 지우기'를 누르면 서버에 저장된 대화 묶음이 바로 삭제됩니다." data-en="'Delete server copy' in Settings > Data immediately deletes the chat bundle stored on the server."></li>
+<li data-ko="로그인 정보와 저장된 대화는 기록 동기화에만 쓰며, 광고·판매·모델 학습 등 다른 목적으로 쓰거나 다른 곳에 넘기지 않습니다." data-en="Sign-in data and stored chats are used only to sync your history and are never used for ads, sold, used for model training, or shared."></li>
+</ul>
+
+<h2 data-ko="4. Google Drive 백업 (선택)" data-en="4. Google Drive backup (optional)"></h2>
 <ul>
 <li data-ko="설정 > 데이터 관리에서 직접 단추를 누를 때만 동작합니다. 각 사용자는 자기 Google 계정으로 로그인하고, 백업은 그 사용자의 Google Drive에 저장됩니다." data-en="It runs only when you press the button in Settings > Data. Each user signs in with their own Google account and the backup is saved to their own Google Drive."></li>
 <li data-ko="권한은 drive.file 하나만 요청합니다. QueryBot은 자신이 만든 백업 파일('QueryBot 대화 백업.json')에만 접근하며, Drive의 다른 파일은 볼 수 없습니다." data-en="Only the drive.file permission is requested. QueryBot can access only the backup file it created ('QueryBot 대화 백업.json') and cannot see your other Drive files."></li>
@@ -37,10 +48,10 @@
 <li data-ko="권한을 거두려면 Google 계정 > 보안 > 서드 파티 연결(myaccount.google.com/permissions)에서 QueryBot을 삭제하세요. 백업 파일은 Google Drive에서 직접 지울 수 있습니다." data-en="To revoke access, remove QueryBot at Google Account > Security > Third-party connections (myaccount.google.com/permissions). You can delete the backup file directly in Google Drive."></li>
 </ul>
 
-<h2 data-ko="4. 지우기" data-en="4. Deleting data"></h2>
-<p data-ko="대화는 왼쪽 목록의 ⋯ > 삭제로, 메모리는 설정 > 메모리에서 지울 수 있습니다. 브라우저의 사이트 데이터를 지우면 이 기기에 저장된 모든 기록이 지워집니다." data-en="Delete chats with ⋯ > Delete in the list, and memory in Settings > Memory. Clearing the site's browser data removes everything stored on this device."></p>
+<h2 data-ko="5. 지우기" data-en="5. Deleting data"></h2>
+<p data-ko="대화는 왼쪽 목록의 ⋯ > 삭제로, 메모리는 설정 > 메모리에서 지울 수 있습니다. 브라우저의 사이트 데이터를 지우면 이 기기에 저장된 모든 기록이 지워집니다. 로그인한 경우 서버에 저장된 대화는 설정 > 데이터 관리 > '서버 대화 지우기'로 지울 수 있습니다." data-en="Delete chats with ⋯ > Delete in the list, and memory in Settings > Memory. Clearing the site's browser data removes everything stored on this device. If you signed in, delete the server copy with Settings > Data > 'Delete server copy'."></p>
 
-<h2 data-ko="5. 문의" data-en="5. Contact"></h2>
+<h2 data-ko="6. 문의" data-en="6. Contact"></h2>
 <p data-ko="개인정보 관련 문의는 Google 권한 창에 표시되는 개발자 이메일로 보내 주세요." data-en="For privacy questions, please email the developer address shown on the Google consent screen."></p>
 </div></section></main>
 <footer class="footer"><div class="wrap">© 2026 QueryBot</div></footer><script src="/assets/app.js"></script></body></html>

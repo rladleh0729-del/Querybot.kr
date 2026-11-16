@@ -718,6 +718,7 @@
   .gd-note.err{color:var(--danger)}
   .gd-off{border:0;background:none;padding:0;font:inherit;color:var(--muted);text-decoration:underline;cursor:pointer}
   .gd-off:hover{color:var(--text2)}
+  .acct-gap{height:16px}
 
   /* ── 27차 (2026-11-11): 하늘빛 — 가운데 진하게, 밖으로 갈수록 연하게 ── */
   .qa-glow .g-layer.bg{-webkit-mask-image:radial-gradient(closest-side,#000 0%,rgba(0,0,0,.7) 45%,rgba(0,0,0,.25) 75%,transparent 100%);mask-image:radial-gradient(closest-side,#000 0%,rgba(0,0,0,.7) 45%,rgba(0,0,0,.25) 75%,transparent 100%)}
@@ -2342,7 +2343,7 @@
       const r = await fetch(API + "/state", { signal: ctrl.signal });
       clearTimeout(timer);
       setOnline(r.ok);
-      if (r.ok) { const j = await r.json(); fillModels(j.models); setQuota(j.quota); window.qbGdLogin = !!j.gd_login; }
+      if (r.ok) { const j = await r.json(); fillModels(j.models); setQuota(j.quota); window.qbGdLogin = !!j.gd_login; window.qbAcct = j.acct || null; if (acctOn() && !acctSynced && !acctBusy) acctSync(); }
     } catch (e) {
       setOnline(false);
     }
@@ -3307,6 +3308,7 @@
     paintSet();
   }
   function gdAuto() {  // 연결돼 있고 권한이 살아 있으면, 바뀐 뒤 4초 있다가 자동 저장
+    acctAuto();  // 69차: 로그인돼 있으면 서버에도
     try {
       if (store.get("gdOn") !== "1") return;
       if (!store.get("gdRt") && (!gdTok || Date.now() > gdExp - 60000)) return;  // 이번 창에서만 연결했는데 권한이 끝났으면 쉼
@@ -3316,9 +3318,10 @@
   }
   async function checkOwner() {  // 주인 계정으로 로그인돼 있으면 '내 서버' 모델을 목록에 (확인은 서버가 Google 계정으로)
     try {
-      if (!store.get("gdRt")) { if (ownerModels.length) { ownerModels = []; if (lastModelList) fillModels(lastModelList); } return; }
-      const tok = await gdToken();
-      const r = await fetch(API + "/owner", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gd: tok }) });
+      const sOwner = !!store.get("acctS") && store.get("acctOwner") === "1";
+      if (!sOwner && !store.get("gdRt")) { if (ownerModels.length) { ownerModels = []; if (lastModelList) fillModels(lastModelList); } return; }
+      const ob = sOwner ? { s: store.get("acctS") } : { gd: await gdToken() };
+      const r = await fetch(API + "/owner", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ob) });
       if (!r.ok) return;
       const j = await r.json();
       ownerModels = j.owner && Array.isArray(j.models) ? j.models : [];
@@ -3327,8 +3330,8 @@
   }
   async function warmOwner() {  // '내 서버' 모델을 고르면 미리 깨움 (쉬고 있으면 깨어나는 데 1분 안팎)
     try {
-      const tok = await gdToken();
-      fetch(API + "/owner/warm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gd: tok }) }).catch(() => {});
+      const ob = store.get("acctS") && store.get("acctOwner") === "1" ? { s: store.get("acctS") } : { gd: await gdToken() };
+      fetch(API + "/owner/warm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ob) }).catch(() => {});
     } catch (e) {}
   }
   function gdOff() {
@@ -3342,8 +3345,129 @@
     if (ownerModels.length) { ownerModels = []; if (lastModelList) fillModels(lastModelList); }
     paintSet();
   }
+  // ---------- 로그인 + 서버 저장 (69차, 2026-11-15 사용자: "무료 서버에서 사용자의 대화 기록과 로그인 정보를 기억해서") ----------
+  // Google 로그인(이름·이메일만, Drive 권한 없음) → 서버가 준 로그인 표(180일)를 이 브라우저에 기억 → 대화 묶음을 서버(Cloudflare D1)에 저장·합치기
+  var acctBusy = false, acctMsg = "", acctT = 0, acctSynced = false;
+  function acctOn() { return !!store.get("acctS"); }
+  function acctCode() {
+    return new Promise((res, rej) => {
+      if (!gsiReady()) { rej(new Error("gsi")); return; }
+      const cc = window.google.accounts.oauth2.initCodeClient({
+        client_id: GDRIVE_CLIENT_ID, scope: "openid email profile", ux_mode: "popup",
+        callback: (r) => (r && r.code ? res(r.code) : rej(new Error((r && r.error) || "denied"))),
+        error_callback: (er) => rej(new Error((er && er.type) || "popup"))
+      });
+      cc.requestCode();
+    });
+  }
+  function acctErr(e) {
+    const m = String((e && e.message) || e);
+    if (m === "gsi") return L("Google 로그인을 불러오는 중이에요. 잠시 뒤 다시 눌러 주세요.", "Loading Google sign-in… try again in a moment.");
+    if (m === "relogin") return L("로그인이 끝났어요. 다시 로그인해 주세요.", "Your sign-in expired. Please sign in again.");
+    if (/popup|denied|access_denied/.test(m)) return L("Google 로그인을 하지 못했어요. 팝업이 막혔다면 허용한 뒤 다시 눌러 주세요.", "Google sign-in didn't finish. Allow pop-ups and try again.");
+    if (/^(http \d|Failed to fetch|NetworkError|Load failed)/.test(m)) return L("지금은 서버에 저장할 수 없어요. 잠시 뒤 다시 시도해요.", "Can't reach the server right now. Will retry later.");
+    return m;  // 서버가 보낸 안내
+  }
+  async function acctPost(path, extra) {
+    const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ s: store.get("acctS") || "" }, extra || {})) });
+    if (r.status === 401) { acctOut(true); throw new Error("relogin"); }
+    if (!r.ok) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} throw new Error(d || "http " + r.status); }
+    return r.json();
+  }
+  async function acctLogin() {
+    if (acctBusy) return;
+    acctBusy = true; acctMsg = ""; paintSet();
+    try {
+      const code = await acctCode();  // 첫 await 전에 창을 띄워야 팝업이 안 막힘
+      const r = await fetch(API + "/acct/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+      if (!r.ok) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} throw new Error(d || "http " + r.status); }
+      const j = await r.json();
+      store.set("acctS", j.s || "");
+      store.set("acctUser", JSON.stringify({ name: j.name || "", photo: j.photo || "" }));
+      store.set("acctOwner", j.owner ? "1" : "0");
+    } catch (e) { acctBusy = false; acctMsg = acctErr(e); paintSet(); return; }
+    acctBusy = false;
+    paintMe(); checkOwner();
+    acctSync();
+  }
+  async function acctPush() {
+    await acctPost("/acct/push", { data: JSON.parse(gdPack()) });
+    store.set("acctLast", String(Date.now()));
+  }
+  async function acctSync() {  // 서버 것과 합친 뒤(같은 대화는 더 최근 것, 지운 대화는 지움) 다시 저장
+    if (!acctOn() || acctBusy) return;
+    acctBusy = true; paintSet();
+    try {
+      const j = await acctPost("/acct/pull");
+      if (j && j.data && Array.isArray(j.data.convs)) gdMerge(j.data);
+      await acctPush();
+      acctMsg = ""; acctSynced = true;
+    } catch (e) { acctMsg = acctErr(e); }
+    acctBusy = false;
+    paintSet();
+  }
+  function acctAuto() {  // 로그인돼 있으면 바뀐 뒤 4초 있다가 서버에 저장 (아직 못 합쳤으면 합치기부터 — 다른 기기 것을 덮지 않게)
+    if (!acctOn()) return;
+    clearTimeout(acctT);
+    acctT = setTimeout(() => {
+      if (acctBusy) { acctAuto(); return; }
+      (acctSynced ? acctPush() : acctSync()).then(() => { if (setOpen && setTab === "data") paintSet(); }).catch((e) => { acctMsg = acctErr(e); });
+    }, 4000);
+  }
+  function acctOut(expired) {
+    store.set("acctS", ""); store.set("acctUser", ""); store.set("acctOwner", "");
+    acctSynced = false; clearTimeout(acctT);
+    acctMsg = expired ? L("로그인이 끝났어요. 다시 로그인해 주세요.", "Your sign-in expired. Please sign in again.") : "";
+    paintMe(); checkOwner(); paintSet();
+  }
+  async function acctWipe() {
+    if (!confirm(L("서버에 저장된 대화를 모두 지울까요? 이 브라우저의 대화는 남아요.", "Delete all chats saved on the server? Chats in this browser stay."))) return;
+    try {
+      await acctPost("/acct/delete");
+      acctOut(false);
+      acctMsg = L("서버의 대화를 지우고 로그아웃했어요.", "Deleted the server copy and signed out.");
+    } catch (e) { acctMsg = acctErr(e); }
+    paintSet();
+  }
+  function paintAcct(pane) {
+    const on = acctOn();
+    let u = null;
+    try { u = JSON.parse(store.get("acctUser") || "null"); } catch (e) {}
+    const btn = el("button", "gd-btn" + (on ? " on" : ""));
+    btn.type = "button";
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      + (on ? '<path d="M5 12.5l4.5 4.5L19 7.5"/>' : '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>') + "</svg>";
+    btn.appendChild(el("span", "", on ? L("로그인됨", "Signed in") + (u && u.name ? " · " + u.name : "") : acctBusy ? L("로그인하는 중…", "Signing in…") : L("Google로 로그인", "Sign in with Google")));
+    btn.disabled = acctBusy && !on;
+    btn.title = on ? L("누르면 지금 저장해요", "Click to save now") : "";
+    btn.addEventListener("click", on ? acctSync : acctLogin);
+    pane.appendChild(btn);
+    if (acctMsg) pane.appendChild(el("div", "gd-note err", acctMsg));
+    if (on) {
+      const last = Number(store.get("acctLast") || 0), n = el("div", "gd-note");
+      n.appendChild(document.createTextNode((acctBusy ? L("저장하는 중…", "Saving…") : L("마지막 저장 ", "Last saved ")
+        + (last ? new Date(last).toLocaleString(lang() === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "-")) + " · "));
+      const off = el("button", "gd-off", L("로그아웃", "Sign out"));
+      off.type = "button";
+      off.addEventListener("click", () => acctOut(false));
+      n.appendChild(off);
+      n.appendChild(document.createTextNode(" · "));
+      const wipe = el("button", "gd-off", L("서버 대화 지우기", "Delete server copy"));
+      wipe.type = "button";
+      wipe.addEventListener("click", acctWipe);
+      n.appendChild(wipe);
+      pane.appendChild(n);
+    }
+    gdLoad();
+  }
   function paintData(pane) {
     pane.appendChild(el("h3", "", L("데이터 관리", "Data")));
+    const acctReady = !!(window.qbAcct && window.qbAcct.login && window.qbAcct.store);
+    if (acctReady || acctOn()) {
+      paintAcct(pane);
+      if (store.get("gdOn") !== "1") { gdLoad(); return; }  // 로그인이 있으면 Drive 단추는 숨김(이미 연결한 사람만 보임)
+      pane.appendChild(el("div", "acct-gap"));
+    }
     const on = store.get("gdOn") === "1";
     const btn = el("button", "gd-btn" + (on ? " on" : ""));
     btn.type = "button";
@@ -3383,14 +3507,18 @@
     if (setOpen && setTab === "data") paintSet();
   }
   setTimeout(gdOnOpen, 800);
+  setTimeout(() => { if (acctOn()) acctSync(); }, 900);  // 69차: 로그인돼 있으면 열 때 서버 것과 합치기
   $("setBtn").addEventListener("click", () => openSettings("general"));
   // 56차: 왼쪽 아래 계정 (Google 연결돼 있으면 사진·이름, 아니면 사람 모양) — 누르면 설정
   function paintMe() {
     const b = $("meBtn");
     if (!b) return;
     let u = null;
-    try { u = JSON.parse(store.get("gdUser") || "null"); } catch (e) {}
-    if (store.get("gdOn") !== "1") u = null;
+    try { u = store.get("acctS") ? JSON.parse(store.get("acctUser") || "null") : null; } catch (e) {}  // 69차: 로그인 우선
+    if (!u || !(u.name || u.photo)) {
+      try { u = JSON.parse(store.get("gdUser") || "null"); } catch (e) { u = null; }
+      if (store.get("gdOn") !== "1") u = null;
+    }
     const av = b.querySelector(".qa-me-av"), nm = b.querySelector(".qa-me-name");
     const ini = () => { av.innerHTML = ""; av.textContent = ((u && u.name) || "?").trim().charAt(0).toUpperCase(); av.classList.add("ini"); };
     av.classList.remove("ini");
@@ -3615,13 +3743,14 @@
     // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
     const slow = thinking ? 0 : setTimeout(() => { wait.querySelector(".turn-body").appendChild((asked === "runpod" || online !== true ? wakeNote : plainNote)((asked === "runpod" ? (lang() === "en" ? "Waking your server… about a minute if it was idle." : "내 서버를 깨우는 중이에요. 쉬고 있었으면 1분 안팎 걸려요…") : t(online === true ? "working" : "waking")))); toBottom(); }, 5000);
     let err = null, warn = false;
-    const gdRun = asked === "runpod" ? await gdToken().catch(() => "") : "";
+    const sRun = asked === "runpod" ? store.get("acctS") || "" : "";
+    const gdRun = asked === "runpod" && !(sRun && store.get("acctOwner") === "1") ? await gdToken().catch(() => "") : "";
     const payload = JSON.stringify({ message: text, model: asked, history: before,
       images: sent.filter((a) => a.type === "image").map((a) => a.url),
       files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
       think: smart(asked) && !!opts.think, memory: smart(asked) ? memList() : [],
       style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
-      location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun });
+      location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun, s: sRun });
     try {
       let r = null;
       try { r = await postChat(payload, limit, stopCtl.signal); } catch (e) { if (e && e.name === "AbortError") throw e; }
