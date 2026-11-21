@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f6f6f7">
+<title>QueryBot 앱 로그인</title>
+<link rel="icon" href="/ai/favicon.svg?v=66" type="image/svg+xml">
+<!-- QueryBot PC 앱 전용 로그인 (2026-11-21). Google 로그인 창은 등록된 주소(querybot.kr)에서만 열려서, 앱이 이 페이지를 작은 창으로 열고
+     여기서 로그인한 뒤 로그인 표를 이 컴퓨터의 앱(http://127.0.0.1:포트/acct/done)으로만 돌려보낸다. 다른 주소로는 보내지 않음. -->
+<style>
+  html,body{height:100%;margin:0}
+  body{display:grid;place-items:center;background:linear-gradient(180deg,#f1f1f2 0%,#f4f4f5 100%);color:#1d1e21;
+    font:15px/1.6 Inter,Pretendard,"Noto Sans KR",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  .card{position:relative;box-sizing:border-box;width:min(390px,calc(100vw - 32px));padding:38px 30px 34px;border:1px solid #dcdce0;border-radius:26px;background:#fff;box-shadow:0 20px 70px rgba(0,0,0,.12);text-align:center}
+  .logo{width:56px;height:56px;margin:0 auto 14px}
+  .qbm{display:block;width:100%;height:100%;overflow:visible}
+  .qbm .lg1{fill:#9a9ca1}.qbm .lg2{fill:#55565c}.qbm .lg3{fill:#1f2023}.qbm .lgf1{fill:#55565c;stroke:#55565c}.qbm .lgf2{fill:#1f2023;stroke:#1f2023}
+  .qbm .lg-moon{fill:#0b0b0c}.qbm .lg-rim{stroke:none}.qbm .lg-spot{fill:#ffffff}
+  h1{margin:0 10px 6px;font-size:22px;font-weight:650;letter-spacing:-.03em}
+  .sub{margin:0 0 28px;font-size:13.5px;color:#62676E}
+  .google{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;min-height:46px;padding:11px 16px;border:1px solid #dcdce0;border-radius:999px;background:#fff;color:#1d1e21;font:inherit;font-size:14px;font-weight:500;cursor:pointer}
+  .google:hover{background:#efeff1}
+  .google:disabled{opacity:.6;cursor:wait}
+  .google svg{flex:none}
+  .msg{margin-top:16px;color:#41454B;font-size:13px;line-height:1.5;min-height:20px}
+  .msg.err{color:#9b1c2c}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="logo" aria-hidden="true"><svg class="qbm" viewBox="0 0 96 96" width="100%" height="100%" aria-hidden="true" focusable="false"><defs><mask id="qbgap" maskUnits="userSpaceOnUse" x="-30" y="-30" width="156" height="156"><rect x="-30" y="-30" width="156" height="156" fill="#fff"/><circle cx="48" cy="48" r="21.6" fill="#000"/></mask></defs><g transform="translate(48 48) scale(1.44) translate(-40.9 -44.5)"><g mask="url(#qbgap)"><g class="qfl qfl0"><path class="lg1" d="M34.5 44.1 C32.0 44.7 25.9 42.3 23.0 41.1 C20.0 39.9 18.8 38.3 17.0 36.9 C15.2 35.6 13.4 33.8 12.1 32.9 C10.8 32.0 8.4 31.8 9.2 31.3 C10.1 30.8 14.3 30.1 17.3 29.8 C20.3 29.5 23.7 28.2 27.2 29.5 C30.7 30.9 37.1 35.5 38.3 37.9 C39.5 40.4 37.1 43.6 34.5 44.1Z"/><path class="lg2" d="M35.0 42.8 C33.0 42.9 27.8 40.4 25.4 39.4 C23.1 38.3 22.4 37.4 21.0 36.5 C19.7 35.6 18.3 34.6 17.3 34.0 C16.3 33.4 14.5 33.3 15.1 33.0 C15.7 32.8 18.6 32.6 20.7 32.5 C22.8 32.4 24.9 31.5 27.6 32.6 C30.4 33.7 36.1 37.2 37.3 38.9 C38.5 40.6 37.0 42.8 35.0 42.8Z"/><path class="lg3" d="M35.4 41.8 C34.0 41.6 29.7 39.3 28.0 38.4 C26.4 37.6 26.2 37.3 25.3 36.8 C24.5 36.3 23.6 35.7 23.0 35.4 C22.4 35.1 21.3 35.0 21.6 34.9 C21.9 34.8 23.7 34.9 24.9 34.9 C26.1 35.0 27.0 34.4 28.9 35.2 C30.9 36.0 35.6 38.7 36.6 39.8 C37.7 40.9 36.9 42.0 35.4 41.8Z"/></g><g class="qfl qfl1"><path class="lg1" d="M38.6 37.6 C36.9 36.8 33.9 32.3 32.9 30.2 C31.8 28.1 32.6 26.6 32.6 25.0 C32.6 23.3 32.9 21.5 33.0 20.3 C33.2 19.1 33.1 17.6 33.6 17.8 C34.1 17.9 34.9 19.9 35.9 21.1 C36.9 22.4 38.3 22.7 39.6 25.0 C40.8 27.3 43.4 32.7 43.2 34.8 C43.1 36.9 40.4 38.4 38.6 37.6Z"/><path class="lg2" d="M39.4 36.9 C38.2 36.1 35.6 31.9 34.7 30.2 C33.9 28.4 34.5 27.6 34.5 26.4 C34.5 25.3 34.5 24.0 34.6 23.2 C34.6 22.3 34.5 21.2 34.8 21.4 C35.1 21.5 35.7 23.0 36.3 24.0 C36.9 24.9 37.6 25.0 38.6 26.9 C39.6 28.8 42.1 33.6 42.3 35.2 C42.4 36.9 40.7 37.8 39.4 36.9Z"/><path class="lg3" d="M40.1 36.5 C39.2 35.6 37.0 31.9 36.4 30.6 C35.7 29.2 36.2 29.1 36.2 28.4 C36.1 27.7 36.1 27.0 36.1 26.5 C36.1 26.0 36.0 25.3 36.1 25.4 C36.3 25.5 36.6 26.5 36.9 27.0 C37.3 27.6 37.4 27.5 38.2 28.9 C39.0 30.3 41.2 34.3 41.5 35.6 C41.8 36.8 40.9 37.3 40.1 36.5Z"/></g><g class="qfl qfl2"><path class="lg1" d="M35.0 53.2 C33.9 54.7 29.1 56.0 27.2 56.5 C25.2 57.0 24.5 56.3 23.3 56.1 C22.1 56.0 20.9 55.7 20.0 55.6 C19.2 55.5 18.2 56.1 18.4 55.6 C18.5 55.1 20.0 53.6 21.0 52.4 C22.0 51.2 22.4 49.2 24.6 48.4 C26.8 47.6 32.3 46.7 34.0 47.5 C35.7 48.3 36.2 51.7 35.0 53.2Z"/><path class="lg2" d="M34.6 52.2 C33.5 53.2 29.1 54.2 27.5 54.6 C25.8 55.0 25.6 54.5 24.7 54.5 C23.9 54.5 23.0 54.4 22.4 54.4 C21.8 54.4 21.1 54.9 21.2 54.6 C21.3 54.2 22.4 53.2 23.2 52.4 C24.0 51.6 24.0 50.5 25.8 49.8 C27.6 49.2 32.5 48.2 34.0 48.6 C35.5 49.0 35.7 51.2 34.6 52.2Z"/><path class="lg3" d="M34.4 51.3 C33.4 51.9 29.4 52.7 28.1 53.0 C26.7 53.3 27.0 53.1 26.5 53.1 C26.0 53.1 25.4 53.1 25.1 53.1 C24.7 53.2 24.3 53.5 24.4 53.3 C24.5 53.1 25.2 52.6 25.6 52.2 C26.1 51.7 25.8 51.2 27.2 50.7 C28.6 50.3 32.9 49.4 34.1 49.5 C35.3 49.6 35.4 50.8 34.4 51.3Z"/></g></g><circle class="lg-moon" cx="48" cy="48" r="19"/><circle class="lg-rim" cx="48" cy="48" r="19" fill="none" stroke-width="3"/><circle class="lg-spot" cx="52.0" cy="54.0" r="3.8"/><g class="qtw"><path class="lgf1" d="M72.9 37.5 L68.0 38.5 L71.2 46.8 L64.7 40.7 L61.4 47.5 L60.9 39.9 L52.8 43.0 L58.8 36.7 L48.6 32.6 L59.5 32.8 L54.9 22.3 L62.8 30.7 L65.9 25.1 L66.6 31.5 L71.9 30.3 L68.8 34.7 Z" stroke-width="0.8" stroke-linejoin="round"/><path class="lgf2" d="M69.3 36.8 L66.3 37.4 L69.7 44.7 L64.3 38.7 L61.9 44.7 L62.1 38.2 L56.9 40.2 L60.8 36.3 L55.5 34.0 L61.2 34.0 L60.4 30.7 L63.2 32.7 L65.7 26.2 L65.5 33.1 L71.0 30.9 L66.8 35.1 Z" stroke-width="0.8" stroke-linejoin="round"/></g></g></svg></div>
+  <h1>로그인 또는 회원가입</h1>
+  <p class="sub">QueryBot 앱과 사이트의 대화를 함께 써요</p>
+  <button id="go" class="google" type="button" disabled><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6C44.4 38.02 46.98 31.86 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.59A14.41 14.41 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.87 23.87 0 0 0 0 24c0 3.87.93 7.52 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.15 1.45-4.92 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg><span>Google 계정으로 계속하기</span></button>
+  <div id="msg" class="msg" role="status"></div>
+</main>
+<script>
+(() => {
+  const API = "https://querybot-ai.onrender.com";
+  const CLIENT_ID = "546754663182-iss9ia4lnqgiqsg6jumb3gj71p1gsq4o.apps.googleusercontent.com";
+  const q = new URLSearchParams(location.search);
+  const port = q.get("p") || "", nonce = q.get("n") || "";
+  const go = document.getElementById("go"), msg = document.getElementById("msg");
+  const say = (t, err) => { msg.textContent = t; msg.className = "msg" + (err ? " err" : ""); };
+  // 앱이 연 창이 아니면(포트·번호가 이상하면) 아무것도 하지 않음 — 로그인 표는 이 컴퓨터(127.0.0.1)의 앱으로만 보냄
+  if (!/^\d{4,5}$/.test(port) || +port < 1024 || +port > 65535 || !/^[A-Za-z0-9_-]{22,64}$/.test(nonce)) {
+    say("QueryBot 앱의 로그인 버튼으로 열어 주세요.", true);
+    return;
+  }
+  const ready = () => !!(window.google && google.accounts && google.accounts.oauth2);
+  const s = document.createElement("script");
+  s.src = "https://accounts.google.com/gsi/client"; s.async = true;
+  s.onload = () => { go.disabled = !ready(); if (!ready()) say("Google 로그인을 불러오지 못했어요. 새로고침해 주세요.", true); };
+  s.onerror = () => say("Google 로그인을 불러오지 못했어요. 새로고침해 주세요.", true);
+  document.head.appendChild(s);
+
+  const getCode = () => new Promise((res, rej) => {
+    const cc = google.accounts.oauth2.initCodeClient({
+      client_id: CLIENT_ID, scope: "openid email profile", ux_mode: "popup",
+      callback: (r) => (r && r.code ? res(r.code) : rej(new Error((r && r.error) || "denied"))),
+      error_callback: (e) => rej(new Error((e && e.type) || "popup"))
+    });
+    cc.requestCode();
+  });
+  go.addEventListener("click", async () => {
+    if (!ready()) return;
+    go.disabled = true; say("");
+    try {
+      const code = await getCode();  // 첫 await 전에 Google 창을 띄워야 팝업이 안 막힘
+      say("로그인하는 중…");
+      const slow = setTimeout(() => say("서버를 깨우는 중이에요. 잠시만 기다려 주세요…"), 4000);
+      const r = await fetch(API + "/acct/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+      clearTimeout(slow);
+      let j = {}; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j.s) throw new Error(j.detail || "http " + r.status);
+      say("로그인했어요. 앱으로 돌아가요…");
+      const payload = encodeURIComponent(JSON.stringify({ s: j.s, name: j.name || "", photo: j.photo || "", owner: !!j.owner }));
+      location.replace("http://127.0.0.1:" + port + "/acct/done?n=" + encodeURIComponent(nonce) + "#" + payload);
+    } catch (e) {
+      const m = String((e && e.message) || e);
+      say(/popup|denied|access_denied/.test(m) ? "Google 로그인을 하지 못했어요. 다시 눌러 주세요."
+        : /^(http \d|Failed to fetch|NetworkError|Load failed)/.test(m) ? "지금은 서버에 연결할 수 없어요. 잠시 뒤 다시 눌러 주세요." : m, true);
+      go.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
