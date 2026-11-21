@@ -44,6 +44,8 @@
   const q = new URLSearchParams(location.search);
   const port = q.get("p") || "", nonce = q.get("n") || "";
   const go = document.getElementById("go"), msg = document.getElementById("msg");
+  // 앱이 연 작은 창이면 로그인 카드 크기에 맞게 줄이고 앱 창 가운데로
+  if (window.opener) { try { const w = 480, h = 640; resizeTo(w, h); moveTo(Math.round(screen.availLeft + (screen.availWidth - w) / 2), Math.round(screen.availTop + (screen.availHeight - h) / 2)); } catch (e) {} }
   const say = (t, err) => { msg.textContent = t; msg.className = "msg" + (err ? " err" : ""); };
   // 앱이 연 창이 아니면(포트·번호가 이상하면) 아무것도 하지 않음 — 로그인 표는 이 컴퓨터(127.0.0.1)의 앱으로만 보냄
   if (!/^\d{4,5}$/.test(port) || +port < 1024 || +port > 65535 || !/^[A-Za-z0-9_-]{22,64}$/.test(nonce)) {
