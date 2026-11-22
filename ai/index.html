@@ -295,6 +295,22 @@
   .text .code-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 6px 15px;background:#3b2f28;color:#eadbcf;font-size:12px;font-weight:600;line-height:1.4}
   .text .code-head button{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#f5e9df;border-radius:999px;padding:3px 12px;font:inherit;font-size:12px;cursor:pointer}
   .text .code-head button:hover{background:rgba(255,255,255,.17)}
+  /* AI가 만든 파일: 회색 알약 한 줄(이름 + 복사·받기), 누르면 언어·크기·코드만 펼침 (2026-11-22) */
+  .text .file-card{margin:.6em 0;border:1px solid var(--line);border-radius:22px;background:var(--panel2);overflow:hidden;white-space:normal}
+  .text .file-head{display:flex;align-items:center;gap:2px;min-height:44px;padding:4px 5px 4px 18px;cursor:pointer;user-select:none;-webkit-user-select:none;border-radius:22px}
+  .text .file-head:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+  .text .file-name{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .text .file-wait{flex:none;padding-right:12px;font-size:12.5px;color:var(--muted)}
+  .text .file-ib{flex:none;width:34px;height:34px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--text2);display:grid;place-items:center;cursor:pointer}
+  .text .file-ib:hover{background:var(--line)}
+  .text .file-ib svg{display:block;width:18px;height:18px}
+  .text .file-body{display:none}
+  .text .file-card.open .file-body{display:block}
+  .text .file-lang{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 18px 0;font-size:12.5px;color:var(--muted)}
+  .text .file-lang .lg{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--text2)}
+  .text .file-lang svg{display:block;width:15px;height:15px}
+  .text .file-body pre{margin:0;padding:10px 18px 16px;max-height:440px;overflow:auto;white-space:pre;word-break:normal;overflow-wrap:normal;background:none;border:0;border-radius:0}
+  .text .file-body code{display:block;font-family:ui-monospace,SFMono-Regular,Consolas,"D2Coding",monospace;font-size:13px;line-height:1.6;color:var(--text);background:none;padding:0;border:0;white-space:pre}
   .text .code pre{margin:0;padding:12px 16px 14px;overflow-x:auto;white-space:pre;word-break:normal;overflow-wrap:normal}
   .text .code code{display:block;font-family:ui-monospace,SFMono-Regular,Consolas,"D2Coding",monospace;font-size:13.5px;line-height:1.6;color:#f7ede5;background:none;padding:0}
   .text code.inl{font-family:ui-monospace,SFMono-Regular,Consolas,"D2Coding",monospace;font-size:.9em;padding:1px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);white-space:pre-wrap}
@@ -1845,7 +1861,7 @@
       try { await navigator.clipboard.writeText(getText()); b.innerHTML = checkIcon; status.textContent = t("copied"); setTimeout(() => { b.innerHTML = copyIcon; status.textContent = ""; }, 1500); }
       catch (e) { status.textContent = L("복사하지 못했어요.", "Couldn't copy."); }
     });
-    tools.appendChild(b);
+    if (!/```\s*(file|파일)\s*[:：]/i.test(getText())) tools.appendChild(b);  // 파일이 든 답은 파일 알약의 복사·받기로 (2026-11-22)
     let ratings = {}; try { ratings = JSON.parse(store.get("answerRatings") || "{}"); if (!ratings || typeof ratings !== "object" || Array.isArray(ratings)) ratings = {}; } catch (e) {}
     const key = ratingKey(getText(), meta);
     const up = action(svg('<path d="M7 10v11H3V10zM7 10l5-8c2 0 3 2 2 5l-1 3h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 2H7"/>'), "좋아요", "Good response");
@@ -2563,6 +2579,67 @@
     }
     return box;
   }
+  // AI가 만든 파일(```file:이름.확장자) → 회색 알약 한 줄: 이름 + 복사·받기, 누르면 언어·크기·코드만 펼침 (2026-11-22)
+  const FILE_RE = /^(?:file|파일)\s*[:：]\s*(.+)$/i;
+  const FILE_MIME = { html: "text/html", htm: "text/html", css: "text/css", js: "text/javascript", mjs: "text/javascript", json: "application/json",
+    csv: "text/csv", svg: "image/svg+xml", xml: "application/xml", md: "text/markdown", py: "text/x-python" };
+  const FILE_LANG = { py: "Python", js: "JavaScript", mjs: "JavaScript", cjs: "JavaScript", jsx: "JavaScript", ts: "TypeScript", tsx: "TypeScript",
+    html: "HTML", htm: "HTML", css: "CSS", json: "JSON", csv: "CSV", tsv: "TSV", md: "Markdown", svg: "SVG", xml: "XML", java: "Java",
+    c: "C", h: "C", cpp: "C++", cc: "C++", hpp: "C++", cs: "C#", go: "Go", rs: "Rust", rb: "Ruby", php: "PHP", kt: "Kotlin", swift: "Swift",
+    sh: "Shell", bash: "Shell", bat: "Batch", cmd: "Batch", ps1: "PowerShell", sql: "SQL", yaml: "YAML", yml: "YAML", toml: "TOML",
+    ini: "INI", cfg: "INI", r: "R", lua: "Lua", dart: "Dart", vue: "Vue" };
+  const fileIcon = (d) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + "</svg>";
+  const FILE_IC = {
+    copy: fileIcon('<rect x="9" y="9" width="11" height="12" rx="3"/><path d="M5 15V6a3 3 0 0 1 3-3h7"/>'),
+    done: fileIcon('<path d="m5 12 4 4L19 6"/>'),
+    save: fileIcon('<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 15.5v2.5A2 2 0 0 0 6.5 20h11a2 2 0 0 0 2-2v-2.5"/>'),  // 사용자가 보내 준 그림: 상자로 들어가는 ↓
+    code: fileIcon('<path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 4.5l-3 15"/>'),
+  };
+  function fileName(raw) {
+    let n = String(raw || "").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").replace(/^[\s.]+|\s+$/g, "").slice(0, 80);
+    if (!n) n = "file";
+    if (!/\.[A-Za-z0-9]{1,8}$/.test(n)) n += ".txt";
+    return n;
+  }
+  const fileExt = (n) => (n.split(".").pop() || "").toLowerCase();
+  const fileData = (n, code) => (fileExt(n) === "csv" ? "﻿" + code : code);  // 엑셀에서 한글이 안 깨지게
+  function fileSize(s) { const n = new Blob([s]).size; return n < 1024 ? n + "B" : n < 1048576 ? (n / 1024).toFixed(1) + "KB" : (n / 1048576).toFixed(1) + "MB"; }
+  function saveBlob(name, blob) {
+    const a = document.createElement("a"), u = URL.createObjectURL(blob);
+    a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 4000);
+  }
+  function fileCard(raw, code, closed) {
+    const name = fileName(raw), ext = fileExt(name);
+    const box = el("div", "file-card"), head = el("div", "file-head");
+    head.appendChild(el("span", "file-name", name));
+    box.appendChild(head);
+    if (!closed) { head.appendChild(el("span", "file-wait", L("만드는 중…", "Writing…"))); return box; }
+    const btn = (ic, ko, en, fn) => {
+      const b = el("button", "file-ib");
+      b.type = "button"; b.innerHTML = ic; b.title = L(ko, en); b.setAttribute("aria-label", L(ko, en));
+      b.addEventListener("click", (e) => { e.stopPropagation(); fn(b); });
+      return b;
+    };
+    head.append(
+      btn(FILE_IC.copy, "복사", "Copy", async (b) => {
+        try { await navigator.clipboard.writeText(code); b.innerHTML = FILE_IC.done; setTimeout(() => (b.innerHTML = FILE_IC.copy), 1500); } catch (e) {}
+      }),
+      btn(FILE_IC.save, "받기", "Download", () => saveBlob(name, new Blob([fileData(name, code)], { type: (FILE_MIME[ext] || "text/plain") + ";charset=utf-8" }))));
+    const body = el("div", "file-body"), top = el("div", "file-lang"), lg = el("span", "lg");
+    lg.innerHTML = FILE_IC.code;
+    lg.appendChild(document.createTextNode(FILE_LANG[ext] || (ext === "txt" ? L("텍스트", "Text") : ext.toUpperCase())));
+    top.append(lg, el("span", "", fileSize(code)));
+    const pre = document.createElement("pre");
+    pre.appendChild(el("code", "", code));
+    body.append(top, pre);
+    box.appendChild(body);
+    head.setAttribute("role", "button"); head.tabIndex = 0; head.setAttribute("aria-expanded", "false");
+    const flip = () => head.setAttribute("aria-expanded", box.classList.toggle("open") ? "true" : "false");
+    head.addEventListener("click", flip);
+    head.addEventListener("keydown", (e) => { if (e.target === head && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); flip(); } });
+    return box;
+  }
   function codeBox(lng, code) {
     const box = el("div", "code"), head = el("div", "code-head"), b = el("button", "", t("copy"));
     b.type = "button";
@@ -2585,7 +2662,9 @@
       if (last) seg = seg.replace(/^\n+/, "");
       addBlocks(node, seg.replace(/\s+$/, ""));
       const lng = m[1].trim(), closed = m[0].length > 6 && m[0].endsWith("```");
-      node.appendChild(/^(chart|차트)$/i.test(lng) ? chartBox(m[2].trim(), closed) : codeBox(lng, m[2].replace(/\n$/, "")));
+      const fm = lng.match(FILE_RE);
+      node.appendChild(fm ? fileCard(fm[1].trim(), m[2].replace(/\n$/, ""), closed)
+        : /^(chart|차트)$/i.test(lng) ? chartBox(m[2].trim(), closed) : codeBox(lng, m[2].replace(/\n$/, "")));
       last = re.lastIndex;
     }
     addBlocks(node, last ? text.slice(last).replace(/^\n+/, "") : text);
@@ -4203,6 +4282,10 @@
     // 앞 대화는 최근 2번 주고받은 것만: 작은 모델은 앞 대화가 길면 헷갈려서 이상한 답을 한다 (2026-10-21)
     // Gemma 4는 앞 대화 8개(4번 주고받기)·한 줄 1,000자까지 (2026-11-10 '기억 한도 늘려'), 기본 모델은 4개·400자
     let before = smart(asked) ? hist(1000) : hist();
+    if (smart(asked) && cur) {  // 파일을 이어서 고쳐 달라고 할 수 있게: 파일이 든 마지막 답은 8,000자까지 (2026-11-22, 서버 FILE_HISTORY_CHARS)
+      const li = cur.messages.map((m) => m.role === "assistant" && /```\s*(file|파일)\s*[:：]/i.test(m.content)).lastIndexOf(true);
+      if (li >= 0 && li < before.length) before[li] = { role: "assistant", content: cur.messages[li].content.slice(0, 8000) };
+    }
     if (opts.branch) before = before.slice(0, opts.branch.i);  // 질문 고치기: 고친 말 앞까지만
     // 최근 8개보다 오래된 사용자 말은 짧게 줄여 같이 보냄 (오래된 대화도 이어서 기억하게, 2026-11-11)
     const older = smart(asked) ? before.slice(0, Math.max(0, before.length - 8)).filter((m) => m.role === "user").slice(-12)
