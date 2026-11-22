@@ -4299,6 +4299,42 @@
       return await fetch(API + "/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, signal: c.signal });
     } finally { clearTimeout(tm); if (outer) outer.removeEventListener("abort", onStop); }
   }
+  // 87차: 실시간 답 — /chat/stream(SSE)으로 받으며 onText(지금까지 보일 글)를 부름. 끝나면 /chat과 같은 모양의 Response를 돌려줌
+  //  (사용자: 실시간 답 '1번'). 옛 서버(통로 없음 404·405)면 /chat으로. 글자·ping이 오는 동안은 기다리는 시간을 다시 셈
+  async function postChatLive(payload, ms, outer, onText) {
+    const c = new AbortController();
+    let tm = setTimeout(() => c.abort(), ms);
+    const kick = () => { clearTimeout(tm); tm = setTimeout(() => c.abort(), ms); };
+    const onStop = () => c.abort();
+    if (outer) { if (outer.aborted) c.abort(); else outer.addEventListener("abort", onStop, { once: true }); }
+    try {
+      const res = await fetch(API + "/chat/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, signal: c.signal });
+      if (res.status === 404 || res.status === 405) { clearTimeout(tm); return await postChat(payload, ms, outer); }
+      if (!res.ok || !res.body || !/event-stream/.test(res.headers.get("Content-Type") || "")) return res;
+      const rd = res.body.getReader(), dec = new TextDecoder();
+      let buf = "", fin = null;
+      for (;;) {
+        const { value, done } = await rd.read();
+        if (done) break;
+        kick();
+        buf += dec.decode(value, { stream: true }).replace(/\r/g, "");
+        let k;
+        while ((k = buf.indexOf("\n\n")) >= 0) {
+          const ev = buf.slice(0, k);
+          buf = buf.slice(k + 2);
+          const line = ev.split("\n").find((x) => x.startsWith("data:"));
+          if (!line) continue;
+          let j = null;
+          try { j = JSON.parse(line.slice(5)); } catch (e) { continue; }
+          if (typeof j.t === "string") { try { onText(j.t); } catch (e) {} }
+          else if (j.final || j.error) fin = j;
+        }
+      }
+      if (!fin) return null;  // 연결이 중간에 끊김 → 서버가 살아나길 기다렸다가 /chat으로 다시
+      if (fin.final) return new Response(JSON.stringify(fin.final), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ detail: fin.detail || "" }), { status: fin.error || 500, headers: { "Content-Type": "application/json" } });
+    } finally { clearTimeout(tm); if (outer) outer.removeEventListener("abort", onStop); }
+  }
   // 보내기 — 안에서 무슨 오류가 나도 '기다리는 중'에 갇히지 않게 감싼다 (2026-11-10 사용자: "내 답변이 화면에 오류라 안 떴던 거야")
   async function ask(text, sent, opts) {
     if (busy) return;
@@ -4367,9 +4403,26 @@
       style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
       location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun, s: sRun,
       browser: brHave && (asked === "gemma4" || asked === "runpod") });  // 77차: 브라우저 도구 확장이 있음 → 모델이 필요하면 browser_task
+    // 87차: 실시간 답 — 글자가 오는 대로 기다리는 칸에 그림(점 세 개는 숨김). 다 받은 뒤에는 한 글자씩 다시 쓰지 않음
+    let live = null, liveText = "", liveRaf = 0;
+    const onText = (s) => {
+      liveText = s;
+      if (liveRaf) return;
+      liveRaf = requestAnimationFrame(() => {
+        liveRaf = 0;
+        const body = wait.isConnected ? wait.querySelector(".turn-body") : null;
+        if (!body) return;
+        const dots = body.querySelector(".who .think-dots");
+        if (!liveText) { if (live) { live.remove(); live = null; } if (dots) dots.style.display = ""; return; }
+        if (!live) { body.querySelectorAll(".wait-note").forEach((x) => x.remove()); clearTimeout(slow); live = el("div", "text"); body.appendChild(live); }
+        if (dots) dots.style.display = "none";
+        try { renderRich(live, liveText); } catch (e) { live.textContent = liveText; }
+        toBottom();
+      });
+    };
     try {
       let r = null;
-      try { r = await postChat(payload, limit, stopCtl.signal); } catch (e) { if (e && e.name === "AbortError") throw e; }
+      try { r = await postChatLive(payload, limit, stopCtl.signal, onText); } catch (e) { if (e && e.name === "AbortError") throw e; }
       if (!r || [502, 503, 504].includes(r.status)) {
         // 연결이 끊김 = 서버가 다시 켜지는 중(배포·재시작)일 수 있다 → 알리고, 살아나면 같은 질문을 한 번 더 자동으로
         clearTimeout(slow);
@@ -4395,7 +4448,7 @@
         const meta = { user: text, ctx, model: asked };
         const kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
         try {
-          if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought);
+          if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, !live, j.sources, j.thought);  // 87차: 실시간으로 보여 준 답은 다시 쓰지 않음
         } catch (e) {  // 그리기 오류여도 답은 보이게: 빈 말풍선이 있으면 거기에, 없으면 새로
           console.error("답 그리기 오류", e);
           const last = log.lastElementChild, tx = last && last.classList.contains("turn") ? last.querySelector(".text") : null;
