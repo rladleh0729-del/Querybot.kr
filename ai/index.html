@@ -2709,7 +2709,7 @@
   function paintAttach() {
     const ok = canAttach();
     $("attachBtn").hidden = !ok;
-    $("thinkBtn").hidden = !ok;
+    $("thinkBtn").hidden = true;  // 78차: '생각' 단추 없앰 — 어려운 문제면 모델이 스스로 빠른 생각
     $("locBtn").hidden = !ok || $("locBtn").getAttribute("aria-pressed") !== "true";  // 위치는 + 메뉴에서 켜고, 켜져 있을 때만 알약(누르면 끔)
     $("form").classList.toggle("can-attach", ok);
     if ($("plusFile")) $("plusFile").hidden = modelSel.value !== "gemma4";
@@ -2925,7 +2925,7 @@
   // 서버(cf_chat.think_request)와 같은 규칙: '생각해 봐/고민해 줘/곰곰이…'는 생각하기, '어떻게 생각해?' 같은 의견 질문은 아님
   const THINK_ASK = /(생각|고민|궁리|숙고|추론)\s*(을|를|좀|해|하고|한\s?뒤|한\s?다음|해서|하면서|하기)|곰곰이|깊게|깊이 있게|천천히 따져|신중하게/;
   const THINK_OPINION = /(어떻게|뭐라고|무슨|어떤)\s*생각|(다고|라고|냐고|하다고|같다고)\s*생각|생각(해|하니|해요|하세요|하냐|하나요|하시나요)\s*[?？]?\s*$/;
-  let thinkOn = store.get("think") === "1";
+  let thinkOn = false;  // 78차: 단추 없음(예전에 켜 둔 값도 무시) — 서버가 문제를 보고 스스로 생각할지 정함
   function paintThink() {
     const b = $("thinkBtn");
     b.setAttribute("aria-pressed", thinkOn ? "true" : "false");
