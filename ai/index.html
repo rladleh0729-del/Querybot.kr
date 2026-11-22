@@ -298,7 +298,7 @@
   /* AI가 만든 파일: 회색 알약 한 줄(이름 + 복사·받기), 누르면 언어·크기·코드만 펼침 (2026-11-22) */
   .text .file-card{margin:.6em 0;border:1px solid var(--line);border-radius:22px;background:var(--panel2);overflow:hidden;white-space:normal;
     width:fit-content;min-width:min(240px,100%);max-width:100%}  /* 82차: 펼쳐도 코드의 가장 긴 줄만큼만 */
-  .text .file-card.open{min-width:min(100%,480px)}  /* 83차: 펼친 상자는 480px 이상, 높이는 15줄(340px)까지 — 사용자: '너무 좁아서 아래로 길게' */
+  .text .file-card.open{width:auto}  /* 84차: 펼치면 처음처럼 답 폭 전체(사용자: '펼쳤을 때 크기는 처음에 크기로'), 높이는 15줄(340px)까지 */
   .text .file-card:not(.open){max-width:min(100%,420px)}  /* 82차: 접힌 알약은 이름 길이만큼(사용자: '너무 옆으로 긴데 3배 줄일까') */
   .text .file-head{display:flex;align-items:center;gap:2px;min-height:44px;padding:4px 5px 4px 18px;cursor:pointer;user-select:none;-webkit-user-select:none;border-radius:22px}
   .text .file-head:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
@@ -4317,7 +4317,7 @@
       tick = setInterval(() => { lab.textContent = tWord + " · " + Math.floor((Date.now() - t0) / 1000) + t("sec"); }, 1000);
     }
     // 생각하기는 1분 넘게 걸릴 수 있음. 아주 긴 글은 읽는 시간만큼 더 기다림(2천 자에 1초, 최대 +2분)
-    const limit = (asked === "runpod" ? 340000 : thinking ? 200000 : WAKE_TIMEOUT) + Math.min(120000, Math.round(text.length / 2));
+    const limit = (asked === "runpod" ? 340000 : thinking ? 200000 : /파일|file|\d+\s*줄/i.test(text) ? 300000 : WAKE_TIMEOUT) + Math.min(120000, Math.round(text.length / 2));  // 84차: 파일 부탁은 긴 파일 이어 쓰기(최대 약 4분)를 기다림
     // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
     const slow = thinking ? 0 : setTimeout(() => { wait.querySelector(".turn-body").appendChild((asked === "runpod" || online !== true ? wakeNote : plainNote)((asked === "runpod" ? (lang() === "en" ? "Waking your server… about a minute if it was idle." : "내 서버를 깨우는 중이에요. 쉬고 있었으면 1분 안팎 걸려요…") : t(online === true ? "working" : "waking")))); toBottom(); }, 5000);
     let err = null, warn = false;
