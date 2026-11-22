@@ -2957,8 +2957,14 @@
     });
   }
   function brAvail() { return brHave && (modelSel.value === "gemma4" || modelSel.value === "runpod"); }
+  // 76차: 낱말을 넓히고(검색·거기서·그 탭…), 바로 앞 답이 브라우저 작업이었으면(같은 대화, 15분 안) 이어지는 말도 브라우저로
+  var BR_MORE = /(검색|거기서|거기에|거기\s|그\s*탭|그\s*페이지|그\s*사이트|여기서|들어가|띄워|켜\s*줘|접속|가\s*봐|가\s*줘)/;
+  var brLast = null;  // {conv, len, at}: 마지막 브라우저 작업이 끝난 대화와 그때 메시지 수
   function brWants(text, sent, opts) {
-    return brOn && brAvail() && !(sent && sent.length) && !(opts && opts.branch) && (BR_INTENT.test(text || "") || BR_CUR.test(text || ""));
+    if (!(brOn && brAvail()) || (sent && sent.length) || (opts && opts.branch)) return false;
+    const t0 = text || "";
+    if (BR_INTENT.test(t0) || BR_CUR.test(t0) || BR_MORE.test(t0)) return true;
+    return !!(brLast && cur && brLast.conv === cur.id && brLast.len === cur.messages.length && Date.now() - brLast.at < 15 * 60000);
   }
   function paintBr() {
     const b = $("brBtn");
@@ -2971,6 +2977,20 @@
   }
   $("brBtn").addEventListener("click", () => { brOn = !brOn; store.set("br", brOn ? "1" : "0"); paintBr(); input.focus(); });
   brTool({ type: "hello" }).then((r) => { brHave = !!(r && r.ok); paintBr(); });
+  // 확장 background.js describe()와 같은 모양: navigate url="https://…"
+  function brDesc(a) {
+    const bits = [String(a.action || "").toLowerCase()];
+    for (const k of ["id", "text", "option", "keys", "direction", "url", "tab", "seconds"]) {
+      if (a[k] !== undefined && a[k] !== null && a[k] !== "") bits.push(k + "=" + JSON.stringify(a[k]));
+    }
+    return bits.join(" ");
+  }
+  // 탭 세기용 이름: 빈 새 탭은 'blank', 아니면 사이트(google.com 등)
+  function brTabKey(url) {
+    const u = String(url || "").trim();
+    if (!u || /^(about:blank|about:newtab|newtab|new ?tab|blank|새\s*탭|빈\s*탭|chrome:\/\/newtab\/?|brave:\/\/newtab\/?)$/i.test(u)) return "blank";
+    try { return new URL(/^[a-z][a-z0-9+.-]*:/i.test(u) ? u : "https://" + u).hostname.replace(/^www\./, ""); } catch (e) { return u.toLowerCase(); }
+  }
   // 처음 보는 사이트로 가기·열기는, 그 주소(사이트 이름)를 사용자가 이번 말에 직접 적었으면 묻지 않고 허락
   // (보내기·결제·삭제·로그인 단추, 묶음 밖 탭, 탭 닫기는 언제나 카드)
   function brAutoOk(x, text) {
@@ -3030,6 +3050,9 @@
     const sRun = model === "runpod" ? store.get("acctS") || "" : "";
     const gdRun = model === "runpod" && !(sRun && store.get("acctOwner") === "1") ? await gdToken().catch(() => "") : "";
     const useCur = BR_CUR.test(text);
+    const opened = {};  // 76차: 이번 부탁에서 연 탭 수(사이트별)
+    const cnt = text.match(/(한|하나|두|둘|세|셋|네|넷|다섯|[1-9])\s*(개|번|탭|군데|곳)/);
+    const wantTabs = cnt ? ({ 한: 1, 하나: 1, 두: 2, 둘: 2, 세: 3, 셋: 3, 네: 4, 넷: 4, 다섯: 5 }[cnt[1]] || Number(cnt[1]) || 1) : 1;
     try {
       for (let step = 1; step <= BR_MAX; step++) {
         if (stopCtl.signal.aborted) break;
@@ -3055,6 +3078,19 @@
         if (act === "done") { final = String(a.message || L("다 했어요.", "Done.")).replace(/\*\*(.+?)\*\*/g, "$1"); break; }
         const call = Object.assign({}, a);
         delete call.thought;
+        // 76차: 같은 사이트 탭은 말한 개수까지만, 방금 '됨'이 된 이동·탭 바꾸기는 다시 안 함 → 이미 끝난 일이니 여기서 끝냄
+        if (act === "open_tab") {
+          const key = brTabKey(call.url);
+          if ((opened[key] || 0) >= wantTabs) {
+            final = key === "blank" ? L("새 탭을 열었어요.", "Opened a new tab.") : L(key + " 탭을 열었어요.", "Opened " + key + ".");
+            break;
+          }
+        }
+        const prev = history[history.length - 1];
+        if (prev && /^됨/.test(prev.result) && (act === "navigate" || act === "switch_tab") && prev.desc === brDesc(call)) {
+          final = act === "navigate" ? L((call.url || "그 주소") + "(으)로 이동했어요.", "Went to " + (call.url || "the address") + ".") : L("그 탭으로 바꿨어요.", "Switched to that tab.");
+          break;
+        }
         let x = await brTool({ type: "act", call });
         if (x && x.needs_confirm && brAutoOk(x, text)) x = await brTool({ type: "act", call, confirm: x.token });  // 사용자가 말에 직접 적은 주소면 바로
         if (x && x.needs_confirm) {
@@ -3069,6 +3105,7 @@
           x = await brTool({ type: "act", call, confirm: x.token });  // 표는 확장에만
         }
         const ok = !!(x && x.ok);
+        if (ok && act === "open_tab") { const key = brTabKey(call.url); opened[key] = (opened[key] || 0) + 1; }
         const desc = (x && x.desc) || act;
         const res = ok ? (x.result || "됨") : "(실패) " + ((x && x.error) || "");
         const same = history.slice(-6).filter((h) => h.desc === desc).length;
@@ -3095,6 +3132,7 @@
       if (brPrior.length > 3) brPrior.shift();
       if (cur === convAtAsk) {
         record(text, final, "ai", null, { model });
+        brLast = { conv: cur.id, len: cur.messages.length, at: Date.now() };  // 76차: 이어지는 말도 브라우저로
         meta.conv = cur; meta.index = cur.messages.length - 1;
         meTools(meNode, cur.messages.length - 2);
         if (smart(model)) nameConv(cur);
