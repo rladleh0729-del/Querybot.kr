@@ -417,6 +417,22 @@
   /* ── 위치 공유 단추 (2026-11-09) ── */
   .qa-loc svg{flex:none}
   .qa-loc.wait{opacity:.6;cursor:progress}
+  /* ── 브라우저 도구 (2026-11-22, 75차) ── */
+  .qa-br svg{flex:none}
+  .br-steps{display:flex;flex-direction:column;gap:5px;margin:2px 0 8px}
+  .br-step{align-self:flex-start;max-width:100%;padding:4px 12px;border:1px solid var(--line);border-radius:999px;background:var(--field);font-size:12.5px;line-height:1.5;color:var(--text2);overflow-wrap:anywhere}
+  .br-step .th{color:var(--muted)}
+  .br-step.fail{color:#c2410c;border-color:#fdba74}
+  .br-step.warn{color:#b45309;border-color:#fcd34d}
+  .br-card{margin:4px 0 10px;padding:12px 14px;border:1.5px solid #f59e0b;border-radius:20px;background:var(--panel2);font-size:13.5px;color:var(--text)}
+  .br-card b{display:block;margin-bottom:4px}
+  .br-card .why{color:var(--text2)}
+  .br-card .what{margin:8px 0 0;padding:8px 12px;border-radius:14px;background:var(--field);border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:var(--text2)}
+  .br-card .row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .br-card button{height:32px;padding:0 14px;border-radius:999px;border:1px solid var(--line2);background:var(--field);color:var(--text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .br-card button.yes{background:var(--accent);border-color:transparent;color:#fff}
+  .br-card button:disabled{cursor:default;opacity:.6}
+  .br-card.done{border-color:var(--line);opacity:.75}
   .att-note.ok{color:var(--accent-ink);background:var(--accent-soft);border-color:transparent}
 
   /* ── 왼쪽 아래 버튼 숨김 (2026-11-09 사용자 요청) ── */
@@ -1140,6 +1156,7 @@
         </div>
         <button id="thinkBtn" class="qa-think" type="button" aria-pressed="false" hidden><span class="spark" aria-hidden="true"></span><span class="lbl" data-ko="생각" data-en="Think">생각</span></button>
         <button id="locBtn" class="qa-think qa-loc" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span class="lbl" data-ko="위치" data-en="Location">위치</span></button>
+        <button id="brBtn" class="qa-think qa-br" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M3 9h18"/><circle cx="6.5" cy="6.5" r=".6"/></svg><span class="lbl" data-ko="브라우저" data-en="Browser">브라우저</span></button>
         <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
         <textarea id="input" rows="1" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <div class="qa-model">
@@ -2697,6 +2714,7 @@
     $("locBtn").hidden = !ok || $("locBtn").getAttribute("aria-pressed") !== "true";  // 위치는 + 메뉴에서 켜고, 켜져 있을 때만 알약(누르면 끔)
     $("form").classList.toggle("can-attach", ok);
     if ($("plusFile")) $("plusFile").hidden = modelSel.value !== "gemma4";
+    paintBr();  // 75차: 브라우저 도구 알약
     if (!ok && atts && atts.length) atts = [];
     paintAtts();
   }
@@ -2917,6 +2935,177 @@
   }
   $("thinkBtn").addEventListener("click", () => { thinkOn = !thinkOn; store.set("think", thinkOn ? "1" : "0"); paintThink(); input.focus(); });
   paintThink();
+  // =========================================================
+  // 브라우저 도구 (2026-11-22, 75차) — 사용자 요청: Claude in Chrome처럼 쿼리봇이 이 브라우저를 도구로
+  // 손 = 확장 '쿼리봇 브라우저 도구'(querybot.kr만 부를 수 있음, 자기 화면 없음), 머리 = 서버 /agent/step(Gemma 4)
+  // 고리: 확장 observe(화면 요소 번호표 목록) → 서버가 행동 JSON 한 줄 → 확장 act → … → done
+  // 위험한 행동(보내기·제출·결제·삭제·로그인 단추, 글 상자 Enter, 처음 보는 사이트, 묶음 밖 탭, 사용자 탭 닫기)은
+  // 확장이 needs_confirm + 일회용 표를 주면 여기서 확인 카드를 보이고, 허락할 때만 표를 붙여 다시 부른다.
+  // 표는 이 페이지 안에서만 쓰고 서버·모델에 보내지 않는다(AI가 혼자 허락할 수 없게). 화면 글은 대화에 저장하지 않는다.
+  // =========================================================
+  var BR_EXT = "iflilbkbiklgnplcjcagekhiekemenjn", BR_MAX = 15;
+  var brHave = false, brOn = store.get("br") !== "0", brPrior = [];  // 확장이 있으면 기본 켬(사용자가 끄면 기억)
+  // 브라우저에서 할 일처럼 보이는 말 / '지금 보는 탭'을 가리키는 말
+  var BR_INTENT = /(탭|브라우저|창을|창\s|열어|열고|닫아|닫고|들어가|접속|이동해|눌러|클릭|입력해|써\s*줘|채워|검색해|찾아\s*줘|찾아봐|사이트|페이지|웹|주소|링크|유튜브|네이버|구글|위키|다음\s*(뉴스|카페)|쿠팡|스크롤|골라\s*줘|선택해|\b(open|close|tab|browser|click|search|website|page|navigate|go to)\b)/i;
+  var BR_CUR = /(^|[\s,.'"(])(지금|현재|이|요|여기|방금)\s*(보는|보고\s*있는|열린|띄운|켜진|본)?\s*(탭|페이지|화면|사이트|창|글)|\b(this|current)\s+(page|tab|site)\b/i;
+  function brTool(msg) {
+    return new Promise((ok) => {
+      try {
+        if (!(window.chrome && chrome.runtime && chrome.runtime.sendMessage)) { ok({ ok: false, error: "no-ext" }); return; }
+        chrome.runtime.sendMessage(BR_EXT, msg, (r) => ok(r || { ok: false, error: (chrome.runtime.lastError && chrome.runtime.lastError.message) || "no-ext" }));
+      } catch (e) { ok({ ok: false, error: "no-ext" }); }
+    });
+  }
+  function brAvail() { return brHave && (modelSel.value === "gemma4" || modelSel.value === "runpod"); }
+  function brWants(text, sent, opts) {
+    return brOn && brAvail() && !(sent && sent.length) && !(opts && opts.branch) && (BR_INTENT.test(text || "") || BR_CUR.test(text || ""));
+  }
+  function paintBr() {
+    const b = $("brBtn");
+    if (!b) return;
+    b.hidden = !brAvail();
+    b.setAttribute("aria-pressed", brOn ? "true" : "false");
+    b.title = brOn ? L("브라우저 도구: 켜짐 — 탭 열기·검색·누르기 같은 부탁은 쿼리봇이 이 브라우저의 '쿼리봇' 탭 묶음에서 직접 해요. 보내기·결제·삭제·로그인은 꼭 먼저 물어봐요. 누르면 끕니다.",
+                         "Browser tools: on — QueryBot opens, reads and clicks tabs in the 'QueryBot' tab group for browser tasks. It always asks before sending, paying, deleting or signing in. Click to turn off.")
+                     : L("브라우저 도구: 꺼짐 — 누르면 쿼리봇이 이 브라우저를 도구로 써요", "Browser tools: off — click to let QueryBot use this browser");
+  }
+  $("brBtn").addEventListener("click", () => { brOn = !brOn; store.set("br", brOn ? "1" : "0"); paintBr(); input.focus(); });
+  brTool({ type: "hello" }).then((r) => { brHave = !!(r && r.ok); paintBr(); });
+  // 처음 보는 사이트로 가기·열기는, 그 주소(사이트 이름)를 사용자가 이번 말에 직접 적었으면 묻지 않고 허락
+  // (보내기·결제·삭제·로그인 단추, 묶음 밖 탭, 탭 닫기는 언제나 카드)
+  function brAutoOk(x, text) {
+    if (!/주소로 갈까요|새 탭으로 열까요/.test(x.title || "")) return false;
+    let h = "";
+    try { h = new URL(String(x.what || "").trim().split(/\s/)[0]).hostname.toLowerCase().replace(/^www\./, ""); } catch (e) { return false; }
+    const low = String(text || "").toLowerCase(), label = h.split(".").slice(-2, -1)[0] || "";
+    return !!h && (low.includes(h) || (label.length >= 3 && !/^\d+$/.test(label) && low.includes(label)));
+  }
+  // 확인 카드: 확장이 '확인 필요'라고 하면 사용자에게 묻는다(멈춤 ■을 누르면 '하지 않기')
+  function brConfirm(body, x, signal) {
+    return new Promise((done) => {
+      const card = el("div", "br-card");
+      card.append(el("b", "", x.title || L("이걸 해도 될까요?", "Allow this?")), el("div", "why", x.reason || ""));
+      if (x.what) card.appendChild(el("div", "what", x.what));
+      const row = el("div", "row"), yes = el("button", "yes", L("허락", "Allow")), no = el("button", "", L("하지 않기", "Don't"));
+      yes.type = no.type = "button";
+      row.append(yes, no);
+      card.appendChild(row);
+      body.appendChild(card);
+      toBottom();
+      const finish = (v) => { yes.disabled = no.disabled = true; card.classList.add("done"); row.appendChild(el("span", "why", v ? L("→ 허락함", "→ Allowed") : L("→ 하지 않음", "→ Not allowed"))); done(v); };
+      yes.addEventListener("click", () => finish(true), { once: true });
+      no.addEventListener("click", () => finish(false), { once: true });
+      if (signal) signal.addEventListener("abort", () => { if (!yes.disabled) finish(false); }, { once: true });
+    });
+  }
+  async function brAsk(text) {
+    text = (text || "").trim();
+    if (!text || busy) return;
+    busy = true; send.disabled = true;
+    const stopCtl = new AbortController(), reqStop = () => stopCtl.abort();
+    setStopper(reqStop);
+    $("form").classList.add("busy");
+    const model = modelSel.value, convAtAsk = cur;
+    const meNode = addMe(text);
+    const { turn, body } = turnShell("ai");
+    const av = turn.querySelector(".avatar");
+    av.classList.add("thinking");
+    const th = el("span", "think"), dots = el("span", "think-dots"), lab = el("span", "", L("브라우저에서 하는 중", "Working in the browser"));
+    dots.setAttribute("aria-hidden", "true");
+    dots.append(el("i"), el("i"), el("i"));
+    th.append(dots, lab);
+    body.querySelector(".who").appendChild(th);
+    const steps = el("div", "br-steps");
+    body.appendChild(steps);
+    put(turn);
+    const addStep = (line, cls, thought) => {
+      const d = el("div", "br-step" + (cls ? " " + cls : ""));
+      if (thought) d.appendChild(el("span", "th", String(thought).slice(0, 120) + " → "));
+      d.appendChild(document.createTextNode(String(line).slice(0, 220)));
+      steps.appendChild(d);
+      toBottom();
+    };
+    const history = [];
+    let final = "", err = null, warned = false;
+    const sRun = model === "runpod" ? store.get("acctS") || "" : "";
+    const gdRun = model === "runpod" && !(sRun && store.get("acctOwner") === "1") ? await gdToken().catch(() => "") : "";
+    const useCur = BR_CUR.test(text);
+    try {
+      for (let step = 1; step <= BR_MAX; step++) {
+        if (stopCtl.signal.aborted) break;
+        lab.textContent = L("브라우저에서 하는 중", "Working in the browser") + " · " + step;
+        const obs = await brTool({ type: "observe", use_current: useCur && step === 1 });
+        if (!obs || !obs.ok) { err = L("브라우저 도구 확장과 연결되지 않아요. 확장이 켜져 있는지 확인해 주세요.", "Can't reach the browser tools extension."); break; }
+        if (obs.warn && !warned) { warned = true; addStep(L("⚠ 이 페이지에 AI에게 내리는 지시처럼 보이는 글이 있어요. 따르지 않아요.", "⚠ This page contains text that looks like instructions to an AI. Ignoring it."), "warn"); }
+        let r = null;
+        try {
+          r = await fetch(API + "/agent/step", { method: "POST", headers: { "Content-Type": "application/json" }, signal: stopCtl.signal,
+            body: JSON.stringify({ task: text, step, max_steps: BR_MAX, history: history.slice(-8), observation: obs.text || "", model, prior: brPrior.slice(-3), s: sRun, gd: gdRun }) });
+        } catch (e) { if (!stopCtl.signal.aborted) err = t("down"); break; }
+        if (r.status === 404) { err = L("서버가 아직 브라우저 도구를 모르는 버전이에요. 잠시 뒤 다시 해 주세요.", "The server doesn't support browser tools yet."); break; }
+        if (!r.ok) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} err = (typeof d === "string" && d && lang() !== "en") ? d : t(r.status === 429 ? "busy" : "fail"); break; }
+        const j = await r.json();
+        const a = j.action;
+        if (!a || typeof a !== "object") {
+          history.push({ desc: "(잘못된 행동)", result: "(실패) " + (j.error || "") });
+          addStep(L("답을 못 알아들어 다시 물어요", "Couldn't read the reply, asking again"), "fail");
+          continue;
+        }
+        const act = String(a.action || "").toLowerCase();
+        if (act === "done") { final = String(a.message || L("다 했어요.", "Done.")).replace(/\*\*(.+?)\*\*/g, "$1"); break; }
+        const call = Object.assign({}, a);
+        delete call.thought;
+        let x = await brTool({ type: "act", call });
+        if (x && x.needs_confirm && brAutoOk(x, text)) x = await brTool({ type: "act", call, confirm: x.token });  // 사용자가 말에 직접 적은 주소면 바로
+        if (x && x.needs_confirm) {
+          lab.textContent = L("확인을 기다리는 중", "Waiting for your OK");
+          const yes = await brConfirm(body, x, stopCtl.signal);
+          if (!yes) {
+            history.push({ desc: x.desc || act, result: "(사용자가 거절함)" });
+            addStep((x.desc || act) + " → " + L("하지 않음", "not done"), "fail", a.thought);
+            final = L("확인에서 '하지 않기'를 고르셔서 여기서 멈췄어요.", "Stopped because you chose not to allow it.");
+            break;
+          }
+          x = await brTool({ type: "act", call, confirm: x.token });  // 표는 확장에만
+        }
+        const ok = !!(x && x.ok);
+        const desc = (x && x.desc) || act;
+        const res = ok ? (x.result || "됨") : "(실패) " + ((x && x.error) || "");
+        const same = history.slice(-6).filter((h) => h.desc === desc).length;
+        const rep = same >= 1 && !["scroll", "wait", "key"].includes(act);
+        history.push({ desc, result: res + (rep ? " (같은 행동 반복)" : "") });
+        addStep(desc + " → " + res.split("\n")[0], ok ? "" : "fail", a.thought);
+        if (same >= 2 && rep) { final = L("같은 행동을 되풀이해서 멈췄어요. 다른 말로 다시 부탁해 주세요.", "Stopped because the same action kept repeating."); break; }
+      }
+      if (!final && !err && !stopCtl.signal.aborted) final = L("최대 " + BR_MAX + "단계까지 해서 멈췄어요. 이어서 하려면 '계속'이라고 말해 주세요.", "Stopped after " + BR_MAX + " steps. Say 'continue' to keep going.");
+    } catch (e) {
+      if (!stopCtl.signal.aborted) err = (lang() === "en" ? "Something went wrong" : "오류가 났어요") + " (" + String((e && e.message) || e).slice(0, 80) + ")";
+    } finally {
+      brTool({ type: "end" });  // 디버거 떼기, 잠깐 묶었던 사용자 탭 되돌리기
+    }
+    av.classList.remove("thinking");
+    th.remove();
+    if (stopCtl.signal.aborted && !final) addSys(t("stopped"));
+    if (final) {
+      const p = el("div", "text");
+      try { renderRich(p, final); } catch (e) { p.textContent = final; }
+      const meta = { user: text, ctx: [], model };
+      body.append(p, copyTool(() => final, meta, body));
+      brPrior.push({ task: text.slice(0, 300), result: final.slice(0, 600) });
+      if (brPrior.length > 3) brPrior.shift();
+      if (cur === convAtAsk) {
+        record(text, final, "ai", null, { model });
+        meta.conv = cur; meta.index = cur.messages.length - 1;
+        meTools(meNode, cur.messages.length - 2);
+        if (smart(model)) nameConv(cur);
+      }
+      toBottom();
+    }
+    if (err) addAlert(err, true, () => { meNode.remove(); turn.remove(); ask(text, []); });
+    if (stopper === reqStop) setStopper(null);
+    busy = false; send.disabled = false; $("form").classList.remove("busy"); input.focus();
+  }
+
   // 위치 공유 (2026-11-09 사용자 요청): 누르면 브라우저가 위치 권한을 묻고, 허락하면 대략 좌표(소수 둘째 자리 ≈ 1km)를
   // Gemma 4 질문에 같이 보낸다. 날씨·근처 질문에만 쓰고 서버에는 저장하지 않는다. 켜 둔 상태는 이 브라우저에 기억
   let locOn = false, myLoc = null, locPrec = store.get("locPrec") === "exact" ? "exact" : "approx";  // 51차: 사용자가 고른 정밀도
@@ -4026,6 +4215,8 @@
   async function ask(text, sent, opts) {
     if (busy) return;
     try {
+      // 75차: '브라우저' 알약이 켜져 있고 브라우저에서 할 일처럼 보이면 → 확장(손)과 서버 /agent/step(머리)로
+      if (brWants(text, sent, opts)) { await brAsk(text); return; }
       await askInner(text, sent, opts);
     } catch (e) {
       console.error("보내기 오류", e);
