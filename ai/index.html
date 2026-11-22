@@ -1721,10 +1721,7 @@
     if (label) { const dots = el("span", "think-dots"); dots.setAttribute("aria-hidden", "true"); dots.append(el("i"), el("i"), el("i")); th.append(dots, el("span", "", label)); }  // 70차: 별 대신 점 3개
     else { th.setAttribute("role", "status"); th.setAttribute("aria-label", t("thinking")); th.append(el("i"), el("i"), el("i")); }  // 48차: 글자 대신 점 3개
     body.querySelector(".who").appendChild(th);
-    const sk = el("div", "skel");
-    sk.setAttribute("aria-label", t("thinking"));
-    sk.append(el("i"), el("i"), el("i"));
-    body.appendChild(sk);
+    // 85차: 회색 글자 모양 줄(스켈레톤) 없앰 — 점 세 개만 (사용자: '회색 텍스트 배경 같은 거 … 없는 게 좋을 듯')
     return put(turn);
   }
 
@@ -4319,7 +4316,8 @@
     // 생각하기는 1분 넘게 걸릴 수 있음. 아주 긴 글은 읽는 시간만큼 더 기다림(2천 자에 1초, 최대 +2분)
     const limit = (asked === "runpod" ? 340000 : thinking ? 200000 : /파일|file|\d+\s*줄/i.test(text) ? 300000 : WAKE_TIMEOUT) + Math.min(120000, Math.round(text.length / 2));  // 84차: 파일 부탁은 긴 파일 이어 쓰기(최대 약 4분)를 기다림
     // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
-    const slow = thinking ? 0 : setTimeout(() => { wait.querySelector(".turn-body").appendChild((asked === "runpod" || online !== true ? wakeNote : plainNote)((asked === "runpod" ? (lang() === "en" ? "Waking your server… about a minute if it was idle." : "내 서버를 깨우는 중이에요. 쉬고 있었으면 1분 안팎 걸려요…") : t(online === true ? "working" : "waking")))); toBottom(); }, 5000);
+    const slow = thinking ? 0 : setTimeout(() => { if (asked !== "runpod" && online === true) return;  // 85차: '검색하거나 자료를 읽는 중' 없앰(서버 깨우는 안내만)
+      wait.querySelector(".turn-body").appendChild((asked === "runpod" || online !== true ? wakeNote : plainNote)((asked === "runpod" ? (lang() === "en" ? "Waking your server… about a minute if it was idle." : "내 서버를 깨우는 중이에요. 쉬고 있었으면 1분 안팎 걸려요…") : t(online === true ? "working" : "waking")))); toBottom(); }, 5000);
     let err = null, warn = false;
     const sRun = asked === "runpod" ? store.get("acctS") || "" : "";
     const gdRun = asked === "runpod" && !(sRun && store.get("acctOwner") === "1") ? await gdToken().catch(() => "") : "";
