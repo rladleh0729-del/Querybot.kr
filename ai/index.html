@@ -1862,7 +1862,7 @@
       try { await navigator.clipboard.writeText(getText()); b.innerHTML = checkIcon; status.textContent = t("copied"); setTimeout(() => { b.innerHTML = copyIcon; status.textContent = ""; }, 1500); }
       catch (e) { status.textContent = L("복사하지 못했어요.", "Couldn't copy."); }
     });
-    if (!/```\s*(file|파일)\s*[:：]/i.test(getText())) tools.appendChild(b);  // 파일이 든 답은 파일 알약의 복사·받기로 (2026-11-22)
+    if (!/```\s*(file|파일|gen|생성)\s*[:：]/i.test(getText())) tools.appendChild(b);  // 파일이 든 답은 파일 알약의 복사·받기로 (2026-11-22)
     let ratings = {}; try { ratings = JSON.parse(store.get("answerRatings") || "{}"); if (!ratings || typeof ratings !== "object" || Array.isArray(ratings)) ratings = {}; } catch (e) {}
     const key = ratingKey(getText(), meta);
     const up = action(svg('<path d="M7 10v11H3V10zM7 10l5-8c2 0 3 2 2 5l-1 3h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 2H7"/>'), "좋아요", "Good response");
@@ -2632,7 +2632,7 @@
     lg.appendChild(document.createTextNode(FILE_LANG[ext] || (ext === "txt" ? "text" : ext.toUpperCase())  /* 80차: '텍스트' 대신 text (사용자 요청) */));
     top.append(lg, el("span", "", fileSize(code)));
     const pre = document.createElement("pre");
-    pre.appendChild(el("code", "", code));
+    pre.appendChild(el("code", "", code.length > 200000 ? code.slice(0, 200000) + "\n…" : code));  // 86차: 아주 큰 파일은 앞 20만 자만 그림(복사·받기는 전체)
     body.append(top, pre);
     box.appendChild(body);
     head.setAttribute("role", "button"); head.tabIndex = 0; head.setAttribute("aria-expanded", "false");
@@ -2648,6 +2648,45 @@
     head.addEventListener("click", () => flip(true));
     head.addEventListener("keydown", (e) => { if (e.target === head && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); flip(true); } });
     if (code.split("\n").length <= 15) flip(false);  // 82차: 짧은 코드(15줄 이하)는 처음부터 펼쳐서
+    return box;
+  }
+  // 86차: 길고 되풀이되는 파일은 모델이 ```gen:이름 블록에 '내용을 만들어 return 하는 짧은 자바스크립트'를 씀 → 막힌 상자에서 돌려 파일 알약으로
+  //  (사용자: '저런 거는 그냥 명령어로 코드를 짜면 순식간이지 않을까? 오랫동안 만들었는데도 137이야')
+  //  상자: sandbox iframe(출처 없음 — 이 사이트 저장소·로그인 못 만짐) + CSP로 인터넷 막음 + 그 안 Worker에서 계산, 8초 넘으면 상자째 버림
+  const GEN_RE = /^(?:gen|생성)\s*[:：]\s*(.+)$/i;
+  const GEN_MAX = 5 * 1048576, genCache = new Map();
+  function runGen(code) {
+    if (genCache.has(code)) return genCache.get(code);
+    const job = new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2), fr = document.createElement("iframe");
+      const worker = "try{const r=(function(){\n" + code + "\n})();const o=typeof r==='string'?r:Array.isArray(r)?r.join('\\n'):r&&typeof r==='object'?JSON.stringify(r,null,2):null;"
+        + "postMessage(o==null?{err:'return 한 값이 글자가 아님('+typeof r+')'}:{out:o})}catch(e){postMessage({err:String(e&&e.message||e)})}";
+      const js = "const send=(r)=>parent.postMessage(Object.assign({qbGen:" + JSON.stringify(id) + "},r),'*');"
+        + "try{const w=new Worker(URL.createObjectURL(new Blob([" + JSON.stringify(worker) + "],{type:'text/javascript'})));"
+        + "w.onmessage=(e)=>send(e.data);w.onerror=(e)=>{e.preventDefault();send({err:String(e.message||'error')})}}catch(e){send({err:String(e&&e.message||e)})}";
+      fr.setAttribute("sandbox", "allow-scripts");
+      fr.setAttribute("aria-hidden", "true");
+      fr.style.display = "none";
+      fr.srcdoc = '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\' blob:; worker-src blob:"><script>'
+        + js.replace(/</g, "\\u003c") + "<\/script>";
+      let tm = 0;
+      const on = (e) => { if (e.source === fr.contentWindow && e.data && e.data.qbGen === id) done(e.data); };
+      const done = (r) => { clearTimeout(tm); window.removeEventListener("message", on); fr.remove(); resolve(r || {}); };
+      tm = setTimeout(() => { genCache.delete(code); done({ err: L("8초 안에 끝나지 않아 멈췄어요", "Stopped after 8 seconds") }); }, 8000);
+      window.addEventListener("message", on);
+      document.body.appendChild(fr);
+    });
+    genCache.set(code, job);
+    return job;
+  }
+  function genCard(raw, code, closed) {
+    const box = fileCard(raw, "", false);  // 만드는 동안은 '만드는 중…' 알약
+    if (!closed) return box;
+    runGen(code).then((r) => {
+      if (typeof r.out === "string" && r.out.length <= GEN_MAX) { box.replaceWith(fileCard(raw, r.out, true)); return; }
+      const w = box.querySelector(".file-wait");
+      if (w) w.textContent = L("만들지 못했어요", "Couldn't build") + (r.err ? " — " + String(r.err).slice(0, 80) : r.out ? " — " + L("5MB를 넘어요", "over 5MB") : "");
+    });
     return box;
   }
   function codeBox(lng, code) {
@@ -2672,8 +2711,8 @@
       if (last) seg = seg.replace(/^\n+/, "");
       addBlocks(node, seg.replace(/\s+$/, ""));
       const lng = m[1].trim(), closed = m[0].length > 6 && m[0].endsWith("```");
-      const fm = lng.match(FILE_RE);
-      node.appendChild(fm ? fileCard(fm[1].trim(), m[2].replace(/\n$/, ""), closed)
+      const fm = lng.match(FILE_RE), gm = lng.match(GEN_RE);
+      node.appendChild(gm ? genCard(gm[1].trim(), m[2].replace(/\n$/, ""), closed) : fm ? fileCard(fm[1].trim(), m[2].replace(/\n$/, ""), closed)
         : /^(chart|차트)$/i.test(lng) ? chartBox(m[2].trim(), closed) : codeBox(lng, m[2].replace(/\n$/, "")));
       last = re.lastIndex;
     }
@@ -4293,7 +4332,7 @@
     // Gemma 4는 앞 대화 8개(4번 주고받기)·한 줄 1,000자까지 (2026-11-10 '기억 한도 늘려'), 기본 모델은 4개·400자
     let before = smart(asked) ? hist(1000) : hist();
     if (smart(asked) && cur) {  // 파일을 이어서 고쳐 달라고 할 수 있게: 파일이 든 마지막 답은 8,000자까지 (2026-11-22, 서버 FILE_HISTORY_CHARS)
-      const li = cur.messages.map((m) => m.role === "assistant" && /```\s*(file|파일)\s*[:：]/i.test(m.content)).lastIndexOf(true);
+      const li = cur.messages.map((m) => m.role === "assistant" && /```\s*(file|파일|gen|생성)\s*[:：]/i.test(m.content)).lastIndexOf(true);
       if (li >= 0 && li < before.length) before[li] = { role: "assistant", content: cur.messages[li].content.slice(0, 8000) };
     }
     if (opts.branch) before = before.slice(0, opts.branch.i);  // 질문 고치기: 고친 말 앞까지만
