@@ -4402,7 +4402,9 @@
       think: smart(asked) && !!opts.think, memory: smart(asked) ? memList() : [],
       style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
       location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun, s: sRun,
-      browser: brHave && (asked === "gemma4" || asked === "runpod") });  // 77차: 브라우저 도구 확장이 있음 → 모델이 필요하면 browser_task
+      browser: brHave && (asked === "gemma4" || asked === "runpod"),
+      // 88차: 이 대화의 바로 앞 답이 브라우저 도구로 한 것 → 그 화면 얘기면 서버가 다시 브라우저로(웹 검색으로 빠지지 않게)
+      browser_recent: !!(brHave && !opts.branch && cur && cur.messages.length && cur.messages[cur.messages.length - 1].br) });  // 77차: 브라우저 도구 확장이 있음 → 모델이 필요하면 browser_task
     // 87차: 실시간 답 — 글자가 오는 대로 기다리는 칸에 그림(점 세 개는 숨김). 다 받은 뒤에는 한 글자씩 다시 쓰지 않음
     let live = null, liveText = "", liveRaf = 0;
     const onText = (s) => {
@@ -4441,6 +4443,7 @@
         if (j.browser_task && brHave) {  // 77차: 모델이 브라우저에서 할 일이라고 판단 → 확장(손) + /agent/step(머리), 점 3개 대기 그대로
           clearTimeout(slow);
           j.reply = await brRun(String(j.browser_task), text, asked, wait, stopCtl.signal);
+          j.__br = true;  // 88차: 저장할 때 이 답이 브라우저로 한 것이라고 표시
         }
         const reply = j.reply || "";
         if (j.quota) setQuota(j.quota);
@@ -4467,6 +4470,7 @@
         setOnline(true);
         if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
           record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch, model: asked });
+          if (j.__br && cur.messages.length) { cur.messages[cur.messages.length - 1].br = 1; saveConvs(); }  // 88차
           meta.conv = cur; meta.index = cur.messages.length - 1;
           meTools(meNode, cur.messages.length - 2);  // 이제 저장됐으니 말풍선 아래 복사·고치기
           if (smart(asked)) nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
