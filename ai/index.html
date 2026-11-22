@@ -1942,6 +1942,20 @@
     return out;
   }
 
+  // 91차: 실시간 답에서 아직 닫히지 않은 수식은 잘라 둠($…, $$…, \(…, \[…) — 코드 블록을 쓰는 중이면 그대로
+  function liveMathCut(t) {
+    if (!/\$|\\\(|\\\[/.test(t) || ((t.match(/```/g) || []).length % 2)) return t;
+    let out = t;
+    for (const [a, b] of [["\\[", "\\]"], ["\\(", "\\)"]]) {
+      const i = out.lastIndexOf(a);
+      if (i >= 0 && out.indexOf(b, i + a.length) < 0) out = out.slice(0, i);
+    }
+    const dd = [...out.matchAll(/\$\$/g)];
+    if (dd.length % 2) out = out.slice(0, dd[dd.length - 1].index);
+    const one = [...out.replace(/\$\$/g, "\u0000\u0000").matchAll(/\$/g)];
+    if (one.length % 2) out = out.slice(0, one[one.length - 1].index);
+    return out;
+  }
   // 모델 답: 새 답은 한 글자씩 써지듯 보여 준다 (실제로는 다 받은 뒤 보여 주는 것). 저장된 대화를 열 땐 바로.
   function addAiReply(text, meta, kind, animate, sources, thought) {
     const { turn, body } = turnShell(kind || "ai");
@@ -2726,10 +2740,33 @@
   }
 
   // 수식($...$, $$...$$, \( \), \[ \])을 KaTeX로 그린다. KaTeX가 아직 안 불러졌으면 페이지 load 때 한꺼번에.
+  // 91차: 지수 속 분수(25^{\frac{1}{3}})는 KaTeX가 아주 작게 그림 → 그 지수 묶음을 \textstyle로(분수 모양 그대로, 숫자 크게)
+  function bigExpFrac(m) {
+    if (m.indexOf("\\frac") < 0 || m.indexOf("^") < 0) return m;
+    let out = "", i = 0;
+    while (i < m.length) {
+      if (m[i] === "^") {
+        let j = i + 1;
+        while (m[j] === " ") j++;
+        if (m[j] === "{") {
+          let depth = 0, k = j;
+          for (; k < m.length; k++) { if (m[k] === "{") depth++; else if (m[k] === "}" && --depth === 0) break; }
+          const inner = m.slice(j + 1, k);
+          out += "^{" + (/\\frac(?![a-zA-Z])/.test(inner) && !/^\s*\\(text|display)style/.test(inner) ? "\\textstyle " : "") + inner + "}";
+          i = k + 1;
+          continue;
+        }
+        if (m.startsWith("\\frac", j) && !/[a-zA-Z]/.test(m[j + 5] || "")) { out += "^{\\textstyle\\frac"; i = j + 5; const g = m.slice(i).match(/^\s*(\{[^{}]*\}|\S)\s*(\{[^{}]*\}|\S)/); if (g) { out += g[0] + "}"; i += g[0].length; } else out += "}"; continue; }
+      }
+      out += m[i++];
+    }
+    return out;
+  }
   function renderMath(node) {
     if (!node || !window.renderMathInElement || !/\$|\\\(|\\\[/.test(node.textContent)) return;
     try {
       renderMathInElement(node, {
+        preProcess: bigExpFrac,
         delimiters: [
           { left: "$$", right: "$$", display: true },
           { left: "\\[", right: "\\]", display: true },
@@ -4420,7 +4457,8 @@
         if (!liveText) { if (live) { live.remove(); live = null; } if (dots) dots.style.display = ""; return; }
         if (!live) { body.querySelectorAll(".wait-note").forEach((x) => x.remove()); clearTimeout(slow); live = el("div", "text"); body.appendChild(live); }
         if (dots) dots.style.display = "none";
-        try { renderRich(live, liveText); } catch (e) { live.textContent = liveText; }
+        const shown = liveMathCut(liveText);  // 91차: 아직 닫히지 않은 수식은 닫힐 때까지 숨김
+        try { renderRich(live, shown); renderMath(live); } catch (e) { live.textContent = shown; }  // 91차: 흘러나오는 동안에도 수식을 바로 그림
         toBottom();
       });
     };
