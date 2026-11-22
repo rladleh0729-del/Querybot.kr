@@ -773,7 +773,8 @@
   .qa-plus-menu button[hidden]{display:none}
   /* ── 41차 (2026-11-14): 글꼴·첫 화면 — 답·본문은 감성 세리프, 메뉴·버튼·입력·내 말은 산세리프(사이트 공통 그대로) ── */
   :root{--qa-serif:"Noto Serif KR Variable","Noto Serif KR","Nanum Myeongjo",AppleMyungjo,Batang,serif}
-  .turn .text,.thought-body{font-family:var(--qa-serif);font-weight:400;letter-spacing:0}
+  /* 81차: 답 글씨는 고딕 — Windows는 맑은 고딕(Claude 앱과 같은 느낌), 그 밖의 기기는 Pretendard (2026-11-22 사용자: '고딕으로 바꿔') */
+  .turn .text,.thought-body{font-family:"Segoe UI","Malgun Gothic","맑은 고딕","Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;font-weight:400;letter-spacing:0}
   .turn .text{line-height:1.8}
   .turn .text b,.turn .text strong,.turn .text h1,.turn .text h2,.turn .text h3,.turn .text h4{font-weight:650}
   .qa-hello h2.qa-hero{font-family:var(--qa-serif);font-weight:630;letter-spacing:-.02em}
