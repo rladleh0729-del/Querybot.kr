@@ -1156,7 +1156,6 @@
         </div>
         <button id="thinkBtn" class="qa-think" type="button" aria-pressed="false" hidden><span class="spark" aria-hidden="true"></span><span class="lbl" data-ko="생각" data-en="Think">생각</span></button>
         <button id="locBtn" class="qa-think qa-loc" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span class="lbl" data-ko="위치" data-en="Location">위치</span></button>
-        <button id="brBtn" class="qa-think qa-br" type="button" aria-pressed="false" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="4"/><path d="M3 9h18"/><circle cx="6.5" cy="6.5" r=".6"/></svg><span class="lbl" data-ko="브라우저" data-en="Browser">브라우저</span></button>
         <input id="attachFile" type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.yaml,.yml,.log,.py,.js,.mjs,.ts,.jsx,.tsx,.html,.htm,.css,.java,.c,.cc,.cpp,.h,.hpp,.cs,.go,.rs,.kt,.swift,.rb,.php,.sh,.bat,.ps1,.sql,.ini,.toml,.srt,.vtt,.tex">
         <textarea id="input" rows="1" data-ph-ko="QueryBot에게 메시지 보내기" data-ph-en="Message QueryBot"></textarea>
         <div class="qa-model">
@@ -2714,7 +2713,6 @@
     $("locBtn").hidden = !ok || $("locBtn").getAttribute("aria-pressed") !== "true";  // 위치는 + 메뉴에서 켜고, 켜져 있을 때만 알약(누르면 끔)
     $("form").classList.toggle("can-attach", ok);
     if ($("plusFile")) $("plusFile").hidden = modelSel.value !== "gemma4";
-    paintBr();  // 75차: 브라우저 도구 알약
     if (!ok && atts && atts.length) atts = [];
     paintAtts();
   }
@@ -2936,17 +2934,14 @@
   $("thinkBtn").addEventListener("click", () => { thinkOn = !thinkOn; store.set("think", thinkOn ? "1" : "0"); paintThink(); input.focus(); });
   paintThink();
   // =========================================================
-  // 브라우저 도구 (2026-11-22, 75차) — 사용자 요청: Claude in Chrome처럼 쿼리봇이 이 브라우저를 도구로
+  // 브라우저 도구 (2026-11-22, 75→77차) — 사용자: "내부적인 기능, 도구로 오로지", "브라우저 알약·생각 알약·'하는 중'은 빼"
   // 손 = 확장 '쿼리봇 브라우저 도구'(querybot.kr만 부를 수 있음, 자기 화면 없음), 머리 = 서버 /agent/step(Gemma 4)
-  // 고리: 확장 observe(화면 요소 번호표 목록) → 서버가 행동 JSON 한 줄 → 확장 act → … → done
-  // 위험한 행동(보내기·제출·결제·삭제·로그인 단추, 글 상자 Enter, 처음 보는 사이트, 묶음 밖 탭, 사용자 탭 닫기)은
-  // 확장이 needs_confirm + 일회용 표를 주면 여기서 확인 카드를 보이고, 허락할 때만 표를 붙여 다시 부른다.
-  // 표는 이 페이지 안에서만 쓰고 서버·모델에 보내지 않는다(AI가 혼자 허락할 수 없게). 화면 글은 대화에 저장하지 않는다.
+  // 확장이 있으면 /chat에 browser=true → 모델이 브라우저 일이라고 판단하면 서버가 browser_task를 줌 → 여기서 조용히 고리:
+  //   확장 observe(화면 요소 번호표 목록) → /agent/step이 행동 JSON 한 줄 → 확장 act → … → done → 결과 문장을 보통 답처럼
+  // 위험한 행동은 확장이 needs_confirm + 일회용 표를 주면 확인 카드(표는 이 페이지 안에서만, 서버·모델엔 안 보냄)
   // =========================================================
   var BR_EXT = "iflilbkbiklgnplcjcagekhiekemenjn", BR_MAX = 15;
-  var brHave = false, brOn = store.get("br") !== "0", brPrior = [];  // 확장이 있으면 기본 켬(사용자가 끄면 기억)
-  // 브라우저에서 할 일처럼 보이는 말 / '지금 보는 탭'을 가리키는 말
-  var BR_INTENT = /(탭|브라우저|창을|창\s|열어|열고|닫아|닫고|들어가|접속|이동해|눌러|클릭|입력해|써\s*줘|채워|검색해|찾아\s*줘|찾아봐|사이트|페이지|웹|주소|링크|유튜브|네이버|구글|위키|다음\s*(뉴스|카페)|쿠팡|스크롤|골라\s*줘|선택해|\b(open|close|tab|browser|click|search|website|page|navigate|go to)\b)/i;
+  var brHave = false, brPrior = [];
   var BR_CUR = /(^|[\s,.'"(])(지금|현재|이|요|여기|방금)\s*(보는|보고\s*있는|열린|띄운|켜진|본)?\s*(탭|페이지|화면|사이트|창|글)|\b(this|current)\s+(page|tab|site)\b/i;
   function brTool(msg) {
     return new Promise((ok) => {
@@ -2956,50 +2951,7 @@
       } catch (e) { ok({ ok: false, error: "no-ext" }); }
     });
   }
-  function brAvail() { return brHave && (modelSel.value === "gemma4" || modelSel.value === "runpod"); }
-  // 76차: 낱말을 넓히고(검색·거기서·그 탭…), 바로 앞 답이 브라우저 작업이었으면(같은 대화, 15분 안) 이어지는 말도 브라우저로
-  var BR_MORE = /(검색|거기서|거기에|거기\s|그\s*탭|그\s*페이지|그\s*사이트|여기서|들어가|띄워|켜\s*줘|접속|가\s*봐|가\s*줘)/;
-  var brLast = null;  // {conv, len, at}: 마지막 브라우저 작업이 끝난 대화와 그때 메시지 수
-  function brWants(text, sent, opts) {
-    if (!(brOn && brAvail()) || (sent && sent.length) || (opts && opts.branch)) return false;
-    const t0 = text || "";
-    if (BR_INTENT.test(t0) || BR_CUR.test(t0) || BR_MORE.test(t0)) return true;
-    return !!(brLast && cur && brLast.conv === cur.id && brLast.len === cur.messages.length && Date.now() - brLast.at < 15 * 60000);
-  }
-  function paintBr() {
-    const b = $("brBtn");
-    if (!b) return;
-    b.hidden = !brAvail();
-    b.setAttribute("aria-pressed", brOn ? "true" : "false");
-    b.title = brOn ? L("브라우저 도구: 켜짐 — 탭 열기·검색·누르기 같은 부탁은 쿼리봇이 이 브라우저의 '쿼리봇' 탭 묶음에서 직접 해요. 보내기·결제·삭제·로그인은 꼭 먼저 물어봐요. 누르면 끕니다.",
-                         "Browser tools: on — QueryBot opens, reads and clicks tabs in the 'QueryBot' tab group for browser tasks. It always asks before sending, paying, deleting or signing in. Click to turn off.")
-                     : L("브라우저 도구: 꺼짐 — 누르면 쿼리봇이 이 브라우저를 도구로 써요", "Browser tools: off — click to let QueryBot use this browser");
-  }
-  $("brBtn").addEventListener("click", () => { brOn = !brOn; store.set("br", brOn ? "1" : "0"); paintBr(); input.focus(); });
-  brTool({ type: "hello" }).then((r) => { brHave = !!(r && r.ok); paintBr(); });
-  // 확장 background.js describe()와 같은 모양: navigate url="https://…"
-  function brDesc(a) {
-    const bits = [String(a.action || "").toLowerCase()];
-    for (const k of ["id", "text", "option", "keys", "direction", "url", "tab", "seconds"]) {
-      if (a[k] !== undefined && a[k] !== null && a[k] !== "") bits.push(k + "=" + JSON.stringify(a[k]));
-    }
-    return bits.join(" ");
-  }
-  // 탭 세기용 이름: 빈 새 탭은 'blank', 아니면 사이트(google.com 등)
-  function brTabKey(url) {
-    const u = String(url || "").trim();
-    if (!u || /^(about:blank|about:newtab|newtab|new ?tab|blank|새\s*탭|빈\s*탭|chrome:\/\/newtab\/?|brave:\/\/newtab\/?)$/i.test(u)) return "blank";
-    try { return new URL(/^[a-z][a-z0-9+.-]*:/i.test(u) ? u : "https://" + u).hostname.replace(/^www\./, ""); } catch (e) { return u.toLowerCase(); }
-  }
-  // 처음 보는 사이트로 가기·열기는, 그 주소(사이트 이름)를 사용자가 이번 말에 직접 적었으면 묻지 않고 허락
-  // (보내기·결제·삭제·로그인 단추, 묶음 밖 탭, 탭 닫기는 언제나 카드)
-  function brAutoOk(x, text) {
-    if (!/주소로 갈까요|새 탭으로 열까요/.test(x.title || "")) return false;
-    let h = "";
-    try { h = new URL(String(x.what || "").trim().split(/\s/)[0]).hostname.toLowerCase().replace(/^www\./, ""); } catch (e) { return false; }
-    const low = String(text || "").toLowerCase(), label = h.split(".").slice(-2, -1)[0] || "";
-    return !!h && (low.includes(h) || (label.length >= 3 && !/^\d+$/.test(label) && low.includes(label)));
-  }
+  brTool({ type: "hello" }).then((r) => { brHave = !!(r && r.ok); });
   // 확인 카드: 확장이 '확인 필요'라고 하면 사용자에게 묻는다(멈춤 ■을 누르면 '하지 않기')
   function brConfirm(body, x, signal) {
     return new Promise((done) => {
@@ -3018,90 +2970,76 @@
       if (signal) signal.addEventListener("abort", () => { if (!yes.disabled) finish(false); }, { once: true });
     });
   }
-  async function brAsk(text) {
-    text = (text || "").trim();
-    if (!text || busy) return;
-    busy = true; send.disabled = true;
-    const stopCtl = new AbortController(), reqStop = () => stopCtl.abort();
-    setStopper(reqStop);
-    $("form").classList.add("busy");
-    const model = modelSel.value, convAtAsk = cur;
-    const meNode = addMe(text);
-    const { turn, body } = turnShell("ai");
-    const av = turn.querySelector(".avatar");
-    av.classList.add("thinking");
-    const th = el("span", "think"), dots = el("span", "think-dots"), lab = el("span", "", L("브라우저에서 하는 중", "Working in the browser"));
-    dots.setAttribute("aria-hidden", "true");
-    dots.append(el("i"), el("i"), el("i"));
-    th.append(dots, lab);
-    body.querySelector(".who").appendChild(th);
-    const steps = el("div", "br-steps");
-    body.appendChild(steps);
-    put(turn);
-    const addStep = (line, cls, thought) => {
-      const d = el("div", "br-step" + (cls ? " " + cls : ""));
-      if (thought) d.appendChild(el("span", "th", String(thought).slice(0, 120) + " → "));
-      d.appendChild(document.createTextNode(String(line).slice(0, 220)));
-      steps.appendChild(d);
-      toBottom();
-    };
-    const history = [];
-    let final = "", err = null, warned = false;
+  // 확장 background.js describe()와 같은 모양: navigate url="https://…"
+  function brDesc(a) {
+    const bits = [String(a.action || "").toLowerCase()];
+    for (const k of ["id", "text", "option", "keys", "direction", "url", "tab", "seconds"]) {
+      if (a[k] !== undefined && a[k] !== null && a[k] !== "") bits.push(k + "=" + JSON.stringify(a[k]));
+    }
+    return bits.join(" ");
+  }
+  // 탭 세기용 이름: 빈 새 탭(브라우저 기본 새 탭)은 'blank', 아니면 사이트(google.com 등)
+  function brTabKey(url) {
+    const u = String(url || "").trim();
+    if (!u || /^(about:blank|about:newtab|newtab|new ?tab|blank|새\s*탭|빈\s*탭|chrome:\/\/newtab\/?|brave:\/\/newtab\/?)$/i.test(u)) return "blank";
+    try { return new URL(/^[a-z][a-z0-9+.-]*:/i.test(u) ? u : "https://" + u).hostname.replace(/^www\./, ""); } catch (e) { return u.toLowerCase(); }
+  }
+  // 처음 보는 사이트로 가기·열기는, 그 주소(사이트 이름)를 사용자가 이번 말에 직접 적었으면 묻지 않고 허락
+  // (보내기·결제·삭제·로그인 단추, 묶음 밖 탭, 탭 닫기는 언제나 카드)
+  function brAutoOk(x, text) {
+    if (!/주소로 갈까요|새 탭으로 열까요/.test(x.title || "")) return false;
+    let h = "";
+    try { h = new URL(String(x.what || "").trim().split(/\s/)[0]).hostname.toLowerCase().replace(/^www\./, ""); } catch (e) { return false; }
+    const low = String(text || "").toLowerCase(), label = h.split(".").slice(-2, -1)[0] || "";
+    return !!h && (low.includes(h) || (label.length >= 3 && !/^\d+$/.test(label) && low.includes(label)));
+  }
+  // 브라우저에서 할 일을 조용히 하고 결과 문장을 돌려준다(오류·멈춤도 문장으로). wait = 이미 떠 있는 '답 기다리는' 말풍선(점 3개)
+  async function brRun(task, text, model, wait, signal) {
+    const body = wait.querySelector(".turn-body") || wait;
+    body.querySelectorAll(".wait-note").forEach((x) => x.remove());
+    const goal = task && task !== text ? task + "\n(사용자가 한 말: " + text + ")" : text;
+    const both = text + " " + (task || "");
+    const cnt = both.match(/(한|하나|두|둘|세|셋|네|넷|다섯|[1-9])\s*(개|번|탭|군데|곳)/);
+    const wantTabs = cnt ? ({ 한: 1, 하나: 1, 두: 2, 둘: 2, 세: 3, 셋: 3, 네: 4, 넷: 4, 다섯: 5 }[cnt[1]] || Number(cnt[1]) || 1) : 1;
+    const useCur = BR_CUR.test(text) || BR_CUR.test(task || "");
     const sRun = model === "runpod" ? store.get("acctS") || "" : "";
     const gdRun = model === "runpod" && !(sRun && store.get("acctOwner") === "1") ? await gdToken().catch(() => "") : "";
-    const useCur = BR_CUR.test(text);
-    const opened = {};  // 76차: 이번 부탁에서 연 탭 수(사이트별)
-    const cnt = text.match(/(한|하나|두|둘|세|셋|네|넷|다섯|[1-9])\s*(개|번|탭|군데|곳)/);
-    const wantTabs = cnt ? ({ 한: 1, 하나: 1, 두: 2, 둘: 2, 세: 3, 셋: 3, 네: 4, 넷: 4, 다섯: 5 }[cnt[1]] || Number(cnt[1]) || 1) : 1;
+    const history = [], opened = {};
+    let final = "";
     try {
       for (let step = 1; step <= BR_MAX; step++) {
-        if (stopCtl.signal.aborted) break;
-        lab.textContent = L("브라우저에서 하는 중", "Working in the browser") + " · " + step;
+        if (signal.aborted) break;
         const obs = await brTool({ type: "observe", use_current: useCur && step === 1 });
-        if (!obs || !obs.ok) { err = L("브라우저 도구 확장과 연결되지 않아요. 확장이 켜져 있는지 확인해 주세요.", "Can't reach the browser tools extension."); break; }
-        if (obs.warn && !warned) { warned = true; addStep(L("⚠ 이 페이지에 AI에게 내리는 지시처럼 보이는 글이 있어요. 따르지 않아요.", "⚠ This page contains text that looks like instructions to an AI. Ignoring it."), "warn"); }
+        if (!obs || !obs.ok) { final = L("브라우저 도구 확장과 연결되지 않아요. 확장이 켜져 있는지 확인해 주세요.", "Can't reach the QueryBot browser tools extension."); break; }
         let r = null;
         try {
-          r = await fetch(API + "/agent/step", { method: "POST", headers: { "Content-Type": "application/json" }, signal: stopCtl.signal,
-            body: JSON.stringify({ task: text, step, max_steps: BR_MAX, history: history.slice(-8), observation: obs.text || "", model, prior: brPrior.slice(-3), s: sRun, gd: gdRun }) });
-        } catch (e) { if (!stopCtl.signal.aborted) err = t("down"); break; }
-        if (r.status === 404) { err = L("서버가 아직 브라우저 도구를 모르는 버전이에요. 잠시 뒤 다시 해 주세요.", "The server doesn't support browser tools yet."); break; }
-        if (!r.ok) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} err = (typeof d === "string" && d && lang() !== "en") ? d : t(r.status === 429 ? "busy" : "fail"); break; }
+          r = await fetch(API + "/agent/step", { method: "POST", headers: { "Content-Type": "application/json" }, signal,
+            body: JSON.stringify({ task: goal, step, max_steps: BR_MAX, history: history.slice(-8), observation: obs.text || "", model: model === "runpod" ? "runpod" : "gemma4", prior: brPrior.slice(-3), s: sRun, gd: gdRun }) });
+        } catch (e) { if (!signal.aborted) final = t("down"); break; }
+        if (!r.ok) { let d = ""; try { d = (await r.json()).detail || ""; } catch (e) {} final = (typeof d === "string" && d && lang() !== "en") ? d : t(r.status === 429 ? "busy" : "fail"); break; }
         const j = await r.json();
         const a = j.action;
-        if (!a || typeof a !== "object") {
-          history.push({ desc: "(잘못된 행동)", result: "(실패) " + (j.error || "") });
-          addStep(L("답을 못 알아들어 다시 물어요", "Couldn't read the reply, asking again"), "fail");
-          continue;
-        }
+        if (!a || typeof a !== "object") { history.push({ desc: "(잘못된 행동)", result: "(실패) " + (j.error || "") }); continue; }
         const act = String(a.action || "").toLowerCase();
         if (act === "done") { final = String(a.message || L("다 했어요.", "Done.")).replace(/\*\*(.+?)\*\*/g, "$1"); break; }
         const call = Object.assign({}, a);
         delete call.thought;
-        // 76차: 같은 사이트 탭은 말한 개수까지만, 방금 '됨'이 된 이동·탭 바꾸기는 다시 안 함 → 이미 끝난 일이니 여기서 끝냄
+        // 같은 사이트 탭은 말한 개수까지만(기본 하나), 방금 '됨'이 된 이동·탭 바꾸기는 다시 안 함 → 이미 끝난 일이니 여기서 끝냄
         if (act === "open_tab") {
           const key = brTabKey(call.url);
-          if ((opened[key] || 0) >= wantTabs) {
-            final = key === "blank" ? L("새 탭을 열었어요.", "Opened a new tab.") : L(key + " 탭을 열었어요.", "Opened " + key + ".");
-            break;
-          }
+          if ((opened[key] || 0) >= wantTabs) { final = key === "blank" ? L("새 탭을 열었어요.", "Opened a new tab.") : L(key + " 탭을 열었어요.", "Opened " + key + "."); break; }
         }
         const prev = history[history.length - 1];
-        if (prev && /^됨/.test(prev.result) && (act === "navigate" || act === "switch_tab") && prev.desc === brDesc(call)) {
-          final = act === "navigate" ? L((call.url || "그 주소") + "(으)로 이동했어요.", "Went to " + (call.url || "the address") + ".") : L("그 탭으로 바꿨어요.", "Switched to that tab.");
+        if (prev && /^됨/.test(prev.result) && prev.desc === brDesc(call) && !["scroll", "wait", "key"].includes(act)) {
+          final = act === "navigate" ? L((call.url || "그 주소") + "(으)로 이동했어요.", "Went to " + (call.url || "the address") + ".")
+            : act === "switch_tab" ? L("그 탭으로 바꿨어요.", "Switched to that tab.") : L("요청하신 일을 했어요.", "Done.");
           break;
         }
         let x = await brTool({ type: "act", call });
         if (x && x.needs_confirm && brAutoOk(x, text)) x = await brTool({ type: "act", call, confirm: x.token });  // 사용자가 말에 직접 적은 주소면 바로
         if (x && x.needs_confirm) {
-          lab.textContent = L("확인을 기다리는 중", "Waiting for your OK");
-          const yes = await brConfirm(body, x, stopCtl.signal);
-          if (!yes) {
-            history.push({ desc: x.desc || act, result: "(사용자가 거절함)" });
-            addStep((x.desc || act) + " → " + L("하지 않음", "not done"), "fail", a.thought);
-            final = L("확인에서 '하지 않기'를 고르셔서 여기서 멈췄어요.", "Stopped because you chose not to allow it.");
-            break;
-          }
+          const yes = await brConfirm(body, x, signal);
+          if (!yes) { final = L("확인에서 '하지 않기'를 고르셔서 여기서 멈췄어요.", "Stopped because you chose not to allow it."); break; }
           x = await brTool({ type: "act", call, confirm: x.token });  // 표는 확장에만
         }
         const ok = !!(x && x.ok);
@@ -3111,37 +3049,21 @@
         const same = history.slice(-6).filter((h) => h.desc === desc).length;
         const rep = same >= 1 && !["scroll", "wait", "key"].includes(act);
         history.push({ desc, result: res + (rep ? " (같은 행동 반복)" : "") });
-        addStep(desc + " → " + res.split("\n")[0], ok ? "" : "fail", a.thought);
-        if (same >= 2 && rep) { final = L("같은 행동을 되풀이해서 멈췄어요. 다른 말로 다시 부탁해 주세요.", "Stopped because the same action kept repeating."); break; }
+        if (same >= 2 && rep) {
+          final = ok ? L("요청하신 일을 했어요.", "Done.") : L("같은 방법이 계속 안 돼서 멈췄어요. 다른 말로 다시 부탁해 주세요.", "The same step kept failing, so I stopped.");
+          break;
+        }
       }
-      if (!final && !err && !stopCtl.signal.aborted) final = L("최대 " + BR_MAX + "단계까지 해서 멈췄어요. 이어서 하려면 '계속'이라고 말해 주세요.", "Stopped after " + BR_MAX + " steps. Say 'continue' to keep going.");
+      if (!final && !signal.aborted) final = L("최대 " + BR_MAX + "단계까지 해서 멈췄어요. 이어서 하려면 '계속'이라고 말해 주세요.", "Stopped after " + BR_MAX + " steps. Say 'continue' to keep going.");
     } catch (e) {
-      if (!stopCtl.signal.aborted) err = (lang() === "en" ? "Something went wrong" : "오류가 났어요") + " (" + String((e && e.message) || e).slice(0, 80) + ")";
+      if (!signal.aborted) final = (lang() === "en" ? "Something went wrong" : "오류가 났어요") + " (" + String((e && e.message) || e).slice(0, 80) + ")";
     } finally {
-      brTool({ type: "end" });  // 디버거 떼기, 잠깐 묶었던 사용자 탭 되돌리기
+      brTool({ type: "end" });  // 디버거 떼기·작업 중 표시 지우기·잠깐 묶었던 사용자 탭 되돌리기
     }
-    av.classList.remove("thinking");
-    th.remove();
-    if (stopCtl.signal.aborted && !final) addSys(t("stopped"));
-    if (final) {
-      const p = el("div", "text");
-      try { renderRich(p, final); } catch (e) { p.textContent = final; }
-      const meta = { user: text, ctx: [], model };
-      body.append(p, copyTool(() => final, meta, body));
-      brPrior.push({ task: text.slice(0, 300), result: final.slice(0, 600) });
-      if (brPrior.length > 3) brPrior.shift();
-      if (cur === convAtAsk) {
-        record(text, final, "ai", null, { model });
-        brLast = { conv: cur.id, len: cur.messages.length, at: Date.now() };  // 76차: 이어지는 말도 브라우저로
-        meta.conv = cur; meta.index = cur.messages.length - 1;
-        meTools(meNode, cur.messages.length - 2);
-        if (smart(model)) nameConv(cur);
-      }
-      toBottom();
-    }
-    if (err) addAlert(err, true, () => { meNode.remove(); turn.remove(); ask(text, []); });
-    if (stopper === reqStop) setStopper(null);
-    busy = false; send.disabled = false; $("form").classList.remove("busy"); input.focus();
+    if (!final) final = L("멈췄어요.", "Stopped.");
+    brPrior.push({ task: String(task || text).slice(0, 300), result: final.slice(0, 600) });
+    if (brPrior.length > 3) brPrior.shift();
+    return final;
   }
 
   // 위치 공유 (2026-11-09 사용자 요청): 누르면 브라우저가 위치 권한을 묻고, 허락하면 대략 좌표(소수 둘째 자리 ≈ 1km)를
@@ -4253,8 +4175,6 @@
   async function ask(text, sent, opts) {
     if (busy) return;
     try {
-      // 75차: '브라우저' 알약이 켜져 있고 브라우저에서 할 일처럼 보이면 → 확장(손)과 서버 /agent/step(머리)로
-      if (brWants(text, sent, opts)) { await brAsk(text); return; }
       await askInner(text, sent, opts);
     } catch (e) {
       console.error("보내기 오류", e);
@@ -4312,7 +4232,8 @@
       files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
       think: smart(asked) && !!opts.think, memory: smart(asked) ? memList() : [],
       style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
-      location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun, s: sRun });
+      location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun, s: sRun,
+      browser: brHave && (asked === "gemma4" || asked === "runpod") });  // 77차: 브라우저 도구 확장이 있음 → 모델이 필요하면 browser_task
     try {
       let r = null;
       try { r = await postChat(payload, limit, stopCtl.signal); } catch (e) { if (e && e.name === "AbortError") throw e; }
@@ -4331,6 +4252,10 @@
       else if (!r.ok) { err = t("fail"); }
       else {
         const j = await r.json();
+        if (j.browser_task && brHave) {  // 77차: 모델이 브라우저에서 할 일이라고 판단 → 확장(손) + /agent/step(머리), 점 3개 대기 그대로
+          clearTimeout(slow);
+          j.reply = await brRun(String(j.browser_task), text, asked, wait, stopCtl.signal);
+        }
         const reply = j.reply || "";
         if (j.quota) setQuota(j.quota);
         wait.remove();
