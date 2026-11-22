@@ -2743,7 +2743,9 @@
     const box = el("div", "quiz-card");
     if (!closed) { box.appendChild(el("div", "quiz-wait", L("문제 만드는 중…", "Writing a question…"))); return box; }
     let d = null;
-    try { d = JSON.parse(raw); } catch (e) {}
+    // 93차: JSON 속 LaTeX 역슬래시(\frac가 폼피드, \times가 탭으로 읽힘)를 먼저 고침
+    const fixed = raw.replace(/(?<!\\)\\(?=(?:d?frac|times|div|sqrt|cdot|cdots|ldots|dots|left|right|pm|mp|le|leq|ge|geq|neq|approx|infty|int|sum|prod|lim|log|ln|sin|cos|tan|alpha|beta|gamma|theta|pi|sigma|omega|text|mathrm|quad|binom|vec|overline|angle|triangle|circ|to|rightarrow|Rightarrow|cup|cap|in|subset)\b)/g, "\\\\");
+    try { d = JSON.parse(fixed); } catch (e) { try { d = JSON.parse(raw); } catch (e2) {} }
     if (!d || typeof d.q !== "string") return codeBox("quiz", raw);
     const q = el("div", "quiz-q");
     renderRich(q, d.q);
@@ -2814,7 +2816,7 @@
       const lng = m[1].trim(), closed = m[0].length > 6 && m[0].endsWith("```");
       const fm = lng.match(FILE_RE), gm = lng.match(GEN_RE);
       node.appendChild(gm ? genCard(gm[1].trim(), m[2].replace(/\n$/, ""), closed) : fm ? fileCard(fm[1].trim(), m[2].replace(/\n$/, ""), closed)
-        : QUIZ_RE.test(lng) ? quizCard(m[2].trim(), closed)  // 92차: 퀴즈 카드
+        : QUIZ_RE.test(lng) || /^(?:quiz|퀴즈)\s*\{/i.test(lng) ? quizCard((lng.replace(/^(?:quiz|퀴즈)\s*/i, "") + "\n" + m[2]).trim(), closed)  // 92차: 퀴즈 카드, 93차: 'quiz {…}' 같은 줄도
         : /^(chart|차트)$/i.test(lng) ? chartBox(m[2].trim(), closed) : codeBox(lng, m[2].replace(/\n$/, "")));
       last = re.lastIndex;
     }
