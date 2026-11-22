@@ -130,6 +130,8 @@
   .avatar{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--on-accent);background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 4px 14px rgba(204,68,52,.25)}
   .avatar.wiki{background:#ffffff;color:var(--text);border:1px solid var(--line2);font-family:Georgia,"Times New Roman",serif;font-size:17px;box-shadow:0 1px 3px rgba(92,58,34,.08)}
   .turn-body{min-width:0;flex:1}
+  .turn > .avatar{display:none !important}  /* 90차: 답 옆 로고 없앰 (기다리는 칸 표시로는 그대로 씀) */
+  .who:empty{display:none}  /* 90차: 이름 없앰 — 기다릴 때 단어·'n초' 생각 표시가 있을 때만 줄이 보임 */
   .who{font-size:13px;font-weight:700;color:var(--text2);margin:5px 0 6px;display:flex;align-items:center;gap:8px}
   .who-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--panel2)}
   .text{line-height:1.7;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;color:var(--text)}
@@ -1696,7 +1698,7 @@
     av.setAttribute("aria-hidden", "true");
     if (kind !== "wiki") av.innerHTML = QB_MARK;  // 57차: Q 글자 대신 로고
     const body = el("div", "turn-body");
-    const who = el("div", "who", "QueryBot");
+    const who = el("div", "who");  // 90차: 'QueryBot' 이름 없앰(사용자: '그게 일반적이야')
     // 72차: 머리 줄 알약(AI 답변·위키백과·가르친 답) 모두 없앰
     body.appendChild(who);
     turn.append(av, body);
@@ -1723,7 +1725,7 @@
     th.setAttribute("role", "status");
     dots.setAttribute("aria-hidden", "true");
     dots.append(el("i"), el("i"), el("i"));
-    th.append(el("span", "", label || L("생각 중", "Thinking")), dots);
+    th.append(el("span", "", label || thinkWord()), dots);  // 90차: '생각 중' 대신 영어 단어(Pondering 등) 그대로
     body.querySelector(".who").appendChild(th);
     // 85차: 회색 글자 모양 줄(스켈레톤) 없앰 — 점 세 개만 (사용자: '회색 텍스트 배경 같은 거 … 없는 게 좋을 듯')
     return put(turn);
