@@ -403,7 +403,7 @@
   .who .thought-btn{font-size:12.5px;font-weight:500;padding:0;gap:4px;color:var(--muted);border:0;background:none;border-radius:0}  /* 71차: 'AI 답변' 자리, 72차: 별 없음, 73차: 알약 없이 글자만 */
   .who .thought-btn:not(:disabled):hover{color:var(--text2)}
   .turn-body > .thought-body{margin:0 0 10px}
-  .mem-note{margin-top:8px;width:fit-content;max-width:100%;font-size:12px;color:var(--accent-ink);background:var(--accent-soft);border-radius:999px;padding:3px 12px}
+  .mem-note{margin-top:8px;max-width:100%;font-size:12px;color:var(--muted)}  /* 74차: 알약 없이 글자만 */
   #memRow:empty{display:none}
   .mem-list{display:flex;flex-direction:column;gap:5px;margin-top:6px}
   .mem-item{display:flex;align-items:center;gap:6px;padding:4px 5px 4px 11px;border:1px solid var(--line);border-radius:999px;background:var(--field);font-size:12.5px;color:var(--text2)}
@@ -3038,25 +3038,42 @@
     return { btn: b, box };
   }
   // 쿼리봇이 기억하는 것: 이 브라우저에만 저장, 질문할 때 Gemma 4에 같이 보냄 (서버에는 남지 않음)
-  const MEM_KEY = "qbAi.memory", MEM_MAX = 12;
+  const MEM_KEY = "qbAi.memory", MEM_MAX = 30, MEM_GONE_KEY = "qbAi.memGone";  // 74차: 12 → 30줄 (쿼리봇이 대화에서 알아서 기억)
   function memList() {
     try { const a = JSON.parse(localStorage.getItem(MEM_KEY) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string" && x.trim()).slice(-MEM_MAX) : []; } catch (e) { return []; }
   }
+  // 같은 내용(띄어쓰기·끝 문장부호만 다른 것)은 같은 기억으로 본다
+  function memKey(s) { return String(s || "").replace(/[\s.,!?·…~]+/g, "").toLowerCase(); }
+  // 지운 기억 표시(74차): 직접 지웠든 쿼리봇이 지웠든 여기 남겨 두어, 동기화가 서버·Drive 사본에서 되살리지 않게 한다 (이 브라우저에만, 최근 100개)
+  function memGone() {
+    try { const a = JSON.parse(localStorage.getItem(MEM_GONE_KEY) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; } catch (e) { return []; }
+  }
   function memSave(a) {
+    a = a.slice(-MEM_MAX);
+    try {
+      const now = new Set(a.map(memKey)), gone = memGone().filter((k) => !now.has(k));
+      for (const s of memList()) { const k = memKey(s); if (k && !now.has(k) && !gone.includes(k)) gone.push(k); }
+      gone.length ? localStorage.setItem(MEM_GONE_KEY, JSON.stringify(gone.slice(-100))) : localStorage.removeItem(MEM_GONE_KEY);
+    } catch (e) {}
     gdAuto();
-    try { a.length ? localStorage.setItem(MEM_KEY, JSON.stringify(a.slice(-MEM_MAX))) : localStorage.removeItem(MEM_KEY); } catch (e) {}
+    try { a.length ? localStorage.setItem(MEM_KEY, JSON.stringify(a)) : localStorage.removeItem(MEM_KEY); } catch (e) {}
     paintMem();
   }
-  // 같은 내용(띄어쓰기·끝 문장부호만 다른 것)은 다시 넣지 않는다. 새로 넣은 것만 돌려준다
-  const memKey = (s) => String(s || "").replace(/[\s.,!?·…~]+/g, "").toLowerCase();
-  function memAdd(items) {
-    const a = memList(), have = new Set(a.map(memKey)), added = [];
+  // 새로 넣은 것만 돌려준다. fromSync(동기화·백업에서 온 것)면 지운 적 있는 기억은 다시 넣지 않는다
+  function memAdd(items, fromSync) {
+    const a = memList(), have = new Set(a.map(memKey)), gone = fromSync ? new Set(memGone()) : null, added = [];
     for (const s of items || []) {
       const v = String(s || "").trim().slice(0, 150), k = memKey(v);
-      if (v && k && !have.has(k)) { a.push(v); have.add(k); added.push(v); }
+      if (v && k && !have.has(k) && !(gone && gone.has(k))) { a.push(v); have.add(k); added.push(v); }
     }
-    if (added.length) memSave(a.slice(-MEM_MAX));
+    if (added.length) memSave(a);
     return added;
+  }
+  // 쿼리봇이 지우기로 한 기억(취향이 바뀜·잊으라고 함). 실제로 지운 것만 돌려준다
+  function memRemove(items) {
+    const kill = new Set((items || []).map(memKey)), a = memList(), out = a.filter((s) => kill.has(memKey(s)));
+    if (out.length) memSave(a.filter((s) => !kill.has(memKey(s))));
+    return out;
   }
   let memOpen = false;
   function paintMem() {
@@ -3225,8 +3242,8 @@
       paintInstr(pane);
     } else {
       pane.appendChild(el("h3", "", L("메모리", "Memory")));
-      pane.appendChild(el("p", "us-foot", L("쿼리봇이 기억하는 것이에요. 직접 추가할 수도 있어요. 이 브라우저에만 저장되고, Nova G·GPT-OSS에 질문할 때 같이 보내요.",
-        "What QueryBot remembers about you. You can add your own. Stored only in this browser and sent with Nova G and GPT-OSS questions.")));
+      pane.appendChild(el("p", "us-foot", L("쿼리봇이 대화에서 알아서 기억한 것이에요(취향, 싫어하거나 지적한 것). 직접 추가하거나 지울 수도 있어요. 이 브라우저에 저장되고, Nova G·GPT-OSS에 질문할 때 같이 보내요.",
+        "What QueryBot picked up from your chats (preferences, things you disliked or corrected). You can add or delete items. Stored in this browser and sent with Nova G and GPT-OSS questions.")));
       // 직접 추가 (2026-11-10 사용자 요청)
       const add = el("div", "set-mem-add");
       const mi = el("input");
@@ -3510,7 +3527,7 @@
       saveConvs();
       if (curChanged) { cur = null; openConv(curId); }  // 지금 보던 대화가 더 최근 것으로 바뀌었으면 다시 그리기
       renderList();
-      if (data && Array.isArray(data.memory)) memAdd(data.memory.filter((s) => typeof s === "string"));
+      if (data && Array.isArray(data.memory)) memAdd(data.memory.filter((s) => typeof s === "string"), true);
       if (data && data.instr && typeof data.instr === "object") {
         if (!store.get("instr") && typeof data.instr.text === "string") store.set("instr", data.instr.text.slice(0, 1500));
         if (!store.get("style") && typeof data.instr.style === "string") store.set("style", data.instr.style.slice(0, 20));
@@ -3557,7 +3574,7 @@
     }
     convs.sort((x, y) => (y.updated || 0) - (x.updated || 0));
     saveConvs();
-    if (Array.isArray(data.memory)) memAdd(data.memory.filter((s) => typeof s === "string"));
+    if (Array.isArray(data.memory)) memAdd(data.memory.filter((s) => typeof s === "string"), true);
     if (data.instr && typeof data.instr === "object") {
       if (!store.get("instr") && typeof data.instr.text === "string") store.set("instr", data.instr.text.slice(0, 1500));
       if (!store.get("style") && typeof data.instr.style === "string") store.set("style", data.instr.style.slice(0, 20));
@@ -4098,10 +4115,13 @@
           if (tx && !tx.textContent) { tx.classList.remove("typing"); tx.textContent = reply; }
           else { const sh = turnShell("ai"); sh.body.appendChild(el("div", "text", reply)); put(sh.turn); }
         }
-        if (Array.isArray(j.remember) && j.remember.length) {  // 쿼리봇이 기억하기로 한 것 → 이 브라우저에 저장하고 답 아래에 표시
-          const added = memAdd(j.remember);
+        {  // 쿼리봇이 대화에서 스스로 고른 기억(74차): 지울 것(바뀐 취향·잊으라고 한 것) 먼저, 그다음 새 기억 → 이 브라우저에 저장하고 답 아래에 글자로 표시
+          const gone = Array.isArray(j.forget) && j.forget.length ? memRemove(j.forget) : [];
+          const added = Array.isArray(j.remember) && j.remember.length ? memAdd(j.remember) : [];
           const body = log.lastElementChild && log.lastElementChild.querySelector(".turn-body");
-          if (body && added.length) body.appendChild(el("div", "mem-note", "💾 기억함 · " + added.join(" · ")));
+          const note = [added.length ? L("기억함", "Remembered") + " · " + added.join(" · ") : "",
+                        gone.length ? L("지움", "Forgot") + " · " + gone.join(" · ") : ""].filter(Boolean).join("  /  ");
+          if (body && note) body.appendChild(el("div", "mem-note", note));
         }
         if (j.ask_location) addLocCta();
         setOnline(true);
@@ -4170,6 +4190,7 @@
     const meta = { user: p.text, ctx: [], model: p.model };
     try { if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, true, j.sources, j.thought); }
     catch (e) { const sh = turnShell("ai"); sh.body.appendChild(el("div", "text", reply)); put(sh.turn); }
+    if (Array.isArray(j.forget) && j.forget.length) memRemove(j.forget);
     if (Array.isArray(j.remember) && j.remember.length) memAdd(j.remember);
     if (j.ask_location) addLocCta();
     setOnline(true);
