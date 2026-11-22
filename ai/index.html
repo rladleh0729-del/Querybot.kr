@@ -952,6 +952,7 @@
   .think .think-dots i:nth-child(3){animation-delay:.3s}
   @keyframes qa-dot2{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:1}}
   @media (prefers-reduced-motion:reduce){.think .think-dots i{animation:none;opacity:.6}}
+  .think .think-dots{margin:0 0 0 2px}  /* 89차: '생각 중' 뒤에 점 세 개 */
   /* ── 44차 (2026-11-14): 생성 중 오로라 — 회색 줄과 입력창 테두리만 천천히, Q 아이콘은 그대로 ── */
   .skel i{background:linear-gradient(90deg,#eef0f3 0%,#eef0f3 30%,#ebe3fb 43%,#f6e1ee 50%,#ebe3fb 57%,#eef0f3 70%,#eef0f3 100%);background-size:260% 100%;animation:qa-aurora 4.8s ease-in-out infinite}
   .skel i:nth-child(2){animation-delay:.35s}
@@ -1717,9 +1718,12 @@
     const { turn, body } = turnShell("ai");
     turn.querySelector(".avatar").classList.add("thinking");
     const oldTag = body.querySelector(".who-tag"); if (oldTag) oldTag.remove();
-    const th = el("span", label ? "think" : "think-dots");
-    if (label) { const dots = el("span", "think-dots"); dots.setAttribute("aria-hidden", "true"); dots.append(el("i"), el("i"), el("i")); th.append(dots, el("span", "", label)); }  // 70차: 별 대신 점 3개
-    else { th.setAttribute("role", "status"); th.setAttribute("aria-label", t("thinking")); th.append(el("i"), el("i"), el("i")); }  // 48차: 글자 대신 점 3개
+    // 89차: 다른 AI 앱처럼 '생각 중' + 점 세 개 (사용자: '다른 회사들은 그냥 생각중이랑 점 3개만') — 영어 단어·초 세기·'그림을 보는 중' 등 없앰
+    const th = el("span", "think"), dots = el("span", "think-dots");
+    th.setAttribute("role", "status");
+    dots.setAttribute("aria-hidden", "true");
+    dots.append(el("i"), el("i"), el("i"));
+    th.append(el("span", "", label || L("생각 중", "Thinking")), dots);
     body.querySelector(".who").appendChild(th);
     // 85차: 회색 글자 모양 줄(스켈레톤) 없앰 — 점 세 개만 (사용자: '회색 텍스트 배경 같은 거 … 없는 게 좋을 듯')
     return put(turn);
@@ -4382,12 +4386,8 @@
     const rid = ((window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, "") : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 32);
     try { localStorage.setItem("qbAi.pending", JSON.stringify({ rid, conv: cur ? cur.id : null, text, att: attMeta(sent), model: asked, think: !!opts.think, branch: opts.branch || null, at: Date.now() })); } catch (e) {}
     const tWord = thinking ? thinkWord() : "";
-    const wait = addWaiting(thinking ? tWord + " · 0" + t("sec") : sent.some((a) => a.type === "image") ? t("looking") : sent.length ? t("reading") : null);
+    const wait = addWaiting(null);  // 89차: 늘 '생각 중' + 점 세 개 (초는 세지 않음)
     let tick = 0;
-    if (thinking) {  // 실제로 생각하는 동안 초를 센다
-      const t0 = Date.now(), lab = wait.querySelector(".think span:last-child");
-      tick = setInterval(() => { lab.textContent = tWord + " · " + Math.floor((Date.now() - t0) / 1000) + t("sec"); }, 1000);
-    }
     // 생각하기는 1분 넘게 걸릴 수 있음. 아주 긴 글은 읽는 시간만큼 더 기다림(2천 자에 1초, 최대 +2분)
     const limit = (asked === "runpod" ? 340000 : thinking ? 200000 : /파일|file|\d+\s*줄/i.test(text) ? 300000 : WAKE_TIMEOUT) + Math.min(120000, Math.round(text.length / 2));  // 84차: 파일 부탁은 긴 파일 이어 쓰기(최대 약 4분)를 기다림
     // 5초 넘게 걸리면: 서버가 깨어 있으면 검색·자료 읽는 중, 아니면 잠든 서버를 깨우는 중
@@ -4414,7 +4414,7 @@
         liveRaf = 0;
         const body = wait.isConnected ? wait.querySelector(".turn-body") : null;
         if (!body) return;
-        const dots = body.querySelector(".who .think-dots");
+        const dots = body.querySelector(".who .think");  // 89차: 글자가 오면 '생각 중'까지 숨김
         if (!liveText) { if (live) { live.remove(); live = null; } if (dots) dots.style.display = ""; return; }
         if (!live) { body.querySelectorAll(".wait-note").forEach((x) => x.remove()); clearTimeout(slow); live = el("div", "text"); body.appendChild(live); }
         if (dots) dots.style.display = "none";
