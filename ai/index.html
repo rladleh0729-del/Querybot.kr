@@ -4733,7 +4733,11 @@
     if (store.get("gdOn") === "1" && store.get("gdRt")) setTimeout(loadMe, 2500);
     const urlConv = new URLSearchParams(location.search).get("c");  // 새로고침: 주소의 대화를 다시 열기 (40차)
     if (urlConv) { if (convs.some((x) => x.id === urlConv)) openConv(urlConv); else setUrlConv(null); }
-    setTimeout(resumePending, 200);  // 답을 받기 전에 닫혔던 질문 이어 받기
+    const askQ = (new URLSearchParams(location.search).get("q") || "").trim();  // 94차: 메인 입력창에서 온 질문 → 새 대화로 바로 보냄
+    if (askQ) {
+      history.replaceState(null, "", location.pathname);
+      setTimeout(() => { newChat(); input.value = askQ.slice(0, 20000); fitInput(); $("form").requestSubmit(); }, 250);
+    } else setTimeout(resumePending, 200);  // 답을 받기 전에 닫혔던 질문 이어 받기
   });
   // 주기적으로 확인하지 않는다 (확인 요청이 서버를 계속 깨워 무료 사용 시간을 쓰지 않게).
   // 탭으로 돌아왔을 때만 2분에 한 번 확인하고, 평소 상태는 /chat 응답으로 갱신된다.
