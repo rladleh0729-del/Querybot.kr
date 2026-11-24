@@ -1038,6 +1038,35 @@
   .qa-hero-logo{view-transition-name:qb-logo}
   ::view-transition-group(qb-ask),::view-transition-group(qb-hero),::view-transition-group(qb-logo){animation-duration:.45s;animation-timing-function:cubic-bezier(.2,.8,.2,1)}
   @media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
+  /* 97차: 오른쪽 사이드바 — 넓은 화면만 */
+  .qa-aside,.qa-aside-btn{display:none}
+  @media (min-width:1400px){
+    .qa-aside{display:flex;flex-direction:column;gap:24px;width:300px;flex:none;min-height:0;overflow-y:auto;padding:84px 14px 24px;border-left:1px solid #ececee;background:#f6f6f7;scrollbar-width:none}
+    .qa-aside::-webkit-scrollbar{display:none}
+    body.qa-aside-off .qa-aside{display:none}
+    body.qa-page .nav .qa-aside-btn{display:inline-grid;place-items:center;width:36px;height:36px;margin-left:10px;padding:0;border:1px solid #dcdce0;border-radius:50%;background:#fff;color:#41454b;cursor:pointer}
+    body.qa-page .nav .qa-aside-btn:hover{color:#1d1e21;background:#f4f4f5}
+    html[data-theme=dark] body.qa-page .nav .qa-aside-btn{background:#1d1e21;border-color:#3a3b40;color:#ececee}
+    html[data-theme=dark] .qa-aside{background:#1a1b1e;border-color:#2a2b2f}
+  }
+  @media (min-width:1800px){.qa-aside{width:330px}}
+  .qa-as h4{margin:0 0 4px;padding:0 10px;font-size:13px;font-weight:600;color:#62676e}
+  .qa-as-row{display:flex;align-items:center;gap:10px;width:100%;min-height:36px;padding:7px 10px;border:0;border-radius:12px;background:none;color:#2c2d31;font:inherit;font-size:14px;line-height:1.35;text-align:left;text-decoration:none;cursor:pointer}
+  .qa-as-row:hover{background:#ebebed}
+  .qa-as-row > svg{flex:none;width:16px;height:16px;color:#62676e}
+  .qa-as-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qa-as-row small{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#8a8d93}
+  .qa-as-row b{flex:none;font-weight:600;font-size:13px;color:#1d1e21}
+  .qa-as-row .ring{width:16px;height:16px;flex:none;transform:rotate(-90deg)}
+  .qa-as-row .ring circle{fill:none;stroke-width:2.6}
+  .qa-as-row .ring .bg{stroke:#dcdce0}.qa-as-row .ring .fg{stroke:#41454b;stroke-linecap:round}
+  html[data-theme=dark] .qa-as h4{color:#a1a1aa}
+  html[data-theme=dark] .qa-as-row{color:#e4e4e7}
+  html[data-theme=dark] .qa-as-row:hover{background:#26272b}
+  html[data-theme=dark] .qa-as-row b{color:#f1f1f3}
+  html[data-theme=dark] .qa-as-row .ring .bg{stroke:#3a3b40}html[data-theme=dark] .qa-as-row .ring .fg{stroke:#d4d4d8}
+  .qa-flash{animation:qa-flash 1.6s ease}
+  @keyframes qa-flash{0%,45%{box-shadow:0 0 0 4px rgba(24,24,27,.12)}100%{box-shadow:0 0 0 4px rgba(24,24,27,0)}}
   /* 입력창 */
   .qa-form{background:#ffffff;border-color:#e2e2e6;border-radius:24px;box-shadow:0 10px 32px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04)}
   html[data-theme=dark] .qa-form{background:var(--field);border-color:var(--field-line);box-shadow:0 10px 32px rgba(0,0,0,.3)}
@@ -1150,7 +1179,7 @@
 <link rel="expect" href="#qbReady" blocking="render"><!-- 95차: 본 스크립트가 첫 화면을 그린 뒤에 첫 그림 -->
 </head>
 <body class="qa-page">
-<header class="nav"><div class="wrap navin"><a class="brand qb-brand" id="brandHome" href="/ai/"><span class="qb-logo" aria-hidden="true"><svg class="qbm" viewBox="0 0 96 96" width="100%" height="100%" aria-hidden="true" focusable="false"><defs><mask id="qbgap" maskUnits="userSpaceOnUse" x="-30" y="-30" width="156" height="156"><rect x="-30" y="-30" width="156" height="156" fill="#fff"/><circle cx="48" cy="48" r="21.6" fill="#000"/></mask></defs><g transform="translate(48 48) scale(1.44) translate(-40.9 -44.5)"><g mask="url(#qbgap)"><g class="qfl qfl0"><path class="lg1" d="M34.5 44.1 C32.0 44.7 25.9 42.3 23.0 41.1 C20.0 39.9 18.8 38.3 17.0 36.9 C15.2 35.6 13.4 33.8 12.1 32.9 C10.8 32.0 8.4 31.8 9.2 31.3 C10.1 30.8 14.3 30.1 17.3 29.8 C20.3 29.5 23.7 28.2 27.2 29.5 C30.7 30.9 37.1 35.5 38.3 37.9 C39.5 40.4 37.1 43.6 34.5 44.1Z"/><path class="lg2" d="M35.0 42.8 C33.0 42.9 27.8 40.4 25.4 39.4 C23.1 38.3 22.4 37.4 21.0 36.5 C19.7 35.6 18.3 34.6 17.3 34.0 C16.3 33.4 14.5 33.3 15.1 33.0 C15.7 32.8 18.6 32.6 20.7 32.5 C22.8 32.4 24.9 31.5 27.6 32.6 C30.4 33.7 36.1 37.2 37.3 38.9 C38.5 40.6 37.0 42.8 35.0 42.8Z"/><path class="lg3" d="M35.4 41.8 C34.0 41.6 29.7 39.3 28.0 38.4 C26.4 37.6 26.2 37.3 25.3 36.8 C24.5 36.3 23.6 35.7 23.0 35.4 C22.4 35.1 21.3 35.0 21.6 34.9 C21.9 34.8 23.7 34.9 24.9 34.9 C26.1 35.0 27.0 34.4 28.9 35.2 C30.9 36.0 35.6 38.7 36.6 39.8 C37.7 40.9 36.9 42.0 35.4 41.8Z"/></g><g class="qfl qfl1"><path class="lg1" d="M38.6 37.6 C36.9 36.8 33.9 32.3 32.9 30.2 C31.8 28.1 32.6 26.6 32.6 25.0 C32.6 23.3 32.9 21.5 33.0 20.3 C33.2 19.1 33.1 17.6 33.6 17.8 C34.1 17.9 34.9 19.9 35.9 21.1 C36.9 22.4 38.3 22.7 39.6 25.0 C40.8 27.3 43.4 32.7 43.2 34.8 C43.1 36.9 40.4 38.4 38.6 37.6Z"/><path class="lg2" d="M39.4 36.9 C38.2 36.1 35.6 31.9 34.7 30.2 C33.9 28.4 34.5 27.6 34.5 26.4 C34.5 25.3 34.5 24.0 34.6 23.2 C34.6 22.3 34.5 21.2 34.8 21.4 C35.1 21.5 35.7 23.0 36.3 24.0 C36.9 24.9 37.6 25.0 38.6 26.9 C39.6 28.8 42.1 33.6 42.3 35.2 C42.4 36.9 40.7 37.8 39.4 36.9Z"/><path class="lg3" d="M40.1 36.5 C39.2 35.6 37.0 31.9 36.4 30.6 C35.7 29.2 36.2 29.1 36.2 28.4 C36.1 27.7 36.1 27.0 36.1 26.5 C36.1 26.0 36.0 25.3 36.1 25.4 C36.3 25.5 36.6 26.5 36.9 27.0 C37.3 27.6 37.4 27.5 38.2 28.9 C39.0 30.3 41.2 34.3 41.5 35.6 C41.8 36.8 40.9 37.3 40.1 36.5Z"/></g><g class="qfl qfl2"><path class="lg1" d="M35.0 53.2 C33.9 54.7 29.1 56.0 27.2 56.5 C25.2 57.0 24.5 56.3 23.3 56.1 C22.1 56.0 20.9 55.7 20.0 55.6 C19.2 55.5 18.2 56.1 18.4 55.6 C18.5 55.1 20.0 53.6 21.0 52.4 C22.0 51.2 22.4 49.2 24.6 48.4 C26.8 47.6 32.3 46.7 34.0 47.5 C35.7 48.3 36.2 51.7 35.0 53.2Z"/><path class="lg2" d="M34.6 52.2 C33.5 53.2 29.1 54.2 27.5 54.6 C25.8 55.0 25.6 54.5 24.7 54.5 C23.9 54.5 23.0 54.4 22.4 54.4 C21.8 54.4 21.1 54.9 21.2 54.6 C21.3 54.2 22.4 53.2 23.2 52.4 C24.0 51.6 24.0 50.5 25.8 49.8 C27.6 49.2 32.5 48.2 34.0 48.6 C35.5 49.0 35.7 51.2 34.6 52.2Z"/><path class="lg3" d="M34.4 51.3 C33.4 51.9 29.4 52.7 28.1 53.0 C26.7 53.3 27.0 53.1 26.5 53.1 C26.0 53.1 25.4 53.1 25.1 53.1 C24.7 53.2 24.3 53.5 24.4 53.3 C24.5 53.1 25.2 52.6 25.6 52.2 C26.1 51.7 25.8 51.2 27.2 50.7 C28.6 50.3 32.9 49.4 34.1 49.5 C35.3 49.6 35.4 50.8 34.4 51.3Z"/></g></g><circle class="lg-moon" cx="48" cy="48" r="19"/><circle class="lg-rim" cx="48" cy="48" r="19" fill="none" stroke-width="3"/><circle class="lg-spot" cx="52.0" cy="54.0" r="3.8"/><g class="qtw"><path class="lgf1" d="M72.9 37.5 L68.0 38.5 L71.2 46.8 L64.7 40.7 L61.4 47.5 L60.9 39.9 L52.8 43.0 L58.8 36.7 L48.6 32.6 L59.5 32.8 L54.9 22.3 L62.8 30.7 L65.9 25.1 L66.6 31.5 L71.9 30.3 L68.8 34.7 Z" stroke-width="0.8" stroke-linejoin="round"/><path class="lgf2" d="M69.3 36.8 L66.3 37.4 L69.7 44.7 L64.3 38.7 L61.9 44.7 L62.1 38.2 L56.9 40.2 L60.8 36.3 L55.5 34.0 L61.2 34.0 L60.4 30.7 L63.2 32.7 L65.7 26.2 L65.5 33.1 L71.0 30.9 L66.8 35.1 Z" stroke-width="0.8" stroke-linejoin="round"/></g></g></svg></span><span>Query<b>Bot</b></span><span class="qb-ai">AI</span></a><nav class="navlinks"><button id="headerLogin" class="qa-header-login" type="button" aria-haspopup="dialog" aria-controls="loginModal" hidden><span data-ko="로그인" data-en="Log in"></span></button><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button></div></header>
+<header class="nav"><div class="wrap navin"><a class="brand qb-brand" id="brandHome" href="/ai/"><span class="qb-logo" aria-hidden="true"><svg class="qbm" viewBox="0 0 96 96" width="100%" height="100%" aria-hidden="true" focusable="false"><defs><mask id="qbgap" maskUnits="userSpaceOnUse" x="-30" y="-30" width="156" height="156"><rect x="-30" y="-30" width="156" height="156" fill="#fff"/><circle cx="48" cy="48" r="21.6" fill="#000"/></mask></defs><g transform="translate(48 48) scale(1.44) translate(-40.9 -44.5)"><g mask="url(#qbgap)"><g class="qfl qfl0"><path class="lg1" d="M34.5 44.1 C32.0 44.7 25.9 42.3 23.0 41.1 C20.0 39.9 18.8 38.3 17.0 36.9 C15.2 35.6 13.4 33.8 12.1 32.9 C10.8 32.0 8.4 31.8 9.2 31.3 C10.1 30.8 14.3 30.1 17.3 29.8 C20.3 29.5 23.7 28.2 27.2 29.5 C30.7 30.9 37.1 35.5 38.3 37.9 C39.5 40.4 37.1 43.6 34.5 44.1Z"/><path class="lg2" d="M35.0 42.8 C33.0 42.9 27.8 40.4 25.4 39.4 C23.1 38.3 22.4 37.4 21.0 36.5 C19.7 35.6 18.3 34.6 17.3 34.0 C16.3 33.4 14.5 33.3 15.1 33.0 C15.7 32.8 18.6 32.6 20.7 32.5 C22.8 32.4 24.9 31.5 27.6 32.6 C30.4 33.7 36.1 37.2 37.3 38.9 C38.5 40.6 37.0 42.8 35.0 42.8Z"/><path class="lg3" d="M35.4 41.8 C34.0 41.6 29.7 39.3 28.0 38.4 C26.4 37.6 26.2 37.3 25.3 36.8 C24.5 36.3 23.6 35.7 23.0 35.4 C22.4 35.1 21.3 35.0 21.6 34.9 C21.9 34.8 23.7 34.9 24.9 34.9 C26.1 35.0 27.0 34.4 28.9 35.2 C30.9 36.0 35.6 38.7 36.6 39.8 C37.7 40.9 36.9 42.0 35.4 41.8Z"/></g><g class="qfl qfl1"><path class="lg1" d="M38.6 37.6 C36.9 36.8 33.9 32.3 32.9 30.2 C31.8 28.1 32.6 26.6 32.6 25.0 C32.6 23.3 32.9 21.5 33.0 20.3 C33.2 19.1 33.1 17.6 33.6 17.8 C34.1 17.9 34.9 19.9 35.9 21.1 C36.9 22.4 38.3 22.7 39.6 25.0 C40.8 27.3 43.4 32.7 43.2 34.8 C43.1 36.9 40.4 38.4 38.6 37.6Z"/><path class="lg2" d="M39.4 36.9 C38.2 36.1 35.6 31.9 34.7 30.2 C33.9 28.4 34.5 27.6 34.5 26.4 C34.5 25.3 34.5 24.0 34.6 23.2 C34.6 22.3 34.5 21.2 34.8 21.4 C35.1 21.5 35.7 23.0 36.3 24.0 C36.9 24.9 37.6 25.0 38.6 26.9 C39.6 28.8 42.1 33.6 42.3 35.2 C42.4 36.9 40.7 37.8 39.4 36.9Z"/><path class="lg3" d="M40.1 36.5 C39.2 35.6 37.0 31.9 36.4 30.6 C35.7 29.2 36.2 29.1 36.2 28.4 C36.1 27.7 36.1 27.0 36.1 26.5 C36.1 26.0 36.0 25.3 36.1 25.4 C36.3 25.5 36.6 26.5 36.9 27.0 C37.3 27.6 37.4 27.5 38.2 28.9 C39.0 30.3 41.2 34.3 41.5 35.6 C41.8 36.8 40.9 37.3 40.1 36.5Z"/></g><g class="qfl qfl2"><path class="lg1" d="M35.0 53.2 C33.9 54.7 29.1 56.0 27.2 56.5 C25.2 57.0 24.5 56.3 23.3 56.1 C22.1 56.0 20.9 55.7 20.0 55.6 C19.2 55.5 18.2 56.1 18.4 55.6 C18.5 55.1 20.0 53.6 21.0 52.4 C22.0 51.2 22.4 49.2 24.6 48.4 C26.8 47.6 32.3 46.7 34.0 47.5 C35.7 48.3 36.2 51.7 35.0 53.2Z"/><path class="lg2" d="M34.6 52.2 C33.5 53.2 29.1 54.2 27.5 54.6 C25.8 55.0 25.6 54.5 24.7 54.5 C23.9 54.5 23.0 54.4 22.4 54.4 C21.8 54.4 21.1 54.9 21.2 54.6 C21.3 54.2 22.4 53.2 23.2 52.4 C24.0 51.6 24.0 50.5 25.8 49.8 C27.6 49.2 32.5 48.2 34.0 48.6 C35.5 49.0 35.7 51.2 34.6 52.2Z"/><path class="lg3" d="M34.4 51.3 C33.4 51.9 29.4 52.7 28.1 53.0 C26.7 53.3 27.0 53.1 26.5 53.1 C26.0 53.1 25.4 53.1 25.1 53.1 C24.7 53.2 24.3 53.5 24.4 53.3 C24.5 53.1 25.2 52.6 25.6 52.2 C26.1 51.7 25.8 51.2 27.2 50.7 C28.6 50.3 32.9 49.4 34.1 49.5 C35.3 49.6 35.4 50.8 34.4 51.3Z"/></g></g><circle class="lg-moon" cx="48" cy="48" r="19"/><circle class="lg-rim" cx="48" cy="48" r="19" fill="none" stroke-width="3"/><circle class="lg-spot" cx="52.0" cy="54.0" r="3.8"/><g class="qtw"><path class="lgf1" d="M72.9 37.5 L68.0 38.5 L71.2 46.8 L64.7 40.7 L61.4 47.5 L60.9 39.9 L52.8 43.0 L58.8 36.7 L48.6 32.6 L59.5 32.8 L54.9 22.3 L62.8 30.7 L65.9 25.1 L66.6 31.5 L71.9 30.3 L68.8 34.7 Z" stroke-width="0.8" stroke-linejoin="round"/><path class="lgf2" d="M69.3 36.8 L66.3 37.4 L69.7 44.7 L64.3 38.7 L61.9 44.7 L62.1 38.2 L56.9 40.2 L60.8 36.3 L55.5 34.0 L61.2 34.0 L60.4 30.7 L63.2 32.7 L65.7 26.2 L65.5 33.1 L71.0 30.9 L66.8 35.1 Z" stroke-width="0.8" stroke-linejoin="round"/></g></g></svg></span><span>Query<b>Bot</b></span><span class="qb-ai">AI</span></a><nav class="navlinks"><button id="headerLogin" class="qa-header-login" type="button" aria-haspopup="dialog" aria-controls="loginModal" hidden><span data-ko="로그인" data-en="Log in"></span></button><a href="/" data-ko="홈" data-en="Home"></a><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button><button class="qa-aside-btn" id="asideBtn" type="button" aria-pressed="true" aria-label="오른쪽 사이드바"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg></button></div></header>
 <dialog id="loginModal" class="qa-login-modal" aria-labelledby="loginModalTitle">
   <button id="loginModalClose" class="qa-login-close" type="button" aria-label="닫기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
   <h2 id="loginModalTitle" data-ko="로그인 또는 회원가입" data-en="Log in or sign up"></h2>
@@ -1219,6 +1248,7 @@
       <div class="qa-usage" id="usageLine"><button class="u-btn" id="usageBtn" type="button" hidden><svg class="ring" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="7.5"/><circle class="fg" cx="10" cy="10" r="7.5"/></svg><span class="u-txt"></span></button></div>
     </div>
   </main>
+  <aside class="qa-aside" id="aside" aria-label="이 대화"></aside>
 </div>
 <div class="qa-modal" id="teachModal" hidden>
   <div class="qa-modal-card" role="dialog" aria-modal="true" aria-label="관리자 · 가르치기">
@@ -3487,6 +3517,7 @@
   }
   let memOpen = false;
   function paintMem() {
+    asideSoon();  // 97차
     paintSetMem();
     const row = $("memRow"), a = memList();
     row.innerHTML = "";
@@ -3531,6 +3562,7 @@
   var RING = 2 * Math.PI * 7.5;
   function getQuota() { try { return quota; } catch (e) { return null; } }  // 아직 선언 전이면 null
   function paintUsage() {
+    asideSoon();  // 97차
     const b = document.getElementById("usageBtn");
     if (!b || !modelSel) return;
     const q = getQuota();
@@ -4727,6 +4759,114 @@
   // 언어를 바꾸면 안내 문구·대화 목록도 그 언어로
   new MutationObserver(() => { applyPlaceholder(); renderList(); if (log.querySelector(".qa-hello")) showHello(); })
     .observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  // =========================================================
+  // 97차: 오른쪽 사이드바 — 대화 화면에 그려진 것을 읽어 목록으로 (넓은 화면만, CSS가 숨김/보임을 정함)
+  // =========================================================
+  var asideT = 0;
+  function asideSoon() { clearTimeout(asideT); asideT = setTimeout(paintAside, 250); }  // 아직 선언 전인 값을 건드리지 않게 늦춰서
+  const AS_IC = {
+    q: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+    file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    quiz: '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.5"/><path d="M12 17.2h.01"/>',
+    src: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    mem: '<path d="M7 4h10v16l-5-3.5L7 20z"/>',
+    more: '<path d="m9 6 6 6-6 6"/>'
+  };
+  function asIcon(k) {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
+    s.setAttribute("stroke-width", "1.8"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+    s.innerHTML = AS_IC[k];
+    return s;
+  }
+  function asGo(target) {
+    if (!target || !target.isConnected) return;
+    target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    target.classList.remove("qa-flash"); void target.offsetWidth; target.classList.add("qa-flash");
+    setTimeout(() => target.classList.remove("qa-flash"), 1700);
+  }
+  function asRow(icon, text, small, onClick, href) {
+    const r = el(href ? "a" : "button", "qa-as-row");
+    if (href) { r.href = href; r.target = "_blank"; r.rel = "noopener noreferrer nofollow"; } else r.type = "button";
+    r.append(icon, el("span", "", text));
+    if (small) r.appendChild(el("small", "", small));
+    if (onClick) r.addEventListener("click", onClick);
+    return r;
+  }
+  function asSection(title, rows) {
+    if (!rows.length) return null;
+    const s = el("section", "qa-as");
+    s.appendChild(el("h4", "", title));
+    rows.forEach((r) => s.appendChild(r));
+    return s;
+  }
+  const oneLine = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n) + "…" : s; };
+  function paintAside() {
+    const box = document.getElementById("aside");
+    if (!box) return;
+    box.setAttribute("aria-label", L("이 대화", "This chat"));
+    const secs = [];
+    // 이 대화: 내가 한 질문
+    secs.push(asSection(L("이 대화", "This chat"), [...log.querySelectorAll(".me")].map((m) =>
+      asRow(asIcon("q"), oneLine(m.textContent, 80), "", () => asGo(m.closest(".me-wrap") || m)))));
+    // 결과물: 다 만든 파일·퀴즈
+    const outs = [];
+    log.querySelectorAll(".file-card, .quiz-card").forEach((c) => {
+      if (c.classList.contains("quiz-card")) {
+        const q = c.querySelector(".quiz-q");
+        if (q) outs.push(asRow(asIcon("quiz"), oneLine(q.textContent, 60) || L("퀴즈", "Quiz"), "", () => asGo(c)));
+      } else if (!c.querySelector(".file-wait")) {
+        const n = c.querySelector(".file-name");
+        if (n) outs.push(asRow(asIcon("file"), n.textContent, "", () => asGo(c)));
+      }
+    });
+    secs.push(asSection(L("결과물", "Outputs"), outs));
+    // 출처: 답에 붙은 링크(같은 주소는 한 번)
+    const seen = new Set(), srcs = [];
+    log.querySelectorAll("a.src-chip, a.src-link").forEach((a) => {
+      const href = a.getAttribute("href") || "";
+      if (!/^https:\/\//.test(href) || seen.has(href)) return;
+      seen.add(href);
+      let host = "";
+      try { host = new URL(href).hostname.replace(/^www\./, ""); } catch (e) { return; }
+      const name = a.classList.contains("src-chip") ? (a.querySelector("span") || {}).textContent : (a.closest(".turn") && (a.closest(".turn").querySelector(".src-title") || {}).textContent);
+      srcs.push(asRow(asIcon("src"), oneLine(name || host, 60), host === oneLine(name || host, 60) ? "" : host, null, href));
+    });
+    secs.push(asSection(L("출처", "Sources"), srcs));
+    // 사용량: Nova G 남은 양(%)
+    const q = getQuota();
+    if (q && modelSel && modelSel.value === "gemma4") {
+      const lim = q.limit || 10000, left = Math.max(0, Math.round(q.left)), pc = quotaPct(left, lim), R = 2 * Math.PI * 7.5;
+      const ring = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      ring.setAttribute("class", "ring"); ring.setAttribute("viewBox", "0 0 20 20"); ring.setAttribute("aria-hidden", "true");
+      ring.innerHTML = '<circle class="bg" cx="10" cy="10" r="7.5"/><circle class="fg" cx="10" cy="10" r="7.5" stroke-dasharray="' + ((left / lim) * R).toFixed(2) + " " + R.toFixed(2) + '"/>';
+      const r = asRow(ring, L("남은 사용량", "Left today"), "", () => openSettings("usage"));
+      r.appendChild(el("b", "", pc + "%"));
+      secs.push(asSection(L("사용량", "Usage"), [r]));
+    }
+    // 기억: 최근 5개 + 모두 보기
+    const mem = memList();
+    if (mem.length) {
+      const rows = mem.slice(-5).reverse().map((m) => asRow(asIcon("mem"), oneLine(m, 60), "", () => openSettings("memory")));
+      if (mem.length > 5) rows.push(asRow(asIcon("more"), L("모두 보기", "See all"), String(mem.length), () => openSettings("memory")));
+      secs.push(asSection(L("기억", "Memory"), rows));
+    }
+    box.replaceChildren(...secs.filter(Boolean));
+  }
+  (() => {  // 접기·펴기(기억) + 대화가 바뀌면 다시 그리기
+    const btn = $("asideBtn");
+    const apply = (off) => {
+      document.body.classList.toggle("qa-aside-off", off);
+      btn.setAttribute("aria-pressed", off ? "false" : "true");
+      btn.setAttribute("aria-label", off ? L("오른쪽 사이드바 열기", "Open right sidebar") : L("오른쪽 사이드바 닫기", "Close right sidebar"));
+    };
+    apply(store.get("aside") === "0");
+    btn.addEventListener("click", () => { const off = !document.body.classList.contains("qa-aside-off"); store.set("aside", off ? "0" : "1"); apply(off); });
+    new MutationObserver(asideSoon).observe(log, { childList: true, subtree: true });
+    new MutationObserver(() => { apply(document.body.classList.contains("qa-aside-off")); asideSoon(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+    asideSoon();
+  })();
+
   showHello();  // 95차: 첫 그림 전에 첫 화면부터 (메인에서 넘어올 때 제목·로고가 겹쳐 보이지 않게)
   document.addEventListener("DOMContentLoaded", () => {
     gdLoad();
