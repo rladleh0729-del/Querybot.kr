@@ -2426,16 +2426,12 @@
     const show = !!quota && modelSel.value === "gemma4";
     box.hidden = !show;
     if (!show) return;
-    const left = Math.max(0, Math.round(quota.left)).toLocaleString();
-    const lim = (quota.limit || 10000).toLocaleString();
+    const pc = quotaPct(Math.max(0, quota.left), quota.limit);  // 96차: 뉴런 대신 %
     const span = box.querySelector("span");
-    span.dataset.ko = "오늘 남은 " + left + "뉴런";
-    span.dataset.en = left + " neurons left today";
+    span.dataset.ko = "오늘 남은 사용량 " + pc + "%";
+    span.dataset.en = pc + "% left today";
     span.textContent = lang() === "en" ? span.dataset.en : span.dataset.ko;
-    const own = quota.source === "server";
-    box.title = lang() === "en"
-      ? "Nova G free quota: " + lim + " neurons a day, refilled at 09:00 KST. One question uses about 3-10." + (own ? " (counted by this site)" : "")
-      : "Nova G 무료 사용량: 하루 " + lim + "뉴런, 매일 오전 9시에 다시 채워져요. 질문 하나에 약 3~10뉴런을 써요." + (own ? " (사이트 서버가 센 값)" : "");
+    box.title = lang() === "en" ? "Nova G free quota — back to 100% at 09:00 KST every day" : "Nova G 무료 사용량 — 매일 오전 9시에 100%로 다시 채워져요";
     box.classList.toggle("off", quota.left <= 0);
   }
 
@@ -3525,6 +3521,13 @@
   // 입력창 아래 사용량 한 줄 + 설정 창(사용량·메모리) — 2026-11-10 사용자: "클로드 앱 같이"
   // =========================================================
   function L(ko, en) { return lang() === "en" ? en : ko; }  // 함수 선언: 위쪽 코드가 먼저 불러도 됨
+  // 96차: 하루 무료 사용량(10,000) = 100%. 10% 아래는 소수 한 자리, 조금이라도 남았으면 0%로 안 보이게
+  function quotaPct(left, lim) {
+    const v = Math.max(0, Math.min(100, (left / (lim || 10000)) * 100));
+    if (v >= 10) return Math.round(v);
+    if (v > 0 && v < 0.1) return 0.1;
+    return Math.round(v * 10) / 10;
+  }
   var RING = 2 * Math.PI * 7.5;
   function getQuota() { try { return quota; } catch (e) { return null; } }  // 아직 선언 전이면 null
   function paintUsage() {
@@ -3533,8 +3536,8 @@
     const q = getQuota();
     b.hidden = !(q && modelSel.value === "gemma4");
     if (b.hidden) return;
-    const lim = q.limit || 10000, left = Math.max(0, Math.round(q.left)), pct = Math.max(0, Math.min(100, Math.round((left / lim) * 100)));
-    b.querySelector(".u-txt").textContent = L("남은 뉴런 " + left.toLocaleString() + " · " + pct + "%", left.toLocaleString() + " neurons left · " + pct + "%");
+    const lim = q.limit || 10000, left = Math.max(0, Math.round(q.left)), pct = quotaPct(left, lim);
+    b.querySelector(".u-txt").textContent = L("남은 사용량 " + pct + "%", pct + "% left");  // 96차: 뉴런 대신 %
     const R = 2 * Math.PI * 7.5;
     b.querySelector(".fg").setAttribute("stroke-dasharray", ((1 - left / lim) * R).toFixed(2) + " " + R.toFixed(2));
     b.classList.toggle("low", pct <= 10);
@@ -3629,9 +3632,9 @@
         card.appendChild(el("p", "us-note", L("서버에 연결되면 사용량이 보여요.", "Usage appears once the server is connected.")));
       } else {
         const lim = q.limit || 10000, left = Math.max(0, Math.round(q.left)), used = Math.max(0, Math.round(lim - left));
-        const pct = Math.max(0, Math.min(100, Math.round((left / lim) * 100)));
+        const pct = quotaPct(left, lim), usedPct = Math.round((100 - pct) * 10) / 10;  // 96차: 뉴런 대신 %
         const big = el("div", "us-big");
-        big.append(el("b", "", left.toLocaleString()), el("span", "", L("뉴런 남음", "neurons left")), el("em", "", pct + "%"));
+        big.append(el("b", "", pct + "%"), el("span", "", L("남음", "left")));
         card.appendChild(big);
         const bar = el("div", "us-bar" + (pct <= 10 ? " low" : ""));
         const fill = el("i");
@@ -3640,13 +3643,12 @@
         card.appendChild(bar);
         const rows = el("div", "us-rows");
         const row = (k, v) => { const r = el("div"); r.append(el("span", "", k), el("b", "", v)); rows.appendChild(r); };
-        row(L("사용한 뉴런", "Used"), used.toLocaleString() + " (" + (100 - pct) + "%)");
-        row(L("남은 뉴런", "Left"), left.toLocaleString() + " (" + pct + "%)");
-        row(L("하루 한도", "Daily limit"), lim.toLocaleString());
+        row(L("사용함", "Used"), usedPct + "%");
+        row(L("남음", "Left"), pct + "%");
         row(L("다시 채워짐", "Resets"), L("매일 오전 9시 · ", "daily 09:00 KST · ") + untilReset());
         card.appendChild(rows);
-        card.appendChild(el("p", "us-note", L("질문 하나에 보통 3~10뉴런, 그림·생각·검색은 조금 더 써요. 다 쓰면 기본 모델이 대신 답해요.",
-          "A question usually uses 3-10 neurons; images, thinking and search use more. When it runs out, the basic model answers instead.")));
+        card.appendChild(el("p", "us-note", L("질문할 때마다 조금씩 줄고, 그림·생각·검색은 더 많이 써요. 다 쓰면 기본 모델이 대신 답해요.",
+          "Each question uses a little; images, thinking and search use more. When it runs out, the basic model answers instead.")));
       }
       pane.appendChild(card);
       pane.appendChild(el("p", "us-foot", L("QueryBot 기본 모델(the Best·3·1)은 사용량 제한이 없어요.", "QueryBot's own models (the Best, 3, 1) have no limit.")));
