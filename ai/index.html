@@ -1171,6 +1171,81 @@
   .qa-feedback-card b{font-size:13px;color:var(--text2)}
   .qa-feedback-card h3{font-size:14px;margin:16px 0 6px}
   .qa-feedback-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7}
+  /* ===== 99차: 시안의 질감(밝은 테마) · 서비스 메뉴 · KR/EN · 할 수 있는 것 알약 ===== */
+  html:not([data-theme=dark]) body.qa-page{background:#FAF9F6}
+  html:not([data-theme=dark]) body.qa-page .qa-chat{background:#FAF9F6 radial-gradient(circle at 50% 0%,rgba(255,255,255,.92),rgba(255,255,255,0) 62%) no-repeat}
+  html:not([data-theme=dark]) body.qa-page .qa-glow{background:linear-gradient(180deg,#F2F1EC 0%,#F8F7F3 100%)}
+  html:not([data-theme=dark]) body.qa-page .qa-side{background:#F4F3EF;border-right:1px solid rgba(20,20,19,.08)}
+  html:not([data-theme=dark]) body.qa-page .qa-aside{background:#F4F3EF;border-left:1px solid rgba(20,20,19,.08)}
+  html:not([data-theme=dark]) body.qa-page .qa-new{background:#fff;border:1px solid rgba(20,20,19,.08);color:#141413;box-shadow:0 1px 2px rgba(0,0,0,.025);transition:border-color .15s,box-shadow .15s}
+  html:not([data-theme=dark]) body.qa-page .qa-new:hover{border-color:rgba(20,20,19,.18);box-shadow:0 2px 6px rgba(0,0,0,.045)}
+  html:not([data-theme=dark]) body.qa-page .qa-conv:hover{background:rgba(20,20,19,.045)}
+  html:not([data-theme=dark]) body.qa-page .qa-conv.on{background:rgba(20,20,19,.07)}
+  html:not([data-theme=dark]) body.qa-page .qa-conv-open{color:#4A4945}
+  html:not([data-theme=dark]) body.qa-page .qa-conv.on .qa-conv-open{color:#141413}
+  html:not([data-theme=dark]) body.qa-page .qa-form{background:#fff;border:1px solid rgba(20,20,19,.08);box-shadow:0 2px 6px rgba(0,0,0,.03),0 12px 32px rgba(0,0,0,.055);transition:border-color .18s cubic-bezier(.2,0,0,1),box-shadow .22s cubic-bezier(.2,0,0,1)}
+  html:not([data-theme=dark]) body.qa-page .qa-form:hover{border-color:rgba(20,20,19,.16)}
+  html:not([data-theme=dark]) body.qa-page .qa-form:focus-within{border-color:rgba(20,20,19,.28);box-shadow:0 2px 8px rgba(0,0,0,.04),0 16px 40px rgba(0,0,0,.08)}
+  html:not([data-theme=dark]) body.qa-page .qa-form textarea::placeholder{color:#9A9892}
+  html:not([data-theme=dark]) body.qa-page .qa-form .qa-attach{border-color:rgba(20,20,19,.08);background:#FAF9F6;color:#5C5B57}
+  html:not([data-theme=dark]) body.qa-page .qa-form .qa-attach:hover{background:#EFECE6;color:#141413}
+  html:not([data-theme=dark]) body.qa-page .qa-form .qa-model-btn{color:#4A4945}
+  html:not([data-theme=dark]) body.qa-page .me{background:#EFECE6;color:#141413;box-shadow:none}
+  html:not([data-theme=dark]) body.qa-page .qa-model-menu,html:not([data-theme=dark]) body.qa-page .qa-plus-menu{background:#fff;border:1px solid rgba(20,20,19,.08);box-shadow:0 4px 12px rgba(0,0,0,.05),0 16px 36px rgba(0,0,0,.09)}
+  .qa-model-menu:not([hidden]),.qa-plus-menu:not([hidden]),.qa-svc-menu:not([hidden]){animation:qa-pop .14s cubic-bezier(.16,1,.3,1)}
+  @keyframes qa-pop{from{opacity:0;transform:translateY(4px) scale(.98)}to{opacity:1;transform:none}}
+  html:not([data-theme=dark]) body.qa-page .qa-as h4{color:#8E8D87}
+  html:not([data-theme=dark]) body.qa-page .qa-as-row{color:#4A4945}
+  html:not([data-theme=dark]) body.qa-page .qa-as-row:hover{background:rgba(20,20,19,.05);color:#141413}
+  /* 생각 중 단어: 빛이 지나감 */
+  html:not([data-theme=dark]) body.qa-page .think > span:first-child{background:linear-gradient(90deg,#8A8882 0%,#141413 45%,#8A8882 90%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:qa-shimmer 1.5s linear infinite}
+  html[data-theme=dark] body.qa-page .think > span:first-child{background:linear-gradient(90deg,#71717a 0%,#f4f4f5 45%,#71717a 90%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:qa-shimmer 1.5s linear infinite}
+  @keyframes qa-shimmer{0%{background-position:180% center}100%{background-position:-20% center}}
+  /* 오른쪽 위: 서비스(점 9개) · KR/EN · 사이드바 · 로그인 */
+  .qa-svc{position:relative;display:none}
+  .qa-lang-pill{display:none}
+  @media (min-width:861px){
+    body.qa-page .nav .navin > .lang{display:none}
+    .qa-svc{display:block}
+    body.qa-page .nav .qa-svc-btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:0;border-radius:999px;background:none;color:#5C5B57;font:inherit;font-size:14px;font-weight:500;cursor:pointer}
+    body.qa-page .nav .qa-svc-btn:hover,body.qa-page .nav .qa-svc-btn[aria-expanded=true]{background:rgba(20,20,19,.05);color:#141413}
+    body.qa-page .nav .qa-lang-pill{display:inline-flex;align-items:center;gap:6px;height:34px;margin-left:8px;padding:0 13px;border:1px solid rgba(20,20,19,.08);border-radius:999px;background:rgba(255,255,255,.75);font:inherit;font-size:12.5px;cursor:pointer;transition:background .15s,border-color .15s}
+    body.qa-page .nav .qa-lang-pill:hover{background:#fff;border-color:rgba(20,20,19,.16)}
+    body.qa-page .nav .qa-lang-pill b{font-weight:500;color:#9A9892}
+    body.qa-page .nav .qa-lang-pill b.on{font-weight:700;color:#141413}
+    body.qa-page .nav .qa-lang-pill i{font-style:normal;color:#C8C6BF}
+    body.qa-page .nav .qa-aside-btn{width:34px;height:34px;margin-left:8px;border:1px solid rgba(20,20,19,.08);background:rgba(255,255,255,.75);color:#5C5B57}
+    body.qa-page .nav .qa-aside-btn:hover{background:#fff;color:#141413}
+    body.qa-page .nav .qa-header-login{height:34px;margin-left:8px;padding:0 17px;background:#141413;color:#fff;border:0;font-size:13.5px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12);transition:background .15s,box-shadow .15s}
+    body.qa-page .nav .qa-header-login:hover{background:#2A2A28;box-shadow:0 3px 10px rgba(0,0,0,.16)}
+    html[data-theme=dark] body.qa-page .nav .qa-svc-btn{color:#d4d4d8}
+    html[data-theme=dark] body.qa-page .nav .qa-svc-btn:hover,html[data-theme=dark] body.qa-page .nav .qa-svc-btn[aria-expanded=true]{background:rgba(255,255,255,.07);color:#fff}
+    html[data-theme=dark] body.qa-page .nav .qa-lang-pill,html[data-theme=dark] body.qa-page .nav .qa-aside-btn{background:#1d1e21;border-color:#3a3b40;color:#ececee}
+    html[data-theme=dark] body.qa-page .nav .qa-lang-pill b.on{color:#fff}
+    html[data-theme=dark] body.qa-page .nav .qa-header-login{background:#ececee;color:#17181b}
+  }
+  .qa-svc-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:80;width:220px;padding:6px;border:1px solid rgba(20,20,19,.08);border-radius:18px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.05),0 16px 36px rgba(0,0,0,.09);transform-origin:top right}
+  .qa-svc-menu[hidden]{display:none}
+  body.qa-page .nav .qa-svc-menu a{display:flex;align-items:center;gap:11px;padding:6px 12px 6px 6px;border-radius:999px;color:#141413;font-size:13.5px;font-weight:500;text-decoration:none}
+  body.qa-page .nav .qa-svc-menu a::before{content:none}
+  body.qa-page .nav .qa-svc-menu a:hover{background:#F4F3EF}
+  .qa-svc-menu .ic{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#F4F3EF;border:1px solid rgba(20,20,19,.08);color:#141413}
+  html[data-theme=dark] .qa-svc-menu{background:#1d1e21;border-color:#3a3b40}
+  html[data-theme=dark] body.qa-page .nav .qa-svc-menu a{color:#ececee}
+  html[data-theme=dark] body.qa-page .nav .qa-svc-menu a:hover{background:#26272b}
+  html[data-theme=dark] .qa-svc-menu .ic{background:#26272b;border-color:#3a3b40;color:#ececee}
+  /* 첫 화면 '할 수 있는 것' 알약 4개 */
+  .qa-chips-slot{position:relative;height:0;max-width:860px;margin:0 auto}
+  .qa-chat.chatting .qa-chips-slot{display:none}
+  .qa-chips{position:absolute;left:0;right:0;top:14px;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+  .qa-chip{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 15px;border:1px solid rgba(20,20,19,.08);border-radius:999px;background:rgba(255,255,255,.78);color:#4A4945;font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s,transform .15s,box-shadow .15s}
+  .qa-chip svg{color:#7B7973}
+  .qa-chip:hover{background:#fff;border-color:rgba(20,20,19,.16);transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.04)}
+  html[data-theme=dark] .qa-chip{background:rgba(255,255,255,.04);border-color:#3a3b40;color:#d4d4d8}
+  html[data-theme=dark] .qa-chip:hover{background:rgba(255,255,255,.08);border-color:#52525b}
+  html[data-theme=dark] .qa-chip svg{color:#a1a1aa}
+  @media (max-width:640px){.qa-chips{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;padding:0 2px 4px;scrollbar-width:none}.qa-chips::-webkit-scrollbar{display:none}.qa-chip{flex:none}}
+  @media (prefers-reduced-motion:reduce){.qa-chip,.qa-chip:hover{transition:none;transform:none}.think > span:first-child{animation:none!important}.qa-model-menu,.qa-plus-menu,.qa-svc-menu{animation:none!important}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1179,7 +1254,7 @@
 <link rel="expect" href="#qbReady" blocking="render"><!-- 95차: 본 스크립트가 첫 화면을 그린 뒤에 첫 그림 -->
 </head>
 <body class="qa-page">
-<header class="nav"><div class="wrap navin"><a class="brand qb-brand" id="brandHome" href="/"><span class="qb-logo" aria-hidden="true"><svg class="qbm" viewBox="0 0 96 96" width="100%" height="100%" aria-hidden="true" focusable="false"><defs><mask id="qbgap" maskUnits="userSpaceOnUse" x="-30" y="-30" width="156" height="156"><rect x="-30" y="-30" width="156" height="156" fill="#fff"/><circle cx="48" cy="48" r="21.6" fill="#000"/></mask></defs><g transform="translate(48 48) scale(1.44) translate(-40.9 -44.5)"><g mask="url(#qbgap)"><g class="qfl qfl0"><path class="lg1" d="M34.5 44.1 C32.0 44.7 25.9 42.3 23.0 41.1 C20.0 39.9 18.8 38.3 17.0 36.9 C15.2 35.6 13.4 33.8 12.1 32.9 C10.8 32.0 8.4 31.8 9.2 31.3 C10.1 30.8 14.3 30.1 17.3 29.8 C20.3 29.5 23.7 28.2 27.2 29.5 C30.7 30.9 37.1 35.5 38.3 37.9 C39.5 40.4 37.1 43.6 34.5 44.1Z"/><path class="lg2" d="M35.0 42.8 C33.0 42.9 27.8 40.4 25.4 39.4 C23.1 38.3 22.4 37.4 21.0 36.5 C19.7 35.6 18.3 34.6 17.3 34.0 C16.3 33.4 14.5 33.3 15.1 33.0 C15.7 32.8 18.6 32.6 20.7 32.5 C22.8 32.4 24.9 31.5 27.6 32.6 C30.4 33.7 36.1 37.2 37.3 38.9 C38.5 40.6 37.0 42.8 35.0 42.8Z"/><path class="lg3" d="M35.4 41.8 C34.0 41.6 29.7 39.3 28.0 38.4 C26.4 37.6 26.2 37.3 25.3 36.8 C24.5 36.3 23.6 35.7 23.0 35.4 C22.4 35.1 21.3 35.0 21.6 34.9 C21.9 34.8 23.7 34.9 24.9 34.9 C26.1 35.0 27.0 34.4 28.9 35.2 C30.9 36.0 35.6 38.7 36.6 39.8 C37.7 40.9 36.9 42.0 35.4 41.8Z"/></g><g class="qfl qfl1"><path class="lg1" d="M38.6 37.6 C36.9 36.8 33.9 32.3 32.9 30.2 C31.8 28.1 32.6 26.6 32.6 25.0 C32.6 23.3 32.9 21.5 33.0 20.3 C33.2 19.1 33.1 17.6 33.6 17.8 C34.1 17.9 34.9 19.9 35.9 21.1 C36.9 22.4 38.3 22.7 39.6 25.0 C40.8 27.3 43.4 32.7 43.2 34.8 C43.1 36.9 40.4 38.4 38.6 37.6Z"/><path class="lg2" d="M39.4 36.9 C38.2 36.1 35.6 31.9 34.7 30.2 C33.9 28.4 34.5 27.6 34.5 26.4 C34.5 25.3 34.5 24.0 34.6 23.2 C34.6 22.3 34.5 21.2 34.8 21.4 C35.1 21.5 35.7 23.0 36.3 24.0 C36.9 24.9 37.6 25.0 38.6 26.9 C39.6 28.8 42.1 33.6 42.3 35.2 C42.4 36.9 40.7 37.8 39.4 36.9Z"/><path class="lg3" d="M40.1 36.5 C39.2 35.6 37.0 31.9 36.4 30.6 C35.7 29.2 36.2 29.1 36.2 28.4 C36.1 27.7 36.1 27.0 36.1 26.5 C36.1 26.0 36.0 25.3 36.1 25.4 C36.3 25.5 36.6 26.5 36.9 27.0 C37.3 27.6 37.4 27.5 38.2 28.9 C39.0 30.3 41.2 34.3 41.5 35.6 C41.8 36.8 40.9 37.3 40.1 36.5Z"/></g><g class="qfl qfl2"><path class="lg1" d="M35.0 53.2 C33.9 54.7 29.1 56.0 27.2 56.5 C25.2 57.0 24.5 56.3 23.3 56.1 C22.1 56.0 20.9 55.7 20.0 55.6 C19.2 55.5 18.2 56.1 18.4 55.6 C18.5 55.1 20.0 53.6 21.0 52.4 C22.0 51.2 22.4 49.2 24.6 48.4 C26.8 47.6 32.3 46.7 34.0 47.5 C35.7 48.3 36.2 51.7 35.0 53.2Z"/><path class="lg2" d="M34.6 52.2 C33.5 53.2 29.1 54.2 27.5 54.6 C25.8 55.0 25.6 54.5 24.7 54.5 C23.9 54.5 23.0 54.4 22.4 54.4 C21.8 54.4 21.1 54.9 21.2 54.6 C21.3 54.2 22.4 53.2 23.2 52.4 C24.0 51.6 24.0 50.5 25.8 49.8 C27.6 49.2 32.5 48.2 34.0 48.6 C35.5 49.0 35.7 51.2 34.6 52.2Z"/><path class="lg3" d="M34.4 51.3 C33.4 51.9 29.4 52.7 28.1 53.0 C26.7 53.3 27.0 53.1 26.5 53.1 C26.0 53.1 25.4 53.1 25.1 53.1 C24.7 53.2 24.3 53.5 24.4 53.3 C24.5 53.1 25.2 52.6 25.6 52.2 C26.1 51.7 25.8 51.2 27.2 50.7 C28.6 50.3 32.9 49.4 34.1 49.5 C35.3 49.6 35.4 50.8 34.4 51.3Z"/></g></g><circle class="lg-moon" cx="48" cy="48" r="19"/><circle class="lg-rim" cx="48" cy="48" r="19" fill="none" stroke-width="3"/><circle class="lg-spot" cx="52.0" cy="54.0" r="3.8"/><g class="qtw"><path class="lgf1" d="M72.9 37.5 L68.0 38.5 L71.2 46.8 L64.7 40.7 L61.4 47.5 L60.9 39.9 L52.8 43.0 L58.8 36.7 L48.6 32.6 L59.5 32.8 L54.9 22.3 L62.8 30.7 L65.9 25.1 L66.6 31.5 L71.9 30.3 L68.8 34.7 Z" stroke-width="0.8" stroke-linejoin="round"/><path class="lgf2" d="M69.3 36.8 L66.3 37.4 L69.7 44.7 L64.3 38.7 L61.9 44.7 L62.1 38.2 L56.9 40.2 L60.8 36.3 L55.5 34.0 L61.2 34.0 L60.4 30.7 L63.2 32.7 L65.7 26.2 L65.5 33.1 L71.0 30.9 L66.8 35.1 Z" stroke-width="0.8" stroke-linejoin="round"/></g></g></svg></span><span>Query<b>Bot</b></span><span class="qb-ai">AI</span></a><nav class="navlinks"><button id="headerLogin" class="qa-header-login" type="button" aria-haspopup="dialog" aria-controls="loginModal" hidden><span data-ko="로그인" data-en="Log in"></span></button><a href="/games/" data-ko="게임" data-en="Games"></a></nav><button class="lang">EN</button><button class="qa-aside-btn" id="asideBtn" type="button" aria-pressed="true" aria-label="오른쪽 사이드바"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg></button></div></header>
+<header class="nav"><div class="wrap navin"><a class="brand qb-brand" id="brandHome" href="/"><span class="qb-logo" aria-hidden="true"><svg class="qbm" viewBox="0 0 96 96" width="100%" height="100%" aria-hidden="true" focusable="false"><defs><mask id="qbgap" maskUnits="userSpaceOnUse" x="-30" y="-30" width="156" height="156"><rect x="-30" y="-30" width="156" height="156" fill="#fff"/><circle cx="48" cy="48" r="21.6" fill="#000"/></mask></defs><g transform="translate(48 48) scale(1.44) translate(-40.9 -44.5)"><g mask="url(#qbgap)"><g class="qfl qfl0"><path class="lg1" d="M34.5 44.1 C32.0 44.7 25.9 42.3 23.0 41.1 C20.0 39.9 18.8 38.3 17.0 36.9 C15.2 35.6 13.4 33.8 12.1 32.9 C10.8 32.0 8.4 31.8 9.2 31.3 C10.1 30.8 14.3 30.1 17.3 29.8 C20.3 29.5 23.7 28.2 27.2 29.5 C30.7 30.9 37.1 35.5 38.3 37.9 C39.5 40.4 37.1 43.6 34.5 44.1Z"/><path class="lg2" d="M35.0 42.8 C33.0 42.9 27.8 40.4 25.4 39.4 C23.1 38.3 22.4 37.4 21.0 36.5 C19.7 35.6 18.3 34.6 17.3 34.0 C16.3 33.4 14.5 33.3 15.1 33.0 C15.7 32.8 18.6 32.6 20.7 32.5 C22.8 32.4 24.9 31.5 27.6 32.6 C30.4 33.7 36.1 37.2 37.3 38.9 C38.5 40.6 37.0 42.8 35.0 42.8Z"/><path class="lg3" d="M35.4 41.8 C34.0 41.6 29.7 39.3 28.0 38.4 C26.4 37.6 26.2 37.3 25.3 36.8 C24.5 36.3 23.6 35.7 23.0 35.4 C22.4 35.1 21.3 35.0 21.6 34.9 C21.9 34.8 23.7 34.9 24.9 34.9 C26.1 35.0 27.0 34.4 28.9 35.2 C30.9 36.0 35.6 38.7 36.6 39.8 C37.7 40.9 36.9 42.0 35.4 41.8Z"/></g><g class="qfl qfl1"><path class="lg1" d="M38.6 37.6 C36.9 36.8 33.9 32.3 32.9 30.2 C31.8 28.1 32.6 26.6 32.6 25.0 C32.6 23.3 32.9 21.5 33.0 20.3 C33.2 19.1 33.1 17.6 33.6 17.8 C34.1 17.9 34.9 19.9 35.9 21.1 C36.9 22.4 38.3 22.7 39.6 25.0 C40.8 27.3 43.4 32.7 43.2 34.8 C43.1 36.9 40.4 38.4 38.6 37.6Z"/><path class="lg2" d="M39.4 36.9 C38.2 36.1 35.6 31.9 34.7 30.2 C33.9 28.4 34.5 27.6 34.5 26.4 C34.5 25.3 34.5 24.0 34.6 23.2 C34.6 22.3 34.5 21.2 34.8 21.4 C35.1 21.5 35.7 23.0 36.3 24.0 C36.9 24.9 37.6 25.0 38.6 26.9 C39.6 28.8 42.1 33.6 42.3 35.2 C42.4 36.9 40.7 37.8 39.4 36.9Z"/><path class="lg3" d="M40.1 36.5 C39.2 35.6 37.0 31.9 36.4 30.6 C35.7 29.2 36.2 29.1 36.2 28.4 C36.1 27.7 36.1 27.0 36.1 26.5 C36.1 26.0 36.0 25.3 36.1 25.4 C36.3 25.5 36.6 26.5 36.9 27.0 C37.3 27.6 37.4 27.5 38.2 28.9 C39.0 30.3 41.2 34.3 41.5 35.6 C41.8 36.8 40.9 37.3 40.1 36.5Z"/></g><g class="qfl qfl2"><path class="lg1" d="M35.0 53.2 C33.9 54.7 29.1 56.0 27.2 56.5 C25.2 57.0 24.5 56.3 23.3 56.1 C22.1 56.0 20.9 55.7 20.0 55.6 C19.2 55.5 18.2 56.1 18.4 55.6 C18.5 55.1 20.0 53.6 21.0 52.4 C22.0 51.2 22.4 49.2 24.6 48.4 C26.8 47.6 32.3 46.7 34.0 47.5 C35.7 48.3 36.2 51.7 35.0 53.2Z"/><path class="lg2" d="M34.6 52.2 C33.5 53.2 29.1 54.2 27.5 54.6 C25.8 55.0 25.6 54.5 24.7 54.5 C23.9 54.5 23.0 54.4 22.4 54.4 C21.8 54.4 21.1 54.9 21.2 54.6 C21.3 54.2 22.4 53.2 23.2 52.4 C24.0 51.6 24.0 50.5 25.8 49.8 C27.6 49.2 32.5 48.2 34.0 48.6 C35.5 49.0 35.7 51.2 34.6 52.2Z"/><path class="lg3" d="M34.4 51.3 C33.4 51.9 29.4 52.7 28.1 53.0 C26.7 53.3 27.0 53.1 26.5 53.1 C26.0 53.1 25.4 53.1 25.1 53.1 C24.7 53.2 24.3 53.5 24.4 53.3 C24.5 53.1 25.2 52.6 25.6 52.2 C26.1 51.7 25.8 51.2 27.2 50.7 C28.6 50.3 32.9 49.4 34.1 49.5 C35.3 49.6 35.4 50.8 34.4 51.3Z"/></g></g><circle class="lg-moon" cx="48" cy="48" r="19"/><circle class="lg-rim" cx="48" cy="48" r="19" fill="none" stroke-width="3"/><circle class="lg-spot" cx="52.0" cy="54.0" r="3.8"/><g class="qtw"><path class="lgf1" d="M72.9 37.5 L68.0 38.5 L71.2 46.8 L64.7 40.7 L61.4 47.5 L60.9 39.9 L52.8 43.0 L58.8 36.7 L48.6 32.6 L59.5 32.8 L54.9 22.3 L62.8 30.7 L65.9 25.1 L66.6 31.5 L71.9 30.3 L68.8 34.7 Z" stroke-width="0.8" stroke-linejoin="round"/><path class="lgf2" d="M69.3 36.8 L66.3 37.4 L69.7 44.7 L64.3 38.7 L61.9 44.7 L62.1 38.2 L56.9 40.2 L60.8 36.3 L55.5 34.0 L61.2 34.0 L60.4 30.7 L63.2 32.7 L65.7 26.2 L65.5 33.1 L71.0 30.9 L66.8 35.1 Z" stroke-width="0.8" stroke-linejoin="round"/></g></g></svg></span><span>Query<b>Bot</b></span><span class="qb-ai">AI</span></a><nav class="navlinks"></nav><div class="qa-svc"><button class="qa-svc-btn" id="svcBtn" type="button" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="5" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="19" cy="5" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="19" r="1"/><circle cx="12" cy="19" r="1"/><circle cx="19" cy="19" r="1"/></svg><span data-ko="서비스" data-en="Apps">서비스</span></button><div class="qa-svc-menu" id="svcMenu" role="menu" hidden><a role="menuitem" href="/games/"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.98 3.59C2.6 9.42 2 14.46 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.41-1.41A2 2 0 0 1 9.83 16h4.34a2 2 0 0 1 1.41.59L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.55-.6-6.58-.69-7.26A4 4 0 0 0 17.32 5z"/></svg></span><span data-ko="게임" data-en="Games">게임</span></a><a role="menuitem" href="/taskpet/"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="4"/><path d="M12 8V4M9 13.5h.01M15 13.5h.01M2 14h2M20 14h2"/></svg></span><span data-ko="TaskPet" data-en="TaskPet">TaskPet</span></a><a role="menuitem" href="/audio/"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><span data-ko="오디오 변환기" data-en="Audio converter">오디오 변환기</span></a><a role="menuitem" href="/download/"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 15.5V18a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2.5"/></svg></span><span data-ko="다운로드" data-en="Downloads">다운로드</span></a><a role="menuitem" href="/about/"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><span data-ko="소개" data-en="About">소개</span></a></div></div><button class="lang">EN</button><button class="qa-lang-pill" id="langPill" type="button" aria-label="언어 바꾸기"><b data-l="ko">KR</b><i aria-hidden="true">/</i><b data-l="en">EN</b></button><button class="qa-aside-btn" id="asideBtn" type="button" aria-pressed="true" aria-label="오른쪽 사이드바"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg></button><button id="headerLogin" class="qa-header-login" type="button" aria-haspopup="dialog" aria-controls="loginModal" hidden><span data-ko="로그인" data-en="Log in"></span></button></div></header>
 <dialog id="loginModal" class="qa-login-modal" aria-labelledby="loginModalTitle">
   <button id="loginModalClose" class="qa-login-close" type="button" aria-label="닫기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
   <h2 id="loginModalTitle" data-ko="로그인 또는 회원가입" data-en="Log in or sign up"></h2>
@@ -1246,6 +1321,7 @@
         <button id="send" class="qa-send" type="submit" aria-label="보내기"><svg class="ic-send" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg><svg class="ic-stop" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" hidden><rect x="2.5" y="2.5" width="11" height="11" rx="2.6" fill="currentColor"/></svg></button>
       </form>
       <div class="qa-usage" id="usageLine"><button class="u-btn" id="usageBtn" type="button" hidden><svg class="ring" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="7.5"/><circle class="fg" cx="10" cy="10" r="7.5"/></svg><span class="u-txt"></span></button></div>
+      <div class="qa-chips-slot"><div class="qa-chips" id="chips"></div></div>
     </div>
   </main>
   <aside class="qa-aside" id="aside" aria-label="이 대화"></aside>
@@ -4865,6 +4941,42 @@
     new MutationObserver(asideSoon).observe(log, { childList: true, subtree: true });
     new MutationObserver(() => { apply(document.body.classList.contains("qa-aside-off")); asideSoon(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
     asideSoon();
+  })();
+
+  // =========================================================
+  // 99차: 오른쪽 위 서비스 메뉴(점 9개) · KR/EN 알약 · 첫 화면 '할 수 있는 것' 알약 4개
+  // =========================================================
+  (() => {
+    const svcBtn = $("svcBtn"), svcMenu = $("svcMenu");
+    const setSvc = (open) => { svcMenu.hidden = !open; svcBtn.setAttribute("aria-expanded", open ? "true" : "false"); };
+    svcBtn.addEventListener("click", (e) => { e.stopPropagation(); setSvc(svcMenu.hidden); });
+    document.addEventListener("click", (e) => { if (!svcMenu.hidden && !e.target.closest(".qa-svc")) setSvc(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !svcMenu.hidden) { setSvc(false); svcBtn.focus(); } });
+    const pill = $("langPill");
+    const paintPill = () => pill.querySelectorAll("b").forEach((b) => b.classList.toggle("on", b.dataset.l === lang()));
+    pill.addEventListener("click", () => { const b = document.querySelector(".nav .lang"); if (b) b.click(); });
+    new MutationObserver(paintPill).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+    paintPill();
+    const CHIPS = [{"ic": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "ko": "주가·기업 정보", "en": "Stocks & companies", "qko": "삼성전자 어제 주가와 최근 공시를 정리해 줘", "qen": "Summarize Samsung Electronics' latest stock price and recent filings."}, {"ic": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.5\"/><path d=\"M12 17.2h.01\"/>", "ko": "수능 수학 퀴즈", "en": "Math quiz", "qko": "수능 수학 기출 한 문제를 퀴즈로 내 줘", "qen": "Give me one past Korean SAT math question as a quiz."}, {"ic": "<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>", "ko": "파일 만들기", "en": "Make a file", "qko": "파이썬으로 간단한 계산기 파일 만들어 줘", "qen": "Make a simple calculator file in Python."}, {"ic": "<path d=\"M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z\"/>", "ko": "날씨", "en": "Weather", "qko": "내일 서울 날씨 어때?", "qen": "What's the weather in Seoul tomorrow?"}];
+    const box = $("chips");
+    CHIPS.forEach((c) => {
+      const b = el("button", "qa-chip");
+      b.type = "button";
+      const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      s.setAttribute("width", "14"); s.setAttribute("height", "14"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none");
+      s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "1.7"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+      s.innerHTML = c.ic;
+      const t = el("span", "", lang() === "en" ? c.en : c.ko);
+      t.dataset.ko = c.ko; t.dataset.en = c.en;
+      b.append(s, t);
+      b.addEventListener("click", () => {
+        if (busy) return;
+        input.value = lang() === "en" ? c.qen : c.qko;
+        fitInput();
+        $("form").requestSubmit();
+      });
+      box.appendChild(b);
+    });
   })();
 
   showHello();  // 95차: 첫 그림 전에 첫 화면부터 (메인에서 넘어올 때 제목·로고가 겹쳐 보이지 않게)
