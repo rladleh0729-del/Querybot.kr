@@ -20,6 +20,8 @@ jobs:
           rm -rf _deploy
           mkdir -p _deploy
           rsync -a --exclude '.git' --exclude '.github' --exclude 'README.txt' --exclude 'wrangler.jsonc' --exclude '.deploy-trigger' --exclude '_deploy' --exclude 'keepalive' ./ _deploy/
+          # 2026-11-25 사용자: 'GPT처럼 querybot.kr을 메인으로' — 첫 주소(/)도 AI 채팅. 원본은 ai/index.html 하나(예전 /ai/ 주소도 그대로)
+          cp ai/index.html _deploy/index.html
 
       - name: Deploy to Cloudflare Worker
         uses: cloudflare/wrangler-action@v4
