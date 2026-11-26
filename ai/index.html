@@ -1400,6 +1400,8 @@
   html:not([data-theme=dark]) body.qa-page .qa-form .qa-send.idle:not(.stop){background:#e4e2dc!important;color:#9a9892!important;cursor:default}
   html[data-theme=dark] body.qa-page .qa-form .qa-send.idle:not(.stop){background:#2f3135!important;color:#6b7079!important;cursor:default}
   body.qa-page .qa-form .qa-send.idle:not(.stop):active{transform:none}
+  /* 114차: 학교 기출 도형 그림(full이 아닌 것)은 원래 크기로 — 작은 그래프를 카드 폭(560px)까지 늘리면 흐려짐(2026-11-26 실제 화면) */
+  body.qa-page .kb-img:not(.full){width:auto;max-width:min(100%,560px)}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
