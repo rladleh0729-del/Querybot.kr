@@ -1318,6 +1318,9 @@
   /* 107차: 주인 학교 기출 문항 그림 — 둥근 흰 상자(시험지가 흰 바탕이라 어두운 화면에서도 흰 상자 그대로) */
   .kb-img { display: block; width: 100%; max-width: 520px; height: auto; margin: 4px 0 12px; padding: 8px; box-sizing: border-box;
     background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  /* 108차: 수식이 흩어지던 문제(분수가 한 줄 위로 뜨고 지수 2가 앞으로 떨어짐, 2026-11-26 사용자 화면) — KaTeX가 .base 폭을 min-content로 잡는데
+     이 페이지 글 설정이 물려 내려가 그 폭이 좁아지며 수식 안에서 줄이 바뀜 → 폭을 auto로(katex.min.css가 뒤에 읽혀서 !important) */
+  .katex .base { width: auto !important; }
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
