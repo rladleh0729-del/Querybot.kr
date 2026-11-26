@@ -1315,7 +1315,7 @@
     color:color-mix(in srgb,var(--t,#6b6a66) 55%,#fff);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--t,#6b6a66) 40%,transparent)}
   .text .file-ib.view[aria-pressed=true]{background:#141413;color:#fff}
   html[data-theme=dark] .text .file-ib.view[aria-pressed=true]{background:#ececee;color:#17181b}
-  /* 106차: 주인 학교 기출 문항 그림 — 둥근 흰 상자(시험지가 흰 바탕이라 어두운 화면에서도 흰 상자 그대로) */
+  /* 107차: 주인 학교 기출 문항 그림 — 둥근 흰 상자(시험지가 흰 바탕이라 어두운 화면에서도 흰 상자 그대로) */
   .kb-img { display: block; width: 100%; max-width: 520px; height: auto; margin: 4px 0 12px; padding: 8px; box-sizing: border-box;
     background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
 </style>
@@ -2169,7 +2169,7 @@
     return out;
   }
   // 모델 답: 새 답은 한 글자씩 써지듯 보여 준다 (실제로는 다 받은 뒤 보여 주는 것). 저장된 대화를 열 땐 바로.
-  // 106차: 주인 학교 기출 — 서버가 준 문항 그림(data URL)을 마지막 답의 글 위에 (그림이 원본이라 도형·입체도형이 그대로 보임)
+  // 107차: 주인 학교 기출 — 서버가 준 문항 그림(data URL)을 마지막 답의 글 위에 (그림이 원본이라 도형·입체도형이 그대로 보임)
   function kbImgs(list) {
     if (!Array.isArray(list) || !list.length) return;
     const turns = document.querySelectorAll(".turn");
@@ -4808,7 +4808,7 @@
       files: sent.filter((a) => a.type === "file").map((a) => ({ name: a.name, text: a.text })),
       think: smart(asked) && !!opts.think, memory: smart(asked) ? memList() : [],
       style: smart(asked) ? store.get("style") || "" : "", instructions: smart(asked) ? (store.get("instr") || "").slice(0, 1500) : "",
-      location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun, s: store.get("acctS") || "",  // 106차: 로그인 표는 늘(주인 학교 기출)
+      location: smart(asked) ? opts.loc || null : null, older, rid, gd: gdRun, s: store.get("acctS") || "",  // 107차: 로그인 표는 늘(주인 학교 기출)
       browser: brHave && (asked === "gemma4" || asked === "runpod"),
       // 88차: 이 대화의 바로 앞 답이 브라우저 도구로 한 것 → 그 화면 얘기면 서버가 다시 브라우저로(웹 검색으로 빠지지 않게)
       browser_recent: !!(brHave && !opts.branch && cur && cur.messages.length && cur.messages[cur.messages.length - 1].br) });  // 77차: 브라우저 도구 확장이 있음 → 모델이 필요하면 browser_task
@@ -4860,7 +4860,7 @@
         const kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
         try {
           if (j.source) addWikiReply(reply, j.source, meta); else addAiReply(reply, meta, kind, !live, j.sources, j.thought);  // 87차: 실시간으로 보여 준 답은 다시 쓰지 않음
-          kbImgs(j.kb_images);  // 106차: 주인 학교 기출 문항 그림
+          kbImgs(j.kb_images);  // 107차: 주인 학교 기출 문항 그림
         } catch (e) {  // 그리기 오류여도 답은 보이게: 빈 말풍선이 있으면 거기에, 없으면 새로
           console.error("답 그리기 오류", e);
           const last = log.lastElementChild, tx = last && last.classList.contains("turn") ? last.querySelector(".text") : null;
