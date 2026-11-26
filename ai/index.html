@@ -1386,6 +1386,20 @@
   /* 왼쪽 대화 목록: 조금 촘촘하게 */
   body.qa-page .qa-conv-open{font-size:14.5px;padding:8px 10px}
   body.qa-page .qa-conv{border-radius:10px}
+  /* ===== 113차: 디테일 — 숫자 폭·글꼴 하나·보내기 상태·움직임·눌림 ===== */
+  body.qa-page{--ease:cubic-bezier(.2,.8,.2,1);--t1:.12s;--t2:.2s;--t3:.3s}
+  body.qa-page .turn .text,body.qa-page .thought-body,body.qa-page .me{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+  body.qa-page button,body.qa-page input,body.qa-page textarea,body.qa-page select{font-family:inherit}
+  body.qa-page .text .md-table,body.qa-page .text .md-li,body.qa-page .file-meta,body.qa-page .qv-meta,body.qa-page .qv-ln,
+  body.qa-page .qa-as-row b,body.qa-page .u-txt,body.qa-page .quiz-n,body.qa-page #quota{font-variant-numeric:tabular-nums}
+  body.qa-page :is(.qa-send,.qa-attach,.qa-think,.qa-model-btn,.qa-new,.qa-newtop,.file-ib,.qv-ib,.qa-chip,.qa-svc-btn,.qa-lang-pill,.qa-aside-btn,.qa-header-login,.quiz-go,.qa-mini,.qa-gear,.tools button,.me-tools button){transition:background-color var(--t1) var(--ease),border-color var(--t1) var(--ease),color var(--t1) var(--ease),
+    box-shadow var(--t2) var(--ease),opacity var(--t2) var(--ease),transform var(--t1) var(--ease)}
+  body.qa-page :is(.qa-send,.qa-attach,.qa-think,.qa-model-btn,.qa-new,.qa-newtop,.file-ib,.qv-ib,.qa-chip,.qa-svc-btn,.qa-lang-pill,.qa-aside-btn,.qa-header-login,.quiz-go,.qa-mini,.qa-gear,.tools button,.me-tools button):not(:disabled):active{transform:scale(.96)}
+  body.qa-page .qa-viewer{transition-duration:var(--t3)}
+  body.qa-page .qa-app{transition:padding-right var(--t3) var(--ease)}
+  html:not([data-theme=dark]) body.qa-page .qa-form .qa-send.idle:not(.stop){background:#e4e2dc!important;color:#9a9892!important;cursor:default}
+  html[data-theme=dark] body.qa-page .qa-form .qa-send.idle:not(.stop){background:#2f3135!important;color:#6b7079!important;cursor:default}
+  body.qa-page .qa-form .qa-send.idle:not(.stop):active{transform:none}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1724,6 +1738,7 @@
   }
 
   function renderList() {
+    document.title = cur && cur.title ? String(cur.title).slice(0, 60) + " · QueryBot AI" : "QueryBot AI";  // 113차: 탭 제목 = 대화 제목
     convList.innerHTML = "";
     if (!histOn) { convList.appendChild(offCard()); return; }
     if (!convs.length) { convList.appendChild(el("div", "qa-empty-list", t("noChats"))); return; }
@@ -4796,6 +4811,7 @@
     const on = !!fn;
     log.setAttribute("aria-busy", on ? "true" : "false");
     send.classList.toggle("stop", on);
+    paintSend();  // 113차
     send.setAttribute("aria-label", t(on ? "stopTip" : "sendTip"));
     send.title = on ? t("stopTip") : "";
     send.querySelector(".ic-send").toggleAttribute("hidden", on);  // SVG에는 .hidden 속성이 없어 예전엔 그림이 안 바뀜(39차)
@@ -5064,7 +5080,11 @@
   }
 
   // 입력창: Enter로 보내고 Shift+Enter는 줄 바꿈. 한글 조합 중 Enter는 무시(글자가 끊겨 보내지는 것 막기). 내용에 맞춰 높이가 늘어남.
+  function paintSend() {  // 113차: 쓸 글·첨부가 없으면 흐리게
+    send.classList.toggle("idle", !input.value.trim() && !(atts && atts.length) && !send.classList.contains("stop"));
+  }
   function fitInput() {
+    paintSend();
     input.style.height = "";  // CSS 기본 높이로 돌린 뒤, 글이 넘칠 때만 늘린다
     if (input.scrollHeight > input.clientHeight + 1) input.style.height = Math.min(160, input.scrollHeight + 2) + "px";
   }
@@ -5257,6 +5277,8 @@
 
   // 95차: 첫 그림 전에 첫 화면부터 (메인에서 넘어올 때 제목·로고가 겹쳐 보이지 않게)
   // 102차: 새로고침(주소에 ?c=대화)이면 첫 화면을 거치지 않고 그 대화를 바로 → 입력창이 가운데서 내려가는 움직임 없음
+  new MutationObserver(paintSend).observe($("atts"), { childList: true, subtree: true });  // 113차
+  paintSend();
   const bootConv = new URLSearchParams(location.search).get("c");
   if (bootConv && convs.some((x) => x.id === bootConv)) openConv(bootConv);
   else showHello();
