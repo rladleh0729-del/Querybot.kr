@@ -3142,6 +3142,33 @@
     if (f && +f[2]) return +f[1] / +f[2];
     return /^-?\d+(?:\.\d+)?$/.test(t) ? +t : NaN;
   }
+  // 115차: 퀴즈 결과로 대화 이어 가기 (사용자: '맞추거나 특정 이벤트하면 다시 채팅하게')
+  function quizEvent(box, ev) {
+    const turn = box.closest(".turn"), turns = log.querySelectorAll(".turn");
+    if (!turn || turns[turns.length - 1] !== turn) return;  // 마지막 답의 퀴즈만(예전 대화를 다시 풀 땐 안 보냄)
+    const cards = [...turn.querySelectorAll(".quiz-card")].filter((c) => c.querySelector(".quiz-q"));
+    let msg = "";
+    if (cards.length > 1) {
+      if (ev.ok || ev.picks || ev.val != null) box._done = box._done || { ok: !!ev.ok };
+      if (!cards.every((c) => c._done) || turn._quizSent) return;
+      turn._quizSent = true;
+      const parts = cards.map((c, i) => L((i + 1) + "번 " + (c._done.ok ? "맞힘" : "틀림"), "#" + (i + 1) + " " + (c._done.ok ? "right" : "wrong")));
+      msg = L("퀴즈 " + cards.length + "문제 다 풀었어: " + parts.join(", "), "Finished all " + cards.length + " quiz questions: " + parts.join(", "));
+    } else {
+      const key = ev.ok ? "_sentOk" : "_sentHint";
+      if (box[key]) return;
+      box[key] = true;
+      if (ev.ok) msg = ev.pick ? L(ev.pick + "번 골랐어. 맞았어!", "I picked " + ev.pick + ". Correct!") : L("'" + ev.val + "'라고 썼어. 맞았어!", "I wrote '" + ev.val + "'. Correct!");
+      else msg = ev.picks ? L(ev.picks.join("번, ") + "번 골랐는데 다 틀렸어. 힌트 줘", "I picked " + ev.picks.join(" and ") + " but both were wrong. Give me a hint.")
+        : L("'" + ev.val + "'라고 썼는데 틀렸어. 힌트 줘", "I wrote '" + ev.val + "' but it was wrong. Give me a hint.");
+    }
+    setTimeout(() => {  // O/X를 먼저 보고 나서
+      if (busy || input.value.trim()) return;
+      input.value = msg.slice(0, 300);
+      fitInput();
+      $("form").requestSubmit();
+    }, 700);
+  }
   function quizCard(raw, closed) {
     const box = el("div", "quiz-card");
     if (!closed) { box.appendChild(el("div", "quiz-wait", L("문제 만드는 중…", "Writing a question…"))); return box; }
@@ -3168,9 +3195,12 @@
             b.classList.add("right"); box.classList.add("solved");
             list.querySelectorAll(".quiz-opt").forEach((x) => (x.disabled = true));
             fb.className = "quiz-fb ok"; fb.textContent = "O";
+            quizEvent(box, { ok: true, pick: i + 1 });  // 115차: 대화 이어 가기
           } else {
             b.classList.add("wrong"); b.disabled = true;
             fb.className = "quiz-fb no"; fb.textContent = "X " + L("다시 생각해 보세요", "Think again");
+            (box._picks = box._picks || []).push(i + 1);
+            if (box._picks.length === 2) quizEvent(box, { ok: false, picks: box._picks.slice() });
           }
         });
         list.appendChild(b);
@@ -3188,7 +3218,8 @@
         const ok = accept.some((a) => quizNorm(a) === quizNorm(v) || (!isNaN(quizNum(a)) && Math.abs(quizNum(a) - quizNum(v)) < 1e-9));
         fb.className = "quiz-fb " + (ok ? "ok" : "no");
         fb.textContent = ok ? L("맞음", "Correct") : L("틀림", "Wrong");
-        if (ok) { box.classList.add("solved"); inp.disabled = true; go.disabled = true; }
+        if (ok) { box.classList.add("solved"); inp.disabled = true; go.disabled = true; quizEvent(box, { ok: true, val: v.trim() }); }  // 115차
+        else { box._tries = (box._tries || 0) + 1; if (box._tries === 2) quizEvent(box, { ok: false, val: v.trim() }); }
       });
       box.appendChild(row);
     }
