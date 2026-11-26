@@ -1405,6 +1405,20 @@
   /* 116차: 자동으로 보낸 말은 안 보임, 그 뒤 답은 앞 답과 같은 간격(28px) */
   body.qa-page .me-hidden{display:none!important}
   body.qa-page .qa-log > .me-hidden + .turn,body.qa-page .qa-log > .turn + .turn{margin-top:28px}
+  /* 118차: 그림 크게 보기 */
+  body.qa-page .kb-img,body.qa-page .me-img,body.qa-page .text img{cursor:zoom-in}
+  body.qa-page .kb-img:not(.full){min-width:min(100%,300px)}
+  .qa-lb{position:fixed;top:0;left:0;right:0;bottom:0;z-index:300;display:flex;align-items:center;justify-content:center;background:rgba(20,20,19,.62);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .2s cubic-bezier(.2,.8,.2,1);cursor:zoom-out}
+  .qa-lb[hidden]{display:none}
+  .qa-lb.on{opacity:1}
+  .qa-lb-img{display:block;max-width:90vw;height:auto;object-fit:contain;box-sizing:border-box;padding:14px;border-radius:18px;background:#fff;
+    box-shadow:0 24px 80px rgba(0,0,0,.35);transform:scale(.96);transition:transform .2s cubic-bezier(.2,.8,.2,1);cursor:default}
+  .qa-lb.on .qa-lb-img{transform:none}
+  .qa-lb-x{position:absolute;top:18px;right:18px;width:42px;height:42px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;display:grid;place-items:center;cursor:pointer}
+  .qa-lb-x:hover{background:rgba(255,255,255,.28)}
+  .qa-lb-x svg{width:20px;height:20px}
+  @media (prefers-reduced-motion:reduce){.qa-lb,.qa-lb-img{transition:none}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -5316,6 +5330,39 @@
 
   // 95차: 첫 그림 전에 첫 화면부터 (메인에서 넘어올 때 제목·로고가 겹쳐 보이지 않게)
   // 102차: 새로고침(주소에 ?c=대화)이면 첫 화면을 거치지 않고 그 대화를 바로 → 입력창이 가운데서 내려가는 움직임 없음
+  // 118차: 그림 크게 보기 (사용자: '이미지 클릭하면 전체 화면되게. 완전은 아니고 다른 회사들처럼 적당히')
+  (() => {
+    const lb = el("div", "qa-lb"), img = document.createElement("img"), x = el("button", "qa-lb-x");
+    lb.hidden = true; lb.setAttribute("role", "dialog"); lb.setAttribute("aria-modal", "true");
+    img.className = "qa-lb-img"; img.alt = "";
+    x.type = "button"; x.innerHTML = FILE_IC.close; x.setAttribute("aria-label", L("닫기", "Close"));
+    lb.append(img, x);
+    document.body.appendChild(lb);
+    let back = null;
+    const close = () => {
+      if (lb.hidden) return;
+      lb.classList.remove("on");
+      setTimeout(() => { lb.hidden = true; img.removeAttribute("src"); }, 180);
+      if (back && back.focus) back.focus();
+    };
+    const open = (src, alt, nw) => {
+      back = document.activeElement;
+      img.src = src; img.alt = alt || "";
+      const maxW = Math.min(innerWidth * 0.9, 1100);
+      img.style.width = (nw ? Math.min(maxW, Math.max(nw, Math.min(nw * 3, 720))) : maxW) + "px";  // 작은 그림은 최대 3배
+      img.style.maxHeight = Math.round(innerHeight * 0.86) + "px";
+      lb.hidden = false;
+      setTimeout(() => lb.classList.add("on"), 16);  // (requestAnimationFrame은 숨은 탭에서 멈춤)
+      x.focus();
+    };
+    lb.addEventListener("click", (e) => { if (e.target !== img) close(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !lb.hidden) { e.stopPropagation(); close(); } }, true);
+    log.addEventListener("click", (e) => {
+      const t = e.target.closest && e.target.closest("img.kb-img, img.me-img, .text img");
+      if (!t || !t.src) return;
+      open(t.currentSrc || t.src, t.alt, t.naturalWidth);
+    });
+  })();
   new MutationObserver(paintSend).observe($("atts"), { childList: true, subtree: true });  // 113차
   paintSend();
   const bootConv = new URLSearchParams(location.search).get("c");
