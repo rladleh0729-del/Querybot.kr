@@ -4971,7 +4971,7 @@
     pill.addEventListener("click", () => { const b = document.querySelector(".nav .lang"); if (b) b.click(); });
     new MutationObserver(paintPill).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
     paintPill();
-    const CHIPS = [{"ic": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "ko": "주가·기업 정보", "en": "Stocks & companies", "qko": "삼성전자 어제 주가와 최근 공시를 정리해 줘", "qen": "Summarize Samsung Electronics' latest stock price and recent filings."}, {"ic": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.5\"/><path d=\"M12 17.2h.01\"/>", "ko": "수능 수학 퀴즈", "en": "Math quiz", "qko": "수능 수학 기출 한 문제를 퀴즈로 내 줘", "qen": "Give me one past Korean SAT math question as a quiz."}, {"ic": "<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>", "ko": "파일 만들기", "en": "Make a file", "qko": "파이썬으로 간단한 계산기 파일 만들어 줘", "qen": "Make a simple calculator file in Python."}, {"ic": "<path d=\"M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z\"/>", "ko": "날씨", "en": "Weather", "qko": "내일 서울 날씨 어때?", "qen": "What's the weather in Seoul tomorrow?"}];
+    const CHIPS = [{"ic": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "ko": "주가 등락", "en": "Market movers", "qko": "지난 거래일에 많이 오르거나 떨어진 주요 회사들 정리해 줘", "qen": "Summarize the major Korean companies that rose or fell the most on the last trading day."}, {"ic": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.5\"/><path d=\"M12 17.2h.01\"/>", "ko": "수능 수학 퀴즈", "en": "Math quiz", "qko": "{Y}학년도 수능 수학 {N}번 문제를 퀴즈로 내 줘", "qen": "{Y}학년도 수능 수학 {N}번 문제를 퀴즈로 내 줘"}, {"ic": "<polyline points=\"16 18 22 12 16 6\"/><polyline points=\"8 6 2 12 8 18\"/>", "ko": "파일 만들기", "en": "Make a file", "qko": "파이썬으로 간단한 계산기 파일 만들어 줘", "qen": "Make a simple calculator file in Python."}, {"ic": "<path d=\"M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z\"/>", "ko": "날씨", "en": "Weather", "qko": "내일 서울 날씨 어때?", "qen": "What's the weather in Seoul tomorrow?"}];
     const box = $("chips");
     CHIPS.forEach((c) => {
       const b = el("button", "qa-chip");
@@ -4985,7 +4985,8 @@
       b.append(s, t);
       b.addEventListener("click", () => {
         if (busy) return;
-        input.value = lang() === "en" ? c.qen : c.qko;
+        input.value = (lang() === "en" ? c.qen : c.qko)  // 103차: 기출 퀴즈는 해·번호를 무작위로(지식 창고의 실제 문제·공식 정답)
+          .replace("{Y}", String(2025 + Math.floor(Math.random() * 3))).replace("{N}", String(1 + Math.floor(Math.random() * 10)));
         fitInput();
         $("form").requestSubmit();
       });
