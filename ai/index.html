@@ -2178,14 +2178,25 @@
     const turns = document.querySelectorAll(".turn");
     const tn = turns[turns.length - 1];
     if (!tn) return;
-    const body = tn.querySelector(".turn-body") || tn, txt = body.querySelector(".text");
-    list.slice(0, 2).forEach((m) => {
-      if (!m || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(m.src || "")) return;
-      const im = el("img", "kb-img");
-      im.src = m.src; im.alt = String(m.alt || "문항 그림").slice(0, 80); im.decoding = "async";
-      if (txt) body.insertBefore(im, txt); else body.appendChild(im);
-    });
+    const body = tn.querySelector(".turn-body") || tn;
+    list.slice(0, 2).forEach((m) => kbPut(body, m));
     toBottom();
+  }
+  function kbPut(body, m) {
+    if (!m || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(m.src || "") || body.querySelector(".kb-img")) return;
+    const im = el("img", "kb-img"), txt = body.querySelector(".text");
+    im.src = m.src; im.alt = String(m.alt || "문항 그림").slice(0, 80); im.decoding = "async";
+    if (txt) body.insertBefore(im, txt); else body.appendChild(im);
+  }
+  // 109차: 다시 연 대화 — 문항 이름이 있는데 그림이 없으면 주인 로그인일 때 서버에서 다시 받음
+  function kbRestore(body, text) {
+    const m = /\*\*(\S+학교 20\d\d년 [123]학년 [12]학기 (?:중간|기말)고사 (?:서술형 )?\d+번)\*\*/.exec(text || "");  // 함수 안에 둠(페이지 처음 그릴 때도 안전)
+    if (!m || !store.get("acctS") || store.get("acctOwner") !== "1") return;
+    setTimeout(() => {
+      if (body.querySelector(".kb-img")) return;  // 새 답이면 kbImgs가 이미 붙임
+      fetch(API + "/school/img", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ s: store.get("acctS") || "", label: m[1] }) })
+        .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j) kbPut(body, j); }).catch(() => {});
+    }, 0);
   }
   function addAiReply(text, meta, kind, animate, sources, thought) {
     const { turn, body } = turnShell(kind || "ai");
@@ -2194,6 +2205,7 @@
     if (thought && typeof thought.seconds === "number") { const tb = thoughtBox(thought); body.querySelector(".who").appendChild(tb.btn); if (tb.box) body.appendChild(tb.box); }  // 71차
     body.append(p, copyTool(() => text, meta, body));
     put(turn);
+    kbRestore(body, text);  // 109차
     const finish = () => { renderMath(p); if (src) { linkCites(p, sources); p.after(src); } };
     if (reduceMotion || animate === false) { renderRich(p, text); finish(); return; }
     p.classList.add("typing");
