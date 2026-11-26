@@ -1308,6 +1308,13 @@
   html[data-theme=dark] .qv-ln{background:#17181b;color:#52525b}
   html[data-theme=dark] .qv-code code{color:#e4e4e7}
   @media (prefers-reduced-motion:reduce){.qa-viewer,body.qa-viewing .qa-viewer,.qa-app{transition:none}}
+  /* 106차: 확장자 동그라미 — 옅은 언어 색 바탕 + 같은 색 글자 + 얇은 안쪽 테두리, 보기 단추 켜짐 */
+  .text .file-badge,.qv-badge{background:color-mix(in srgb,var(--t,#6b6a66) 11%,#fff)!important;color:var(--t,#6b6a66);
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--t,#6b6a66) 26%,transparent);font-size:10px;font-weight:700;letter-spacing:.05em}
+  html[data-theme=dark] .text .file-badge,html[data-theme=dark] .qv-badge{background:color-mix(in srgb,var(--t,#6b6a66) 24%,#1d1e21)!important;
+    color:color-mix(in srgb,var(--t,#6b6a66) 55%,#fff);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--t,#6b6a66) 40%,transparent)}
+  .text .file-ib.view[aria-pressed=true]{background:#141413;color:#fff}
+  html[data-theme=dark] .text .file-ib.view[aria-pressed=true]{background:#ececee;color:#17181b}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -2834,7 +2841,7 @@
   const FILE_TINT = { py: "#3572a5", js: "#b8860b", mjs: "#b8860b", cjs: "#b8860b", jsx: "#b8860b", ts: "#3178c6", tsx: "#3178c6", html: "#e34c26", htm: "#e34c26",
     css: "#563d7c", json: "#4a4945", md: "#2f3135", csv: "#1e7b3c", tsv: "#1e7b3c", sql: "#b05f00", java: "#b07219", c: "#555a62", h: "#555a62", cpp: "#555a62",
     cc: "#555a62", cs: "#178600", go: "#0089a8", rs: "#8b4513", sh: "#2f3135", bat: "#2f3135", ps1: "#2f3135", svg: "#e07b00", xml: "#0060ac", txt: "#8e8d87" };
-  const fileBadge = (ext) => { const b = el("span", "file-badge", (ext || "txt").slice(0, 4).toUpperCase()); b.style.background = FILE_TINT[ext] || "#6b6a66"; b.setAttribute("aria-hidden", "true"); return b; };
+  const fileBadge = (ext) => { const b = el("span", "file-badge", (ext || "txt").slice(0, 4).toUpperCase()); b.style.setProperty("--t", FILE_TINT[ext] || "#6b6a66"); b.setAttribute("aria-hidden", "true"); return b; };  // 106차: 색은 CSS가 옅게
   const fileMeta = (ext, code) => [FILE_LANG[ext] || (ext === "txt" ? "text" : ext.toUpperCase()), fileSize(code), code.split("\n").length.toLocaleString() + L("줄", " lines")].join(" · ");
   let viewer = null, viewerCard = null;
   function buildViewer() {
@@ -2873,6 +2880,7 @@
     if (k === "view" && frame._for !== viewer._code) { frame.srcdoc = viewer._code; frame._for = viewer._code; }
   }
   function openViewer(name, code, card) {
+    if (card && card === viewerCard && document.body.classList.contains("qa-viewing")) { closeViewer(); return; }  // 106차: 다시 누르면 닫힘
     if (!viewer) buildViewer();
     const ext = fileExt(name), shown = code.length > 200000 ? code.slice(0, 200000) + "\n…" : code;
     viewer._name = name; viewer._code = code;
@@ -2887,14 +2895,14 @@
     viewer.querySelector(".qv-tabs").hidden = !/^(html?|svg)$/.test(ext);
     viewTab("code");
     viewer.querySelector(".qv-code").scrollTop = 0;
-    if (viewerCard) viewerCard.classList.remove("on");
+    if (viewerCard) { viewerCard.classList.remove("on"); viewerCard.querySelectorAll(".file-ib.view").forEach((b) => b.setAttribute("aria-pressed", "false")); }
     viewerCard = card || null;
-    if (viewerCard) viewerCard.classList.add("on");
+    if (viewerCard) { viewerCard.classList.add("on"); viewerCard.querySelectorAll(".file-ib.view").forEach((b) => b.setAttribute("aria-pressed", "true")); }
     document.body.classList.add("qa-viewing");
   }
   function closeViewer() {
     document.body.classList.remove("qa-viewing");
-    if (viewerCard) viewerCard.classList.remove("on");
+    if (viewerCard) { viewerCard.classList.remove("on"); viewerCard.querySelectorAll(".file-ib.view").forEach((b) => b.setAttribute("aria-pressed", "false")); }
     viewerCard = null;
   }
   function fileCard(raw, code, closed) {
@@ -2912,7 +2920,7 @@
       return b;
     };
     head.append(
-      btn(FILE_IC.view, "보기", "View", () => openViewer(name, code, box)),
+      Object.assign(btn(FILE_IC.view, "보기", "View", () => openViewer(name, code, box)), { className: "file-ib view" }),
       btn(FILE_IC.copy, "복사", "Copy", async (b) => {
         try { await navigator.clipboard.writeText(code); b.innerHTML = FILE_IC.done; setTimeout(() => (b.innerHTML = FILE_IC.copy), 1500); } catch (e) {}
       }),
