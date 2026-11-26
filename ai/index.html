@@ -5209,6 +5209,8 @@
     return s;
   }
   const oneLine = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n) + "…" : s; };
+  // 117차: 수식이 든 글은 화면에 그려진 글자만(KaTeX가 숨겨 둔 TeX 원본 triangle·mathrm 등을 빼고) — 사이드바에 '₩triangle₩mathrm'처럼 나오던 것
+  const shownText = (node) => { const c = node.cloneNode(true); c.querySelectorAll(".katex-mathml, annotation, script, style").forEach((x) => x.remove()); return c.textContent; };
   function paintAside() {
     const box = document.getElementById("aside");
     if (!box) return;
@@ -5222,7 +5224,7 @@
     log.querySelectorAll(".file-card, .quiz-card").forEach((c) => {
       if (c.classList.contains("quiz-card")) {
         const q = c.querySelector(".quiz-q");
-        if (q) outs.push(asRow(asIcon("quiz"), oneLine(q.textContent, 60) || L("퀴즈", "Quiz"), "", () => asGo(c)));
+        if (q) outs.push(asRow(asIcon("quiz"), oneLine(shownText(q), 60) || L("퀴즈", "Quiz"), "", () => asGo(c)));
       } else if (!c.querySelector(".file-wait")) {
         const n = c.querySelector(".file-name");
         if (n) outs.push(asRow(asIcon("file"), n.textContent, "", () => (c._view ? c._view() : asGo(c))));
