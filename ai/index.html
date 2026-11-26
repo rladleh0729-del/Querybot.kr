@@ -1402,6 +1402,9 @@
   body.qa-page .qa-form .qa-send.idle:not(.stop):active{transform:none}
   /* 114차: 학교 기출 도형 그림(full이 아닌 것)은 원래 크기로 — 작은 그래프를 카드 폭(560px)까지 늘리면 흐려짐(2026-11-26 실제 화면) */
   body.qa-page .kb-img:not(.full){width:auto;max-width:min(100%,560px)}
+  /* 116차: 자동으로 보낸 말은 안 보임, 그 뒤 답은 앞 답과 같은 간격(28px) */
+  body.qa-page .me-hidden{display:none!important}
+  body.qa-page .qa-log > .me-hidden + .turn,body.qa-page .qa-log > .turn + .turn{margin-top:28px}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -1788,7 +1791,7 @@
     const msgs = upto != null ? c.messages.slice(0, upto) : c.messages;  // upto: 질문 고치기 때 고친 말 앞까지만
     for (let i = 0; i < msgs.length; i++) {
       const m = msgs[i];
-      if (m.role === "user") { meTools(addMe(m.content, m.att), i); continue; }
+      if (m.role === "user") { if (m.hidden) continue; meTools(addMe(m.content, m.att), i); continue; }  // 116차: 숨긴 말은 안 그림
       const prevUser = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1].content : "";
       const meta = prevUser ? { user: prevUser, conv: c, index: i, model: m.model || c.model, ctx: msgs.slice(Math.max(0, i - 3), i - 1).map((x) => ({ role: x.role, content: x.content })) } : null;
       if (m.kind === "wiki" && m.source) addWikiReply(m.content, m.source, meta);
@@ -1814,6 +1817,7 @@
     const a = { role: "assistant", content: reply, kind, model: (more && more.model) || modelSel.value };
     if (source) a.source = source;
     const u = { role: "user", content: text };
+    if (more && more.hidden) u.hidden = true;  // 116차
     if (more && more.att && more.att.length) u.att = more.att;  // 그림·파일 자체는 저장하지 않고 이름만
     if (more && more.thought && typeof more.thought.seconds === "number") a.thought = { seconds: Math.round(more.thought.seconds), summary: String(more.thought.summary || "").slice(0, 800) };
     if (more && Array.isArray(more.sources) && more.sources.length) a.sources = more.sources.filter((s) => s && /^https:\/\//.test(s.url || "")).slice(0, 10).map((s) => ({ title: String(s.title || "").slice(0, 120), url: String(s.url).slice(0, 500) }));
@@ -3162,11 +3166,9 @@
       else msg = ev.picks ? L(ev.picks.join("번, ") + "번 골랐는데 다 틀렸어. 힌트 줘", "I picked " + ev.picks.join(" and ") + " but both were wrong. Give me a hint.")
         : L("'" + ev.val + "'라고 썼는데 틀렸어. 힌트 줘", "I wrote '" + ev.val + "' but it was wrong. Give me a hint.");
     }
-    setTimeout(() => {  // O/X를 먼저 보고 나서
-      if (busy || input.value.trim()) return;
-      input.value = msg.slice(0, 300);
-      fitInput();
-      $("form").requestSubmit();
+    setTimeout(() => {  // O/X를 먼저 보고 나서 — 116차: 말풍선 없이 숨겨서(입력칸의 쓰던 글도 그대로)
+      if (busy) return;
+      ask(msg.slice(0, 300), [], { hidden: true });
     }, 700);
   }
   function quizCard(raw, closed) {
@@ -4930,7 +4932,7 @@
     setStopper(reqStop);
     $("form").classList.add("busy");  // 답 만드는 동안 입력칸 테두리에 그라데이션이 흐른다
     // 이번 질문의 설정 — [다시 시도]는 처음 보낼 때의 설정 그대로
-    opts = opts || { model: modelSel.value, think: smart(modelSel.value) && thinkOn, loc: smart(modelSel.value) && locOn && myLoc ? myLoc : null };
+    opts = opts && opts.model ? opts : Object.assign({ model: modelSel.value, think: smart(modelSel.value) && thinkOn, loc: smart(modelSel.value) && locOn && myLoc ? myLoc : null }, opts || {});  // 116차: { hidden } 만 줘도 기본 설정
     const asked = opts.model;
     const convAtAsk = cur;  // 기다리는 사이 다른 대화를 열면 답을 그 대화에 섞지 않으려고
     const ctx = mem.checked ? hist().slice(-2) : [];  // 가르치기('고치기')할 때 같이 저장할 바로 앞 주고받기
@@ -4947,10 +4949,11 @@
       .map((m) => m.content.replace(/\s+/g, " ").trim().slice(0, 120)).filter(Boolean) : [];
     before = smart(asked) ? before.slice(-8) : before.slice(-4);
     const meNode = addMe(text, attMeta(sent), sent);
+    if (opts.hidden) { meNode.classList.add("me-hidden"); meNode.setAttribute("aria-hidden", "true"); }  // 116차: 자동으로 보낸 말은 안 보임
     const thinking = smart(asked) && (opts.think || (THINK_ASK.test(text) && !THINK_OPINION.test(text)));
     // 답을 받기 전에 페이지를 닫거나 새로 고쳐도 이어 받게: 질문 번호(rid)와 '받는 중'을 이 기기에 바로 저장 (2026-11-11)
     const rid = ((window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, "") : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 32);
-    try { localStorage.setItem("qbAi.pending", JSON.stringify({ rid, conv: cur ? cur.id : null, text, att: attMeta(sent), model: asked, think: !!opts.think, branch: opts.branch || null, at: Date.now() })); } catch (e) {}
+    try { localStorage.setItem("qbAi.pending", JSON.stringify({ rid, conv: cur ? cur.id : null, text, att: attMeta(sent), model: asked, think: !!opts.think, branch: opts.branch || null, hidden: !!opts.hidden, at: Date.now() })); } catch (e) {}
     const tWord = thinking ? thinkWord() : "";
     const wait = addWaiting(null);  // 89차: 늘 '생각 중' + 점 세 개 (초는 세지 않음)
     let tick = 0;
@@ -5037,10 +5040,10 @@
         if (j.ask_location) addLocCta();
         setOnline(true);
         if (cur === convAtAsk) {  // 기다리는 사이 다른 대화를 열었으면 섞지 않는다 (모델만 바꾼 건 같은 대화)
-          record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch, model: asked });
+          record(text, reply, kind, j.source, { att: attMeta(sent), sources: j.sources, thought: j.thought, branch: opts.branch, model: asked, hidden: !!opts.hidden });
           if (j.__br && cur.messages.length) { cur.messages[cur.messages.length - 1].br = 1; saveConvs(); }  // 88차
           meta.conv = cur; meta.index = cur.messages.length - 1;
-          meTools(meNode, cur.messages.length - 2);  // 이제 저장됐으니 말풍선 아래 복사·고치기
+          if (!opts.hidden) meTools(meNode, cur.messages.length - 2);  // 이제 저장됐으니 말풍선 아래 복사·고치기
           if (smart(asked)) nameConv(cur);  // 제목은 답과 따로 (기다리는 시간을 늘리지 않게)
         }
       }
@@ -5075,6 +5078,7 @@
     else { cur = null; log.innerHTML = ""; renderList(); }
     if ([...modelSel.options].some((o) => o.value === p.model) && modelSel.value !== p.model) { modelSel.value = p.model; paintModel(); }
     const meNode = addMe(p.text, Array.isArray(p.att) ? p.att : []);
+    if (p.hidden) { meNode.classList.add("me-hidden"); meNode.setAttribute("aria-hidden", "true"); }  // 116차
     const wait = addWaiting(t("resuming"));
     busy = true; send.disabled = true; $("form").classList.add("busy");
     let stopped = false;
@@ -5094,7 +5098,7 @@
     busy = false; send.disabled = false; $("form").classList.remove("busy");
     clear();
     wait.remove();
-    const retry = () => { meNode.remove(); ask(p.text, [], { model: p.model, think: !!p.think, loc: null, branch: p.branch || undefined }); };
+    const retry = () => { meNode.remove(); ask(p.text, [], { model: p.model, think: !!p.think, loc: null, branch: p.branch || undefined, hidden: !!p.hidden }); };
     if (stopped) { addSys(t("stopped")); return; }
     if (!j || j.error) { addAlert(j && typeof j.detail === "string" && j.detail && lang() !== "en" ? j.detail : t("fail"), !!j, retry); return; }
     const reply = j.reply || "", kind = j.source ? "wiki" : j.taught ? "taught" : "ai";
@@ -5106,9 +5110,9 @@
     if (Array.isArray(j.remember) && j.remember.length) memAdd(j.remember);
     if (j.ask_location) addLocCta();
     setOnline(true);
-    record(p.text, reply, kind, j.source, { att: Array.isArray(p.att) ? p.att : [], sources: j.sources, thought: j.thought, branch: p.branch || undefined, model: p.model });
+    record(p.text, reply, kind, j.source, { att: Array.isArray(p.att) ? p.att : [], sources: j.sources, thought: j.thought, branch: p.branch || undefined, model: p.model, hidden: !!p.hidden });
     meta.conv = cur; meta.index = cur.messages.length - 1;
-    meTools(meNode, cur.messages.length - 2);
+    if (!p.hidden) meTools(meNode, cur.messages.length - 2);
     if (smart(p.model)) nameConv(cur);
   }
 
@@ -5211,7 +5215,7 @@
     box.setAttribute("aria-label", L("이 대화", "This chat"));
     const secs = [];
     // 이 대화: 내가 한 질문
-    secs.push(asSection(L("이 대화", "This chat"), [...log.querySelectorAll(".me")].map((m) =>
+    secs.push(asSection(L("이 대화", "This chat"), [...log.querySelectorAll(".me:not(.me-hidden)")].map((m) =>
       asRow(asIcon("q"), oneLine(m.textContent, 80), "", () => asGo(m.closest(".me-wrap") || m)))));
     // 결과물: 다 만든 파일·퀴즈
     const outs = [];
