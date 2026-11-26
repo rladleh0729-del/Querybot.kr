@@ -1251,6 +1251,12 @@
     border-radius:999px;background:#d8312d;color:#fff!important;font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.18)}
   .qa-tmp-dl:hover{background:#b9221f}
   @media (max-width:860px){.qa-tmp-dl{top:60px}}
+  /* 101차: 답 만드는 중 테두리 — 한 색으로 통일(모서리까지 같은 색) */
+  body.qa-page .qa-form.busy::after{display:none}
+  html:not([data-theme=dark]) body.qa-page .qa-form.busy{border-color:rgba(20,20,19,.45);animation:qa-busy-line 1.8s ease-in-out infinite}
+  html[data-theme=dark] body.qa-page .qa-form.busy{border-color:#71717a;animation:none}
+  @keyframes qa-busy-line{0%,100%{border-color:rgba(20,20,19,.45)}50%{border-color:rgba(20,20,19,.18)}}
+  @media (prefers-reduced-motion:reduce){html:not([data-theme=dark]) body.qa-page .qa-form.busy{animation:none}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
