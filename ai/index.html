@@ -1321,6 +1321,39 @@
   /* 108차: 수식이 흩어지던 문제(분수가 한 줄 위로 뜨고 지수 2가 앞으로 떨어짐, 2026-11-26 사용자 화면) — KaTeX가 .base 폭을 min-content로 잡는데
      이 페이지 글 설정이 물려 내려가 그 폭이 좁아지며 수식 안에서 줄이 바뀜 → 폭을 auto로(katex.min.css가 뒤에 읽혀서 !important) */
   .katex .base { width: auto !important; }
+  /* ===== 110차: 답 속 카드 한 가지 규칙(밝은 테마) ===== */
+  html:not([data-theme=dark]) body.qa-page{--card-bg:#fff;--card-line:rgba(20,20,19,.1);--card-shadow:0 1px 2px rgba(0,0,0,.03),0 4px 14px rgba(0,0,0,.035);--card-soft:#faf9f6;--card-soft2:#f4f3ef}
+  html[data-theme=dark] body.qa-page{--card-bg:#1d1e21;--card-line:#33353a;--card-shadow:none;--card-soft:#222327;--card-soft2:#26272b}
+  body.qa-page .text .file-card,body.qa-page .text .quiz-card,body.qa-page .kb-img,body.qa-page .text .code,body.qa-page .text .md-table{
+    background:var(--card-bg)!important;border:1px solid var(--card-line)!important;border-radius:20px!important;box-shadow:var(--card-shadow)!important}
+  body.qa-page .text .file-card,body.qa-page .text .quiz-card,body.qa-page .text .code,body.qa-page .text .md-table{margin:.9em 0}
+  body.qa-page .text .file-card:not(.open),body.qa-page .text .quiz-card,body.qa-page .kb-img{width:min(100%,560px);max-width:560px}
+  body.qa-page .kb-img{padding:10px;margin:2px 0 14px}
+  /* 코드 상자: 머리 줄은 옅은 돌색, 본문은 흰 바탕 */
+  body.qa-page .text .code-head{background:var(--card-soft)!important;color:#5c5b57;border-bottom:1px solid var(--card-line);padding:7px 8px 7px 16px}
+  html[data-theme=dark] body.qa-page .text .code-head{color:#a1a1aa}
+  body.qa-page .text .code-head button{border:1px solid var(--card-line);background:var(--card-bg);color:inherit}
+  html:not([data-theme=dark]) body.qa-page .text .code code{color:#1d1e21}
+  /* 표: 머리 줄 옅은 돌색, 줄 선 옅게 */
+  body.qa-page .text .md-table th{background:var(--card-soft)!important}
+  body.qa-page .text .md-table th,body.qa-page .text .md-table td{border-color:var(--card-line)!important}
+  /* 퀴즈: 머리 글·보기 알약·번호 동그라미 */
+  body.qa-page .text .quiz-card{padding:16px 16px 14px}
+  body.qa-page .text .quiz-q{font-weight:600;margin:0 0 12px}
+  body.qa-page .text .quiz-choices{gap:8px}
+  body.qa-page .text .quiz-opt{min-height:44px;padding:6px 16px 6px 7px;border:1px solid var(--card-line);background:var(--card-bg);transition:border-color .15s,background .15s,transform .1s}
+  body.qa-page .text .quiz-opt:hover{border-color:rgba(20,20,19,.28);background:var(--card-soft)}
+  html[data-theme=dark] body.qa-page .text .quiz-opt:hover{border-color:#52525b}
+  body.qa-page .text .quiz-opt:active{transform:scale(.99)}
+  body.qa-page .text .quiz-n{width:30px;height:30px;background:var(--card-soft2);color:#41454b;font-size:13.5px}
+  html[data-theme=dark] body.qa-page .text .quiz-n{color:#d4d4d8}
+  body.qa-page .text .quiz-t .katex{font-size:1.25em}
+  body.qa-page .text .quiz-in{border-color:var(--card-line);background:var(--card-bg)}
+  /* 같은 답에 문제 그림이 있으면(학교 기출): 보기 글은 그림에 있으니 번호 동그라미만 한 줄로 */
+  body.qa-page .turn-body:has(.kb-img) .quiz-choices{flex-direction:row;flex-wrap:wrap;gap:10px}
+  body.qa-page .turn-body:has(.kb-img) .quiz-opt{width:auto;min-height:0;padding:5px;border-radius:50%}
+  body.qa-page .turn-body:has(.kb-img) .quiz-opt .quiz-t{display:none}
+  body.qa-page .turn-body:has(.kb-img) .quiz-n{width:38px;height:38px;font-size:15px}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
