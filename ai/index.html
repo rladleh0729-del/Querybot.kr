@@ -1257,6 +1257,57 @@
   html[data-theme=dark] body.qa-page .qa-form.busy{border-color:#71717a;animation:none}
   @keyframes qa-busy-line{0%,100%{border-color:rgba(20,20,19,.45)}50%{border-color:rgba(20,20,19,.18)}}
   @media (prefers-reduced-motion:reduce){html:not([data-theme=dark]) body.qa-page .qa-form.busy{animation:none}}
+  /* 105차: 파일 알약 고도화 + 오른쪽 보기 창 */
+  .text .file-card:not(.open){max-width:none;width:min(100%,460px)}
+  .text .file-head{gap:4px;min-height:58px;padding:9px 8px 9px 10px}
+  .text .file-badge,.qv-badge{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.02em;font-family:inherit}
+  .text .file-t{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:8px;line-height:1.3}
+  .text .file-t .file-name{flex:none}
+  .text .file-meta{font-size:12px;color:#8e8d87;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .text .file-card.open .file-lang{display:none}
+  .text .file-card.open .file-body pre{padding-top:4px}
+  html:not([data-theme=dark]) body.qa-page .text .file-card{background:#fff;border:1px solid rgba(20,20,19,.1);box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  html:not([data-theme=dark]) body.qa-page .text .file-head:hover{background:#faf9f6}
+  .text .file-card.on{border-color:rgba(20,20,19,.4)!important}
+  html[data-theme=dark] .text .file-card.on{border-color:#a1a1aa!important}
+  .qa-viewer{position:fixed;top:0;right:0;bottom:0;z-index:60;width:clamp(420px,46vw,760px);display:flex;flex-direction:column;background:#fff;
+    border-left:1px solid rgba(20,20,19,.1);box-shadow:-14px 0 40px rgba(0,0,0,.06);transform:translateX(102%);visibility:hidden;
+    transition:transform .28s cubic-bezier(.2,.8,.2,1),visibility 0s linear .28s}
+  body.qa-viewing .qa-viewer{transform:none;visibility:visible;transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+  .qa-app{transition:padding-right .28s cubic-bezier(.2,.8,.2,1)}
+  @media (min-width:861px){body.qa-viewing .qa-app{padding-right:clamp(420px,46vw,760px)}body.qa-viewing .qa-aside{display:none}}
+  @media (max-width:860px){.qa-viewer{width:100%;border-left:0;box-shadow:none}}
+  .qv-head{flex:none;display:flex;align-items:center;gap:6px;min-height:66px;padding:0 10px 0 14px;border-bottom:1px solid rgba(20,20,19,.08);background:#faf9f6}
+  .qv-t{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:6px;line-height:1.3}
+  .qv-name{font-size:15px;font-weight:700;color:#141413;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .qv-meta{font-size:12.5px;color:#8e8d87;margin-top:2px}
+  .qv-tabs{flex:none;display:flex;padding:3px;border-radius:999px;background:#efece6;margin-right:4px}
+  .qv-tabs[hidden]{display:none}
+  .qv-tabs button{height:30px;padding:0 13px;border:0;border-radius:999px;background:none;color:#5c5b57;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .qv-tabs button.on{background:#fff;color:#141413;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .qv-ib{flex:none;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:none;color:#5c5b57;display:grid;place-items:center;cursor:pointer}
+  .qv-ib:hover{background:rgba(20,20,19,.06);color:#141413}
+  .qv-ib svg{display:block;width:18px;height:18px}
+  .qv-body{flex:1;min-height:0;position:relative}
+  .qv-code{position:absolute;top:0;left:0;right:0;bottom:0;overflow:auto;display:flex;align-items:flex-start}
+  .qv-code[hidden]{display:none}
+  .qv-ln,.qv-src{margin:0;font-family:ui-monospace,SFMono-Regular,Consolas,"D2Coding",monospace;font-size:13px;line-height:1.65;white-space:pre;background:none;border:0;border-radius:0}
+  .qv-ln{position:sticky;left:0;flex:none;padding:16px 12px 28px 16px;text-align:right;color:#b4b2ac;background:#fff;user-select:none;-webkit-user-select:none;min-height:100%;box-sizing:border-box}
+  .qv-src{flex:1;min-width:0;padding:16px 24px 28px 8px}
+  .qv-code code{display:block;font:inherit;color:#1d1e21;background:none;padding:0;border:0;white-space:pre}
+  .qv-frame{position:absolute;top:0;left:0;width:100%;height:100%;border:0;background:#fff}
+  .qv-frame[hidden]{display:none}
+  html[data-theme=dark] .qa-viewer{background:#17181b;border-left-color:#2a2b2f;box-shadow:-14px 0 40px rgba(0,0,0,.4)}
+  html[data-theme=dark] .qv-head{background:#1d1e21;border-bottom-color:#2a2b2f}
+  html[data-theme=dark] .qv-name{color:#f1f1f3}
+  html[data-theme=dark] .qv-tabs{background:#26272b}
+  html[data-theme=dark] .qv-tabs button{color:#a1a1aa}
+  html[data-theme=dark] .qv-tabs button.on{background:#3a3b40;color:#fff}
+  html[data-theme=dark] .qv-ib{color:#d4d4d8}
+  html[data-theme=dark] .qv-ib:hover{background:rgba(255,255,255,.08);color:#fff}
+  html[data-theme=dark] .qv-ln{background:#17181b;color:#52525b}
+  html[data-theme=dark] .qv-code code{color:#e4e4e7}
+  @media (prefers-reduced-motion:reduce){.qa-viewer,body.qa-viewing .qa-viewer,.qa-app{transition:none}}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
@@ -2762,6 +2813,8 @@
     done: fileIcon('<path d="m5 12 4 4L19 6"/>'),
     save: fileIcon('<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 15.5v2.5A2 2 0 0 0 6.5 20h11a2 2 0 0 0 2-2v-2.5"/>'),  // 사용자가 보내 준 그림: 상자로 들어가는 ↓
     code: fileIcon('<path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 4.5l-3 15"/>'),
+    view: fileIcon('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M14 4v16"/>'),
+    close: fileIcon('<path d="m6 6 12 12M18 6 6 18"/>'),
   };
   function fileName(raw) {
     let n = String(raw || "").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").replace(/^[\s.]+|\s+$/g, "").slice(0, 80);
@@ -2777,12 +2830,81 @@
     a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(u), 4000);
   }
+  // 105차: 오른쪽 보기 창 (사용자: '파일 옆에 보는 버튼도 넣고 그거 클릭하면 우측에 보게')
+  const FILE_TINT = { py: "#3572a5", js: "#b8860b", mjs: "#b8860b", cjs: "#b8860b", jsx: "#b8860b", ts: "#3178c6", tsx: "#3178c6", html: "#e34c26", htm: "#e34c26",
+    css: "#563d7c", json: "#4a4945", md: "#2f3135", csv: "#1e7b3c", tsv: "#1e7b3c", sql: "#b05f00", java: "#b07219", c: "#555a62", h: "#555a62", cpp: "#555a62",
+    cc: "#555a62", cs: "#178600", go: "#0089a8", rs: "#8b4513", sh: "#2f3135", bat: "#2f3135", ps1: "#2f3135", svg: "#e07b00", xml: "#0060ac", txt: "#8e8d87" };
+  const fileBadge = (ext) => { const b = el("span", "file-badge", (ext || "txt").slice(0, 4).toUpperCase()); b.style.background = FILE_TINT[ext] || "#6b6a66"; b.setAttribute("aria-hidden", "true"); return b; };
+  const fileMeta = (ext, code) => [FILE_LANG[ext] || (ext === "txt" ? "text" : ext.toUpperCase()), fileSize(code), code.split("\n").length.toLocaleString() + L("줄", " lines")].join(" · ");
+  let viewer = null, viewerCard = null;
+  function buildViewer() {
+    viewer = el("aside", "qa-viewer");
+    viewer.id = "viewer";
+    viewer.setAttribute("aria-label", L("파일 보기", "File viewer"));
+    const head = el("div", "qv-head"), t = el("div", "qv-t"), tabs = el("div", "qv-tabs");
+    t.append(el("b", "qv-name"), el("span", "qv-meta"));
+    [["code", L("코드", "Code")], ["view", L("미리보기", "Preview")]].forEach(([k, label]) => {
+      const b = el("button", k === "code" ? "on" : "", label);
+      b.type = "button"; b.dataset.t = k;
+      b.addEventListener("click", () => viewTab(k));
+      tabs.appendChild(b);
+    });
+    const ib = (ic, ko, en, fn) => { const b = el("button", "qv-ib"); b.type = "button"; b.innerHTML = ic; b.setAttribute("aria-label", L(ko, en)); b.addEventListener("click", () => fn(b)); return b; };
+    head.append(el("span", "qv-badge"), t, tabs,
+      ib(FILE_IC.copy, "복사", "Copy", async (b) => { try { await navigator.clipboard.writeText(viewer._code); b.innerHTML = FILE_IC.done; setTimeout(() => (b.innerHTML = FILE_IC.copy), 1500); } catch (e) {} }),
+      ib(FILE_IC.save, "받기", "Download", () => saveBlob(viewer._name, new Blob([fileData(viewer._name, viewer._code)], { type: (FILE_MIME[fileExt(viewer._name)] || "text/plain") + ";charset=utf-8" }))),
+      ib(FILE_IC.close, "닫기", "Close", closeViewer));
+    const body = el("div", "qv-body"), codeBox = el("div", "qv-code"), frame = document.createElement("iframe");
+    const ln = el("pre", "qv-ln"), pre = el("pre", "qv-src");
+    ln.setAttribute("aria-hidden", "true");
+    pre.appendChild(el("code"));
+    codeBox.append(ln, pre);
+    frame.className = "qv-frame"; frame.setAttribute("sandbox", "allow-scripts"); frame.setAttribute("title", L("미리보기", "Preview")); frame.hidden = true;
+    body.append(codeBox, frame);
+    viewer.append(head, body);
+    document.querySelector(".qa-app").appendChild(viewer);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("qa-viewing")) closeViewer(); });
+  }
+  function viewTab(k) {
+    viewer.querySelectorAll(".qv-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === k));
+    const frame = viewer.querySelector(".qv-frame");
+    viewer.querySelector(".qv-code").hidden = k === "view";
+    frame.hidden = k !== "view";
+    if (k === "view" && frame._for !== viewer._code) { frame.srcdoc = viewer._code; frame._for = viewer._code; }
+  }
+  function openViewer(name, code, card) {
+    if (!viewer) buildViewer();
+    const ext = fileExt(name), shown = code.length > 200000 ? code.slice(0, 200000) + "\n…" : code;
+    viewer._name = name; viewer._code = code;
+    const badge = fileBadge(ext);
+    viewer.querySelector(".qv-badge").replaceWith(Object.assign(badge, { className: "qv-badge" }));
+    viewer.querySelector(".qv-name").textContent = name;
+    viewer.querySelector(".qv-meta").textContent = fileMeta(ext, code);
+    viewer.querySelector(".qv-code code").textContent = shown;
+    const n = shown.split("\n").length;
+    let nums = ""; for (let i = 1; i <= n; i++) nums += i + "\n";
+    viewer.querySelector(".qv-ln").textContent = nums;
+    viewer.querySelector(".qv-tabs").hidden = !/^(html?|svg)$/.test(ext);
+    viewTab("code");
+    viewer.querySelector(".qv-code").scrollTop = 0;
+    if (viewerCard) viewerCard.classList.remove("on");
+    viewerCard = card || null;
+    if (viewerCard) viewerCard.classList.add("on");
+    document.body.classList.add("qa-viewing");
+  }
+  function closeViewer() {
+    document.body.classList.remove("qa-viewing");
+    if (viewerCard) viewerCard.classList.remove("on");
+    viewerCard = null;
+  }
   function fileCard(raw, code, closed) {
     const name = fileName(raw), ext = fileExt(name);
-    const box = el("div", "file-card"), head = el("div", "file-head");
-    head.appendChild(el("span", "file-name", name));
+    const box = el("div", "file-card"), head = el("div", "file-head"), tt = el("span", "file-t");
+    tt.appendChild(el("span", "file-name", name));
+    head.append(fileBadge(ext), tt);
     box.appendChild(head);
-    if (!closed) { head.appendChild(el("span", "file-wait", L("만드는 중…", "Writing…"))); return box; }
+    if (!closed) { tt.appendChild(el("span", "file-meta file-wait", L("만드는 중…", "Writing…"))); return box; }
+    tt.appendChild(el("span", "file-meta", fileMeta(ext, code)));  // 105차: 언어 · 용량 · 줄 수
     const btn = (ic, ko, en, fn) => {
       const b = el("button", "file-ib");
       b.type = "button"; b.innerHTML = ic; b.title = L(ko, en); b.setAttribute("aria-label", L(ko, en));
@@ -2790,6 +2912,7 @@
       return b;
     };
     head.append(
+      btn(FILE_IC.view, "보기", "View", () => openViewer(name, code, box)),
       btn(FILE_IC.copy, "복사", "Copy", async (b) => {
         try { await navigator.clipboard.writeText(code); b.innerHTML = FILE_IC.done; setTimeout(() => (b.innerHTML = FILE_IC.copy), 1500); } catch (e) {}
       }),
@@ -2812,8 +2935,9 @@
       box.animate([{ width: a.width + "px", height: a.height + "px" }, { width: b.width + "px", height: b.height + "px" }],
         { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
     };
-    head.addEventListener("click", () => flip(true));
-    head.addEventListener("keydown", (e) => { if (e.target === head && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); flip(true); } });
+    head.addEventListener("click", () => openViewer(name, code, box));  // 105차: 알약을 누르면 오른쪽 보기 창
+    head.addEventListener("keydown", (e) => { if (e.target === head && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openViewer(name, code, box); } });
+    box._view = () => openViewer(name, code, box);
     if (code.split("\n").length <= 15) flip(false);  // 82차: 짧은 코드(15줄 이하)는 처음부터 펼쳐서
     return box;
   }
@@ -4907,7 +5031,7 @@
         if (q) outs.push(asRow(asIcon("quiz"), oneLine(q.textContent, 60) || L("퀴즈", "Quiz"), "", () => asGo(c)));
       } else if (!c.querySelector(".file-wait")) {
         const n = c.querySelector(".file-name");
-        if (n) outs.push(asRow(asIcon("file"), n.textContent, "", () => asGo(c)));
+        if (n) outs.push(asRow(asIcon("file"), n.textContent, "", () => (c._view ? c._view() : asGo(c))));
       }
     });
     secs.push(asSection(L("결과물", "Outputs"), outs));
