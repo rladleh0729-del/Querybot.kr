@@ -2219,7 +2219,7 @@
   }
   function kbPut(body, m) {
     if (!m || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(m.src || "") || body.querySelector(".kb-img")) return;
-    const im = el("img", "kb-img"), txt = body.querySelector(".text");
+    const im = el("img", "kb-img" + (m.full ? " full" : "")), txt = body.querySelector(".text");  // 112차: 문항 전체 그림이면 full
     im.src = m.src; im.alt = String(m.alt || "문항 그림").slice(0, 80); im.decoding = "async";
     if (txt) body.insertBefore(im, txt); else body.appendChild(im);
   }
