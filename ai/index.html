@@ -1684,6 +1684,7 @@
 
   function newChat() {
     stopReading();
+    if (document.body.classList.contains("qa-viewing")) closeViewer();  // 109차
     cur = null;
     setUrlConv(null);
     const dm = store.get("defModel");  // 설정 > 일반 > 새 대화 기본 모델
@@ -1717,6 +1718,7 @@
     renderList();
     closeSide();
     toBottom(true);
+    restoreViewer();  // 109차: 새로고침해도 보기 창 그대로
   }
 
   // 한 번 주고받을 때마다 지금 대화에 저장 (첫 질문이 대화 제목)
@@ -2905,8 +2907,34 @@
     document.querySelector(".qa-app").appendChild(viewer);
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("qa-viewing")) closeViewer(); });
   }
+  const VIEW_KEY = "qbAi.view";  // 109차: 이 탭에서 열어 둔 보기 창 {c: 대화 id, n: 몇 번째 파일, t: code|view}
+  function saveView(patch) {
+    try {
+      const s = Object.assign(JSON.parse(sessionStorage.getItem(VIEW_KEY) || "{}") || {}, patch);
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify(s));
+    } catch (e) {}
+  }
+  function restoreViewer() {
+    let s = null;
+    try { s = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "null"); } catch (e) {}
+    const on = document.body.classList.contains("qa-viewing");
+    if (!s || !cur || s.c !== cur.id) { if (on) closeViewer(); return; }
+    const card = log.querySelectorAll(".file-card")[s.n];
+    if (!card || !card._view) { if (on) closeViewer(); return; }
+    if (on && viewer && viewer._name === (card.querySelector(".file-name") || {}).textContent) {  // 같은 대화를 다시 그림 → 새 알약에 켜짐 표시만 옮김
+      if (viewerCard && viewerCard !== card) { viewerCard.classList.remove("on"); viewerCard.querySelectorAll(".file-ib.view").forEach((b) => b.setAttribute("aria-pressed", "false")); }
+      viewerCard = card;
+      card.classList.add("on");
+      card.querySelectorAll(".file-ib.view").forEach((b) => b.setAttribute("aria-pressed", "true"));
+      return;
+    }
+    const t = s.t;
+    card._view();
+    if (t === "view" && !viewer.querySelector(".qv-tabs").hidden) viewTab("view");
+  }
   function viewTab(k) {
     viewer.querySelectorAll(".qv-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === k));
+    saveView({ t: k });
     const frame = viewer.querySelector(".qv-frame");
     viewer.querySelector(".qv-code").hidden = k === "view";
     frame.hidden = k !== "view";
@@ -2932,9 +2960,11 @@
     viewerCard = card || null;
     if (viewerCard) { viewerCard.classList.add("on"); viewerCard.querySelectorAll(".file-ib.view").forEach((b) => b.setAttribute("aria-pressed", "true")); }
     document.body.classList.add("qa-viewing");
+    saveView({ c: cur ? cur.id : null, n: card ? [...log.querySelectorAll(".file-card")].indexOf(card) : -1, t: "code" });  // 109차
   }
   function closeViewer() {
     document.body.classList.remove("qa-viewing");
+    try { sessionStorage.removeItem(VIEW_KEY); } catch (e) {}  // 109차
     if (viewerCard) { viewerCard.classList.remove("on"); viewerCard.querySelectorAll(".file-ib.view").forEach((b) => b.setAttribute("aria-pressed", "false")); }
     viewerCard = null;
   }
