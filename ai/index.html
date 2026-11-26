@@ -4993,12 +4993,16 @@
     });
   })();
 
-  showHello();  // 95차: 첫 그림 전에 첫 화면부터 (메인에서 넘어올 때 제목·로고가 겹쳐 보이지 않게)
+  // 95차: 첫 그림 전에 첫 화면부터 (메인에서 넘어올 때 제목·로고가 겹쳐 보이지 않게)
+  // 102차: 새로고침(주소에 ?c=대화)이면 첫 화면을 거치지 않고 그 대화를 바로 → 입력창이 가운데서 내려가는 움직임 없음
+  const bootConv = new URLSearchParams(location.search).get("c");
+  if (bootConv && convs.some((x) => x.id === bootConv)) openConv(bootConv);
+  else showHello();
   document.addEventListener("DOMContentLoaded", () => {
     gdLoad();
     setTimeout(drainFeedback, 1500);
     applyPlaceholder();
-    if (!log.querySelector(".qa-hello")) showHello();  // 95차: 위에서 이미 그렸으면 그대로
+    if (!cur && !log.querySelector(".qa-hello")) showHello();  // 95차: 위에서 이미 그렸으면 그대로, 102차: 대화를 이미 열었으면 첫 화면 안 그림
     renderList();
     paintFoot();
     paintMem();
