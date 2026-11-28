@@ -3185,9 +3185,41 @@
       ask(msg.slice(0, 300), [], { hidden: true });
     }, 700);
   }
+  // 120차: 쓰는 중인 ```quiz JSON에서 지금까지 나온 문제 글("q")과 보기("choices")를 꺼내 바로 그림 — 누르기는 다 쓴 뒤에
+  function quizPartial(raw) {
+    const box = el("div", "quiz-card writing");
+    const TEXCMD = /(?<!\\)\\(?=(?:d?frac|times|div|sqrt|cdot|cdots|ldots|dots|left|right|pm|mp|le|leq|ge|geq|neq|approx|infty|int|sum|prod|lim|log|ln|sin|cos|tan|alpha|beta|gamma|theta|pi|sigma|omega|text|mathrm|quad|binom|vec|overline|angle|triangle|circ|to|rightarrow|Rightarrow|cup|cap|in|subset)\b)/g;
+    const str = (x) => {  // JSON 문자열의 앞부분 → 글 (반쯤 쓴 역슬래시·\u 는 떼고 읽음)
+      x = x.replace(/\\u[0-9a-fA-F]{0,3}$/, "").replace(/\\$/, "");
+      try { return JSON.parse('"' + x.replace(TEXCMD, "\\\\") + '"'); } catch (e) {}
+      try { return JSON.parse('"' + x + '"'); } catch (e) {}
+      return x.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+    };
+    const cut = (x) => (typeof liveMathCut === "function" ? liveMathCut(x) : x);  // 아직 닫히지 않은 수식은 잠시 숨김(91차)
+    const mq = /"q"\s*:\s*"((?:[^"\\]|\\.)*)/.exec(raw);
+    if (!mq) return box;  // 문제 글이 아직 안 나옴 → 빈 카드(안내 문구 없이)
+    const q = el("div", "quiz-q");
+    renderRich(q, cut(str(mq[1])));
+    box.appendChild(q);
+    const mc = /"choices"\s*:\s*\[([\s\S]*)/.exec(raw);
+    if (mc) {
+      const list = el("div", "quiz-choices"), re = /"((?:[^"\\]|\\.)*)"?/g;
+      let m, i = 0;
+      while ((m = re.exec(mc[1])) && i < 10) {
+        if (/\]\s*[,}]/.test(mc[1].slice(0, m.index))) break;  // 보기 목록이 끝났으면 그만
+        const b = el("button", "quiz-opt"), tx = el("span", "quiz-t");
+        b.type = "button"; b.disabled = true;
+        renderRich(tx, cut(str(m[1])).replace(/^\s*(?:[①②③④⑤⑥⑦⑧⑨⑩]|\(?\d+[.)])\s*/, ""));
+        b.append(el("span", "quiz-n", String(++i)), tx);
+        list.appendChild(b);
+      }
+      if (i) box.appendChild(list);
+    }
+    return box;
+  }
   function quizCard(raw, closed) {
     const box = el("div", "quiz-card");
-    if (!closed) { box.appendChild(el("div", "quiz-wait", L("문제 만드는 중…", "Writing a question…"))); return box; }
+    if (!closed) return quizPartial(raw);  // 120차: 쓰는 동안에도 문제·보기를 바로(사용자: '문제 만드는 중이라 하지 말고')
     let d = null;
     // 93차: JSON 속 LaTeX 역슬래시(\frac가 폼피드, \times가 탭으로 읽힘)를 먼저 고침
     const fixed = raw.replace(/(?<!\\)\\(?=(?:d?frac|times|div|sqrt|cdot|cdots|ldots|dots|left|right|pm|mp|le|leq|ge|geq|neq|approx|infty|int|sum|prod|lim|log|ln|sin|cos|tan|alpha|beta|gamma|theta|pi|sigma|omega|text|mathrm|quad|binom|vec|overline|angle|triangle|circ|to|rightarrow|Rightarrow|cup|cap|in|subset)\b)/g, "\\\\");
